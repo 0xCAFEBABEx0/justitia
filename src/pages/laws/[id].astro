@@ -23,6 +23,8 @@ const source = typeof law.frontmatter.source === "string" ? law.frontmatter.sour
 const revisions = [...law.revisions].reverse(); // newest first
 const latest = law.revisions.filter((r) => r.branch === "main").at(-1);
 const anchor = `#law-${law.id}`;
+// The law and the laws most often amended together with it.
+const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => r.id)].join(",")}`;
 ---
 <Base title={law.title} description={`${law.title}（${law.num}）の条文と改正履歴`}>
   <div class="crumbs">
@@ -38,6 +40,7 @@ const anchor = `#law-${law.id}`;
     {law.abbrev && <span>略称：{law.abbrev}</span>}
     {latest && latest.kind === "amended" && <span>最終改正：{jpDate(latest.enforced)} 施行（{latest.amendmentLawNum}）</span>}
     {source && <a href={source}>e-Gov 法令検索</a>}
+    <a href={graphUrl}>改正のグラフ</a>
     <a href={`${SOURCE_REPO}/commits/main/${law.path}`}>Git の履歴</a>
   </div>
 

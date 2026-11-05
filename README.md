@@ -22,7 +22,7 @@ npm run fetch-houritsu   # houritsu を ./houritsu に clone（2回目以降は 
 npm run extract          # ./data に JSON を書き出す
 ```
 
-オプション（`--repo`, `--out`, `--main`, `--upcoming`, `--only`）の説明は `scripts/extract/index.ts` の先頭のコメントにあります。
+オプション（`--repo`, `--out`, `--main`, `--upcoming`, `--only`, `--related-only`）の説明は `scripts/extract/index.ts` の先頭のコメントにあります。
 `--only 140AC0000000045` のように法令 ID を渡すと、その法令だけを書き出します（動作確認用）。
 
 ### 出力（データ）
@@ -33,7 +33,7 @@ npm run extract          # ./data に JSON を書き出す
 | --- | --- |
 | `meta.json` | 生成日時、元にした houritsu のコミット、件数 |
 | `laws.json` | 全法令の一覧（現行・廃止・未施行のみ）。五十音順 |
-| `laws/<法令ID>.json` | 法令ごとの情報と改正履歴（古い順、未施行の改正は最後） |
+| `laws/<法令ID>.json` | 法令ごとの情報と改正履歴（古い順、未施行の改正は最後）、一緒に改正されることが多い法令 |
 | `amendments/<キー>.json` | 改正（houritsu の1コミット）ごとの情報と、変更された法令ごとの条単位の差分 |
 | `timeline/<年>.json` | 施行年ごとの改正一覧（施行日未定は `undetermined.json`） |
 
@@ -62,8 +62,8 @@ npm run extract          # ./data に JSON を書き出す
 
 - **サイト本体**（`https://anisotro.pics`）：`dist/` を Workers の静的アセットとして配信します。
   静的アセットへのリクエストは無料・無制限です。ファイル数は約 1 万で、無料枠の上限（2 万）に収まります。
-- **改正ごとの JSON**（`https://data.anisotro.pics`）：`data/amendments/` を R2 の公開バケットに置き、
-  独自ドメイン経由で Cloudflare のキャッシュを効かせて配信します。改正ページはこれをブラウザで読んで描画します。
+- **改正・法令ごとの JSON**（`https://data.anisotro.pics`）：`data/amendments/` と `data/laws/` を R2 の公開バケットに置き、
+  独自ドメイン経由で Cloudflare のキャッシュを効かせて配信します。改正ページとグラフはこれをブラウザで読んで描画します。
 
 ```sh
 npm run extract          # data/ を作る（上記）
@@ -87,3 +87,4 @@ npm run preview          # dist/ と data/ を http://localhost:4321/ で配信�
 | `/laws/<法令ID>/` | 条文（見出しごとにアンカー）、目次、改正履歴 |
 | `/amendment/?k=<改正キー>` | 改正で変わった条の新旧対照（改正後・改正前を並べて表示／インライン表示） |
 | `/timeline/`, `/timeline/<年>/` | 施行年ごとの改正一覧 |
+| `/graph/?laws=<ID>,<ID>,…` | 改正のグラフ。法令ごとに枝を立て、同じ改正法令で一緒に変わった法令を横線でつなぐ（git graph 風） |

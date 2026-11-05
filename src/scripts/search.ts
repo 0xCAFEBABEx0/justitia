@@ -52,7 +52,11 @@ function esc(s: string): string {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 }
 
-export function initSearch(root: HTMLElement): void {
+/**
+ * Wires a search box. By default choosing a result opens the law's page; with `onPick` the
+ * law is handed to the callback instead and the box is cleared.
+ */
+export function initSearch(root: HTMLElement, onPick?: (id: string, title: string) => void): void {
   const input = root.querySelector("input")!;
   const box = document.createElement("div");
   box.className = "search-results";
@@ -80,13 +84,30 @@ export function initSearch(root: HTMLElement): void {
       ? rows
           .map(
             (r) =>
-              `<a href="/laws/${r[0]}/">${esc(r[1])}<small>${esc(r[4])}${r[5] ? `・${STATUS[r[5]]}` : ""}</small></a>`,
+              `<a href="/laws/${r[0]}/" data-id="${r[0]}" data-title="${esc(r[1])}">${esc(r[1])}<small>${esc(r[4])}${r[5] ? `・${STATUS[r[5]]}` : ""}</small></a>`,
           )
           .join("")
       : `<div class="empty">見つかりませんでした</div>`;
     box.hidden = false;
     active = -1;
   };
+
+  const pick = (a: HTMLAnchorElement) => {
+    if (!onPick) {
+      location.href = a.href;
+      return;
+    }
+    onPick(a.dataset.id!, a.dataset.title!);
+    input.value = "";
+    box.hidden = true;
+  };
+  box.addEventListener("click", (e) => {
+    const a = (e.target as HTMLElement).closest("a");
+    if (a && onPick) {
+      e.preventDefault();
+      pick(a);
+    }
+  });
 
   input.addEventListener("focus", () => void loadIndex());
   input.addEventListener("input", () => void update());
@@ -99,7 +120,7 @@ export function initSearch(root: HTMLElement): void {
       setActive(active - 1);
     } else if (e.key === "Enter") {
       const target = links()[Math.max(active, 0)];
-      if (target) location.href = target.href;
+      if (target) pick(target);
     } else if (e.key === "Escape") {
       box.hidden = true;
     }

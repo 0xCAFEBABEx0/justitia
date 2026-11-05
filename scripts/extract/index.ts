@@ -9,14 +9,16 @@
 //   --upcoming <ref>   ref of promulgated, not yet enforced revisions (default: origin/upcoming;
 //                      skipped when missing)
 //   --only <ids>       comma-separated law IDs: only these laws are written (for quick checks)
+//   --related-only     recompute only the related laws in an existing output (no git access)
 
-import { mkdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { diffBlocks, splitBlocks, type Block } from "./blocks.ts";
 import { splitLawFile, str } from "./frontmatter.ts";
 import { BlobReader, listCommits, tryRevParse, type RawCommit } from "./git.ts";
 import { first, ISO_DATE, parseMessage } from "./message.ts";
+import { computeRelated } from "./related.ts";
 import type {
   Amendment,
   AmendmentSummary,
@@ -37,6 +39,7 @@ const { values: opts } = parseArgs({
     main: { type: "string" },
     upcoming: { type: "string" },
     only: { type: "string" },
+    "related-only": { type: "boolean" },
   },
 });
 
@@ -311,6 +314,7 @@ async function main(): Promise<void> {
   blobs.close();
 
   // Laws.
+  const related = computeRelated(summaries);
   const lawSummaries: LawSummary[] = [];
   for (const law of laws.values()) {
     const fm = law.frontmatter;
@@ -322,7 +326,7 @@ async function main(): Promise<void> {
     s.type = str(fm.law_type) ?? "";
     s.category = str(fm.category);
     s.status = !law.seenOnMain ? "upcoming_only" : law.deletedOnMain ? "repealed" : "in_force";
-    const detail: LawDetail = { ...s, frontmatter: fm, revisions: law.revisions };
+    const detail: LawDetail = { ...s, frontmatter: fm, related: related.get(s.id) ?? [], revisions: law.revisions };
     await writeJson(join(outDir, "laws", `${s.id}.json`), detail);
     lawSummaries.push(s);
   }
@@ -363,7 +367,25 @@ async function main(): Promise<void> {
   console.log(`done in ${((Date.now() - started) / 1000).toFixed(0)}s:`, meta.counts);
 }
 
-main().catch((err) => {
+/** --related-only: rewrite laws/<id>.json with related laws computed from timeline/*.json. */
+async function relatedOnly(): Promise<void> {
+  const summaries: AmendmentSummary[] = [];
+  for (const f of await readdir(join(outDir, "timeline"))) {
+    summaries.push(...(JSON.parse(await readFile(join(outDir, "timeline", f), "utf8")) as AmendmentSummary[]));
+  }
+  const related = computeRelated(summaries);
+  let n = 0;
+  for (const f of await readdir(join(outDir, "laws"))) {
+    const path = join(outDir, "laws", f);
+    const detail = JSON.parse(await readFile(path, "utf8")) as LawDetail;
+    const { revisions, ...rest } = detail;
+    await writeJson(path, { ...rest, related: related.get(detail.id) ?? [], revisions });
+    n++;
+  }
+  console.log(`related laws written for ${n} laws`);
+}
+
+(opts["related-only"] ? relatedOnly() : main()).catch((err) => {
   console.error(err);
   process.exit(1);
 });

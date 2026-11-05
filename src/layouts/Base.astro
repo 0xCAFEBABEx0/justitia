@@ -5,7 +5,7 @@ import { SITE_NAME, SOURCE_REPO } from "../lib/site.ts";
 interface Props {
   title?: string;
   description?: string;
-  nav?: "laws" | "timeline" | "about";
+  nav?: "laws" | "timeline" | "graph" | "about";
   narrow?: boolean;
 }
 const { title, description, nav, narrow = false } = Astro.props;
@@ -28,6 +28,7 @@ const desc = description ?? "日本の法令の条文と、いつ・どう改正
         <nav class="site-nav">
           <a href="/browse/" aria-current={nav === "laws" ? "page" : undefined}>法令一覧</a>
           <a href="/timeline/" aria-current={nav === "timeline" ? "page" : undefined}>改正の年表</a>
+          <a href="/graph/" aria-current={nav === "graph" ? "page" : undefined}>改正のグラフ</a>
           <a href="/about/" aria-current={nav === "about" ? "page" : undefined}>このサイトについて</a>
         </nav>
         <div class="header-search search" data-search>
@@ -48,7 +49,7 @@ const desc = description ?? "日本の法令の条文と、いつ・どう改正
     </footer>
     <script>
       import { initSearch } from "../scripts/search.ts";
-      document.querySelectorAll<HTMLElement>("[data-search]").forEach(initSearch);
+      document.querySelectorAll<HTMLElement>("[data-search]").forEach((el) => initSearch(el));
     </script>
   </body>
 </html>

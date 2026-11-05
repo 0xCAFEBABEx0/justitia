@@ -74,8 +74,16 @@ export interface LawRevision {
   titleChange?: { from: string; to: string };
 }
 
+export interface RelatedLaw {
+  id: string;
+  title: string;
+  count: number; // amendments that changed both laws
+}
+
 export interface LawDetail extends LawSummary {
   frontmatter: Record<string, unknown>;
+  /** Laws most often changed by the same amending law (omnibus amendments are left out). */
+  related: RelatedLaw[];
   /** Oldest first. Upcoming revisions come after the ones in force. */
   revisions: LawRevision[];
 }
