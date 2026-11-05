@@ -98,6 +98,7 @@ export const OTHER_ROW = "他";
 
 export function kanaRow(l: LawSummary): string {
   const c = (l.kana ?? "").trim().charAt(0);
+  if (!c) return OTHER_ROW;
   // Katakana to hiragana.
   const h = c >= "ァ" && c <= "ヶ" ? String.fromCharCode(c.charCodeAt(0) - 0x60) : c;
   return KANA_ROWS.find((r) => r.chars.includes(h))?.row ?? OTHER_ROW;

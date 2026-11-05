@@ -3,10 +3,10 @@
   "version": "1.0.0",
   "description": "Japanese laws and their amendment history as a website, built from the houritsu git repository",
   "scripts": {
-    "fetch-houritsu": "git clone --no-single-branch https://github.com/Kohei-Wada/houritsu.git houritsu || git -C houritsu fetch --prune origin",
+    "fetch-houritsu": "git clone --no-single-branch https://github.com/Kohei-Wada/houritsu.git houritsu || git -C houritsu fetch --prune origin && git -C houritsu checkout -q --detach origin/main",
     "extract": "node scripts/extract/index.ts --repo houritsu --out data",
     "typecheck": "tsc -p .",
-    "test": "node --test 'scripts/**/*.test.ts'",
+    "test": "node --test 'scripts/**/*.test.ts' 'src/**/*.test.ts'",
     "dev": "astro dev",
     "build": "astro build",
     "preview": "node scripts/preview.ts"
