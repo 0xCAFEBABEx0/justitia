@@ -131,14 +131,14 @@ function checkSourceCommit(): void {
   const head = execFileSync("git", ["-C", HOURITSU_DIR, "rev-parse", "HEAD"], { encoding: "utf8" }).trim();
   if (head !== want) {
     throw new Error(
-      `houritsu の作業ツリー (${head}) が抽出時のコミット (${want}) と違います。` +
-        `\`git -C ${HOURITSU_DIR} checkout --detach ${want}\` を実行するか、抽出をやり直してください。`,
+      `The houritsu checkout (${head}) is not the commit the data was extracted from (${want}). ` +
+        `Run \`git -C ${HOURITSU_DIR} checkout --detach ${want}\` or extract again.`,
     );
   }
   try {
     execFileSync("git", ["-C", HOURITSU_DIR, "diff", "--quiet", "HEAD", "--", "laws"]);
   } catch {
-    throw new Error(`houritsu の作業ツリーの laws/ に未コミットの変更があります (${HOURITSU_DIR})。`);
+    throw new Error(`laws/ in the houritsu checkout has uncommitted changes (${HOURITSU_DIR}).`);
   }
   sourceChecked = true;
 }
