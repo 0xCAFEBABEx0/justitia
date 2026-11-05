@@ -1,0 +1,25 @@
+---
+import { jpDate, lawUrl, STATUS_LABELS, typeLabel, type LawSummary } from "../lib/data.ts";
+
+interface Props {
+  laws: LawSummary[];
+  showType?: boolean;
+}
+const { laws, showType = true } = Astro.props;
+---
+<ul class="list">
+  {
+    laws.map((l) => (
+      <li>
+        <a href={lawUrl(l.id)}>{l.title}</a>
+        {l.status !== "in_force" && <span class:list={["badge", l.status === "repealed" ? "repealed" : "upcoming"]}>{STATUS_LABELS[l.status]}</span>}
+        <div class="meta">
+          {showType && <>{typeLabel(l.dir)}・</>}
+          {l.num}
+          {l.revisionCount > 1 && <>・改正履歴 {l.revisionCount - 1} 件（最終 {jpDate(l.lastAmended)}）</>}
+          {l.upcomingCount > 0 && <>・未施行の改正 {l.upcomingCount} 件</>}
+        </div>
+      </li>
+    ))
+  }
+</ul>

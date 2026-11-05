@@ -1,0 +1,27 @@
+---
+import Base from "../../layouts/Base.astro";
+import AmendmentList from "../../components/AmendmentList.astro";
+import { timeline, timelineYears } from "../../lib/data.ts";
+
+export function getStaticPaths() {
+  return timelineYears().map((year) => ({ params: { year } }));
+}
+const { year } = Astro.params;
+const items = timeline(year);
+const years = timelineYears();
+const label = year === "undetermined" ? "施行日未定" : `${year}年`;
+const future = year === "undetermined" || year > new Date().getFullYear().toString();
+const heading = year === "undetermined" ? "施行日が未定の改正" : `${label}に${future ? "施行予定" : "施行"}の改正`;
+---
+<Base title={heading} nav="timeline">
+  <div class="crumbs"><a href="/timeline/">改正の年表</a></div>
+  <h1 class="page-title">{heading}</h1>
+  <p class="subtitle">{items.length.toLocaleString()} 件。日付は施行日です。</p>
+  <nav class="year-nav">
+    {years.filter((y) => y >= "2000").map((y) => (
+      <a href={`/timeline/${y}/`} aria-current={y === year ? "page" : undefined}>{y === "undetermined" ? "未定" : y}</a>
+    ))}
+    <a href="/timeline/">それ以前…</a>
+  </nav>
+  <AmendmentList items={items} />
+</Base>

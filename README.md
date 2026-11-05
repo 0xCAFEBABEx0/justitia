@@ -25,7 +25,7 @@ npm run extract          # ./data に JSON を書き出す
 オプション（`--repo`, `--out`, `--main`, `--upcoming`, `--only`）の説明は `scripts/extract/index.ts` の先頭のコメントにあります。
 `--only 140AC0000000045` のように法令 ID を渡すと、その法令だけを書き出します（動作確認用）。
 
-### 出力
+### 出力（データ）
 
 型は `scripts/extract/types.ts` にあります。
 
@@ -55,3 +55,35 @@ npm run extract          # ./data に JSON を書き出す
 - **制定と収録開始を区別する。** 法令が初めて現れるコミットのうち、改正法令がその法令自身のものは
   「制定」（`enacted`）、それ以外は houritsu が収録を始めた時点（`coverage_start`）です。
   houritsu の履歴は 2015 年ごろからなので、多くの法令は収録開始から始まります。
+
+## サイト
+
+[Astro](https://astro.build/) の静的サイトです。公開先は Cloudflare（無料枠）を想定しています。
+
+- **サイト本体**（`https://anisotro.pics`）：`dist/` を Workers の静的アセットとして配信します。
+  静的アセットへのリクエストは無料・無制限です。ファイル数は約 1 万で、無料枠の上限（2 万）に収まります。
+- **改正ごとの JSON**（`https://data.anisotro.pics`）：`data/amendments/` を R2 の公開バケットに置き、
+  独自ドメイン経由で Cloudflare のキャッシュを効かせて配信します。改正ページはこれをブラウザで読んで描画します。
+
+```sh
+npm run extract          # data/ を作る（上記）
+npm run build            # dist/ を作る（法令 9,400 件分の条文ページを含む）
+npm run preview          # dist/ と data/ を http://localhost:4321/ で配信して確認
+```
+
+| 環境変数 | 意味 | 既定値 |
+| --- | --- | --- |
+| `JUSTITIA_DATA` | 抽出結果のディレクトリ | `./data` |
+| `JUSTITIA_HOURITSU` | houritsu の clone（現行条文を読む） | `./houritsu` |
+| `PUBLIC_DATA_BASE` | ブラウザが改正 JSON を取りに行く URL | `/data`（本番は `https://data.anisotro.pics`） |
+| `JUSTITIA_ONLY_LAWS` | 条文ページを作る法令 ID をカンマ区切りで限定（動作確認用） | すべて |
+
+### ページ
+
+| URL | 内容 |
+| --- | --- |
+| `/` | 検索、最近施行された改正、これから施行される改正 |
+| `/browse/`, `/browse/kana/<行>/`, `/browse/type/<種別>/`, `/browse/category/<分野>/` | 法令一覧 |
+| `/laws/<法令ID>/` | 条文（見出しごとにアンカー）、目次、改正履歴 |
+| `/amendment/?k=<改正キー>` | 改正で変わった条の新旧対照（改正後・改正前を並べて表示／インライン表示） |
+| `/timeline/`, `/timeline/<年>/` | 施行年ごとの改正一覧 |

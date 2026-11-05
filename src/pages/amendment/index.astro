@@ -1,0 +1,14 @@
+---
+import Base from "../../layouts/Base.astro";
+import { DATA_BASE } from "../../lib/site.ts";
+---
+<Base title="改正" nav="timeline">
+  <div id="amendment" data-base={DATA_BASE}>
+    <p class="loading">読み込み中…</p>
+  </div>
+  <noscript>改正の内容を表示するには JavaScript を有効にしてください。</noscript>
+  <script>
+    import { renderAmendmentPage } from "../../scripts/amendment.ts";
+    void renderAmendmentPage(document.getElementById("amendment")!);
+  </script>
+</Base>

@@ -1,0 +1,24 @@
+---
+import Base from "../../layouts/Base.astro";
+import { timeline, timelineYears } from "../../lib/data.ts";
+
+const years = timelineYears().map((y) => ({ y, n: timeline(y).length }));
+const max = Math.max(...years.map((x) => x.n));
+const thisYear = new Date().getFullYear().toString();
+---
+<Base title="改正の年表" nav="timeline">
+  <h1 class="page-title">改正の年表</h1>
+  <p class="subtitle">
+    施行年ごとの改正の件数です。houritsu の履歴は e-Gov の改正データがそろう 2015 年ごろから増えるので、
+    それ以前の件数は少なく見えます（実際の改正数ではありません）。
+  </p>
+  <div class="card">
+    {years.map(({ y, n }) => (
+      <div style="display:grid;grid-template-columns:5em 1fr 4em;gap:8px;align-items:center;font-size:13px">
+        <a href={`/timeline/${y}/`}>{y === "undetermined" ? "未定" : y}{y === thisYear && "（今年）"}</a>
+        <div style={`height:10px;border-radius:3px;background:var(--accent);opacity:${y > thisYear ? 0.45 : 0.85};width:${Math.max(0.5, (n / max) * 100)}%`} />
+        <span class="note" style="text-align:right">{n.toLocaleString()}</span>
+      </div>
+    ))}
+  </div>
+</Base>
