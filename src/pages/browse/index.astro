@@ -1,0 +1,31 @@
+---
+import Base from "../../layouts/Base.astro";
+import BrowseTabs from "../../components/BrowseTabs.astro";
+import { laws, TYPE_LABELS, TYPE_ORDER } from "../../lib/data.ts";
+
+const all = laws();
+const inForce = all.filter((l) => l.status === "in_force");
+const byType = TYPE_ORDER.map((t) => ({ t, n: inForce.filter((l) => l.dir === t).length }));
+const categories = new Map<string, number>();
+for (const l of inForce) if (l.category) categories.set(l.category, (categories.get(l.category) ?? 0) + 1);
+const cats = [...categories].sort((a, b) => a[0].localeCompare(b[0], "ja"));
+---
+<Base title="法令一覧" nav="laws">
+  <h1 class="page-title">法令一覧</h1>
+  <p class="subtitle">現行 {inForce.length.toLocaleString()} 件、廃止 {all.filter((l) => l.status === "repealed").length.toLocaleString()} 件。五十音・種別・分野から探せます。</p>
+  <BrowseTabs mode="none" />
+
+  <h2>種別</h2>
+  <div class="grid">
+    {byType.map(({ t, n }) => (
+      <a class="card" href={`/browse/type/${t}/`}><b>{TYPE_LABELS[t]}</b><div class="note">{n.toLocaleString()} 件</div></a>
+    ))}
+  </div>
+
+  <h2 id="category">分野</h2>
+  <div class="grid">
+    {cats.map(([c, n]) => (
+      <a class="card" href={`/browse/category/${c}/`}><b>{c}</b><div class="note">{n.toLocaleString()} 件</div></a>
+    ))}
+  </div>
+</Base>

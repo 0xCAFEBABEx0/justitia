@@ -1,0 +1,38 @@
+---
+import { amendmentUrl, jpDate, KIND_LABELS, lawUrl, type AmendmentSummary } from "../lib/data.ts";
+
+interface Props {
+  items: AmendmentSummary[];
+  groupByDate?: boolean;
+}
+const { items, groupByDate = true } = Astro.props;
+const groups: [string, AmendmentSummary[]][] = [];
+for (const a of items) {
+  const d = a.enforced ?? "";
+  const last = groups.at(-1);
+  if (groupByDate && last && last[0] === d) last[1].push(a);
+  else groups.push([d, [a]]);
+}
+---
+{groups.map(([date, list]) => (
+  <section>
+    {groupByDate && <h3 style="font-size:15px;margin:20px 0 4px">{date ? jpDate(date) : "施行日未定"}</h3>}
+    <ul class="list">
+      {list.map((a) => (
+        <li>
+          {!groupByDate && <span class="note">{jpDate(a.enforced)}　</span>}
+          <a href={amendmentUrl(a.key)}>{a.title}</a>
+          {a.branch === "upcoming" && <span class="badge upcoming">施行予定</span>}
+          <div class="meta">
+            {a.amendmentLawNum}・
+            {a.laws.slice(0, 4).map((l, i) => (
+              <>{i > 0 && "、"}<a href={lawUrl(l.id)} style="color:inherit">{l.title}</a>{l.kind !== "amended" && `（${KIND_LABELS[l.kind]}）`}</>
+            ))}
+            {a.laws.length > 4 && <>ほか {a.laws.length - 4} 法令</>}
+            {a.additions + a.deletions > 0 && <> <span class="plus">+{a.additions}</span> <span class="minus">−{a.deletions}</span></>}
+          </div>
+        </li>
+      ))}
+    </ul>
+  </section>
+))}

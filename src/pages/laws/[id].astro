@@ -1,0 +1,99 @@
+---
+import Base from "../../layouts/Base.astro";
+import {
+  amendmentUrl,
+  jpDate,
+  KIND_LABELS,
+  law as loadLaw,
+  pageLaws,
+  STATUS_LABELS,
+  typeLabel,
+} from "../../lib/data.ts";
+import { renderLawFile, renderInline } from "../../lib/lawtext.ts";
+import { SOURCE_REPO } from "../../lib/site.ts";
+
+export function getStaticPaths() {
+  return pageLaws().map((l) => ({ params: { id: l.id } }));
+}
+
+const { id } = Astro.params;
+const law = loadLaw(id);
+const rendered = law.status === "repealed" ? null : renderLawFile(law.path);
+const source = typeof law.frontmatter.source === "string" ? law.frontmatter.source : null;
+const revisions = [...law.revisions].reverse(); // newest first
+const latest = law.revisions.filter((r) => r.branch === "main").at(-1);
+const anchor = `#law-${law.id}`;
+// The law and the laws most often amended together with it.
+const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => r.id)].join(",")}`;
+---
+<Base title={law.title} description={`${law.title}（${law.num}）の条文と改正履歴`}>
+  <div class="crumbs">
+    <a href="/browse/">法令一覧</a> / <a href={`/browse/type/${law.dir}/`}>{typeLabel(law.dir)}</a>
+    {law.category && <> / <a href={`/browse/category/${law.category}/`}>{law.category}</a></>}
+  </div>
+  <h1 class="page-title">
+    {law.title}
+    {law.status !== "in_force" && <span class:list={["badge", law.status === "repealed" ? "repealed" : "upcoming"]}>{STATUS_LABELS[law.status]}</span>}
+  </h1>
+  <div class="law-meta">
+    <span>{law.num}</span>
+    {law.abbrev && <span>略称：{law.abbrev}</span>}
+    {latest && latest.kind === "amended" && <span>最終改正：{jpDate(latest.enforced)} 施行（{latest.amendmentLawNum}）</span>}
+    {source && <a href={source}>e-Gov 法令検索</a>}
+    <a href={graphUrl}>改正のグラフ</a>
+    <a href={`${SOURCE_REPO}/commits/main/${law.path}`}>Git の履歴</a>
+  </div>
+
+  <div class="law-layout">
+    <article class="law-text">
+      {rendered ? (
+        <Fragment set:html={rendered.html} />
+      ) : law.status === "repealed" ? (
+        <p class="note">この法令は廃止されています。廃止までの改正履歴を右に表示しています。</p>
+      ) : (
+        <p class="note">この法令はまだ施行されていません。施行予定の改正を右に表示しています。</p>
+      )}
+    </article>
+
+    <aside class="law-side">
+      <section class="card">
+        <h2>改正履歴（{revisions.length} 件）</h2>
+        <ol class="history">
+          {revisions.map((r) => (
+            <li class:list={{ upcoming: r.branch === "upcoming" }}>
+              <div class="date">
+                {r.enforced ? jpDate(r.enforced) : "施行日未定"}
+                {r.branch === "upcoming" ? <span class="badge upcoming">施行予定</span> : <span class:list={["badge", r.kind]}>{KIND_LABELS[r.kind]}</span>}
+              </div>
+              <div class="what">
+                <a href={amendmentUrl(r.amendment) + anchor}>{r.amendmentTitle}</a>
+                <span class="note">（{r.amendmentLawNum}）</span>
+              </div>
+              {r.titleChange && <div class="changed">題名を「{r.titleChange.from}」から変更</div>}
+              {r.changedCount > 0 && (
+                <div class="changed">
+                  {r.changed.slice(0, 6).map((c, i) => <>{i > 0 && "・"}<span set:html={renderInline(c.heading)} /></>)}
+                  {r.changedCount > 6 && <>ほか {r.changedCount - 6} 件</>}
+                </div>
+              )}
+              {r.kind === "amended" && (
+                <div class="lines"><span class="plus">+{r.additions}</span> <span class="minus">−{r.deletions}</span></div>
+              )}
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {rendered && rendered.toc.length > 0 && (
+        <details class="card" open={rendered.toc.length <= 60} style="margin-top:16px">
+          <summary><b>目次</b>（条文 {rendered.articleCount.toLocaleString()} 条）</summary>
+          <ul class="toc">
+            {rendered.toc.map((t) => (
+              <li class={`l${t.level}`}><a href={`#${encodeURIComponent(t.id)}`} set:html={t.html} /></li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </aside>
+  </div>
+</Base>

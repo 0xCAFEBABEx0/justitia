@@ -1,0 +1,35 @@
+---
+import Base from "../layouts/Base.astro";
+import { jpDate, meta } from "../lib/data.ts";
+import { SOURCE_REPO } from "../lib/site.ts";
+
+const m = meta();
+---
+<Base title="このサイトについて" nav="about" narrow>
+  <h1 class="page-title">このサイトについて</h1>
+  <p>
+    justitia は、日本の法令の条文と改正の履歴を見るためのサイトです。法令を Git で管理している
+    <a href={SOURCE_REPO}>houritsu</a> リポジトリから毎日生成しています。houritsu では、1つの改正法令の施行が1つのコミットになっています。
+  </p>
+  <h2>見られるもの</h2>
+  <ul>
+    <li><b>条文</b>：現行の条文と目次。条ごとにリンクできます。</li>
+    <li><b>法令ごとの改正履歴</b>：いつ、どの改正法令で、どの条が変わったか。</li>
+    <li><b>改正ごとの新旧対照</b>：1つの改正で変わった条を、改正後と改正前を並べて、変わった部分に印を付けて表示します。</li>
+    <li><b>改正の年表</b>：施行日ごとの改正の一覧。公布済みで施行前の改正も含みます。</li>
+  </ul>
+  <h2>注意</h2>
+  <ul>
+    <li>このサイトは非公式です。正式な法令の内容は <a href="https://laws.e-gov.go.jp/">e-Gov 法令検索</a> で確認してください。</li>
+    <li>
+      改正履歴は e-Gov の改正データがそろう 2015 年ごろからです。法令の最初の履歴は、制定ではなく
+      houritsu に「収録開始」した時点であることが多く、それ以前の改正は含まれません。
+    </li>
+    <li>新旧対照は、条文を見出し（編・章・節・条・附則など）ごとに比べたものです。官報に載る新旧対照表とは表し方が異なります。</li>
+  </ul>
+  <h2>データ</h2>
+  <p class="note">
+    最終更新：{jpDate(m.generatedAt.slice(0, 10))}・houritsu の
+    <a href={`${SOURCE_REPO}/commit/${m.source.mainCommit}`}>{m.source.mainCommit.slice(0, 9)}</a> 時点
+  </p>
+</Base>

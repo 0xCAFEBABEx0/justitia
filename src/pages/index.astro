@@ -1,0 +1,61 @@
+---
+import Base from "../layouts/Base.astro";
+import AmendmentList from "../components/AmendmentList.astro";
+import BrowseTabs from "../components/BrowseTabs.astro";
+import { jpDate, meta, timeline, timelineYears, type AmendmentSummary } from "../lib/data.ts";
+
+const m = meta();
+const today = m.generatedAt.slice(0, 10);
+const thisYear = Number(today.slice(0, 4));
+// The latest enforced amendments come from this year and last year; the next upcoming ones
+// from this year and the next two.
+const pool = (from: number, to: number): AmendmentSummary[] =>
+  timelineYears()
+    .filter((y) => y !== "undetermined" && Number(y) >= from && Number(y) <= to)
+    .flatMap((y) => timeline(y));
+const recent = pool(thisYear - 1, thisYear)
+  .filter((a) => a.branch === "main" && a.enforced && a.enforced <= today)
+  .sort((a, b) => b.enforced!.localeCompare(a.enforced!))
+  .slice(0, 15);
+const upcoming = pool(thisYear, thisYear + 2)
+  .filter((a) => a.branch === "upcoming" && a.enforced && a.enforced > today)
+  .sort((a, b) => a.enforced!.localeCompare(b.enforced!))
+  .slice(0, 10);
+---
+<Base>
+  <section style="margin:12px 0 28px">
+    <h1 class="page-title" style="font-size:32px">法令と、その改正の履歴</h1>
+    <p class="subtitle" style="font-size:15px;max-width:46em">
+      日本の法令 {m.counts.lawsInForce.toLocaleString()} 件の条文と、{m.counts.amendments.toLocaleString()} 件の改正を、
+      「いつ・どこが・どう変わったか」が分かる新旧対照の形で見られます。
+    </p>
+    <div class="search" data-search style="position:relative;max-width:560px">
+      <input type="search" placeholder="法令名・略称・法令番号で検索（例：民法、個人情報保護法）" aria-label="法令を検索" autocomplete="off" />
+    </div>
+  </section>
+
+  <BrowseTabs mode="none" />
+
+  <div class="law-layout" style="margin-top:24px">
+    <section>
+      <h2 style="font-size:20px">最近施行された改正</h2>
+      <AmendmentList items={recent} />
+      <p><a href={`/timeline/${today.slice(0, 4)}/`}>{today.slice(0, 4)}年の改正をすべて見る →</a></p>
+    </section>
+    <aside>
+      <section class="card">
+        <h2 style="font-size:16px;margin-top:0">これから施行される改正</h2>
+        <AmendmentList items={upcoming} groupByDate={false} />
+        <p class="note">公布済みで施行前の改正です（{m.counts.upcomingAmendments.toLocaleString()} 件）。</p>
+      </section>
+      <section class="card" style="margin-top:16px">
+        <div class="stats">
+          <div class="stat"><b>{m.counts.lawsInForce.toLocaleString()}</b><span>現行の法令</span></div>
+          <div class="stat"><b>{m.counts.lawsRepealed.toLocaleString()}</b><span>廃止された法令</span></div>
+          <div class="stat"><b>{m.counts.amendments.toLocaleString()}</b><span>改正</span></div>
+        </div>
+        <p class="note" style="margin:0">データ更新：{jpDate(today)}</p>
+      </section>
+    </aside>
+  </div>
+</Base>

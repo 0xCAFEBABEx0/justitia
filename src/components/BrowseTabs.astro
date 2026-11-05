@@ -1,0 +1,17 @@
+---
+import { KANA_ROWS, OTHER_ROW, TYPE_LABELS, TYPE_ORDER } from "../lib/data.ts";
+
+interface Props {
+  mode: "kana" | "type" | "category" | "none";
+  current?: string;
+}
+const { mode, current } = Astro.props;
+const kanaRows = [...KANA_ROWS.map((r) => r.row), OTHER_ROW];
+---
+<div class="tabs" aria-label="五十音">
+  {kanaRows.map((r) => <a href={`/browse/kana/${r}/`} aria-current={mode === "kana" && current === r ? "page" : undefined}>{r}</a>)}
+</div>
+<div class="tabs" aria-label="種別">
+  {TYPE_ORDER.map((t) => <a href={`/browse/type/${t}/`} aria-current={mode === "type" && current === t ? "page" : undefined}>{TYPE_LABELS[t]}</a>)}
+  <a href="/browse/#category" aria-current={mode === "category" ? "page" : undefined}>分野別</a>
+</div>

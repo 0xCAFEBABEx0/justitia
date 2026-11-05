@@ -1,0 +1,55 @@
+---
+import "../styles/site.css";
+import { SITE_NAME, SOURCE_REPO } from "../lib/site.ts";
+
+interface Props {
+  title?: string;
+  description?: string;
+  nav?: "laws" | "timeline" | "graph" | "about";
+  narrow?: boolean;
+}
+const { title, description, nav, narrow = false } = Astro.props;
+const fullTitle = title ? `${title} | ${SITE_NAME}` : `${SITE_NAME} — 法令とその改正履歴`;
+const desc = description ?? "日本の法令の条文と、いつ・どう改正されたかを、改正ごとの差分で見られるサイトです。";
+---
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{fullTitle}</title>
+    <meta name="description" content={desc} />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="wrap">
+        <a class="logo" href="/">justi<span>tia</span></a>
+        <nav class="site-nav">
+          <a href="/browse/" aria-current={nav === "laws" ? "page" : undefined}>法令一覧</a>
+          <a href="/timeline/" aria-current={nav === "timeline" ? "page" : undefined}>改正の年表</a>
+          <a href="/graph/" aria-current={nav === "graph" ? "page" : undefined}>改正のグラフ</a>
+          <a href="/about/" aria-current={nav === "about" ? "page" : undefined}>このサイトについて</a>
+        </nav>
+        <div class="header-search search" data-search>
+          <input type="search" placeholder="法令名で検索" aria-label="法令名で検索" autocomplete="off" />
+        </div>
+      </div>
+    </header>
+    <main>
+      <div class:list={["wrap", { narrow }]}>
+        <slot />
+      </div>
+    </main>
+    <footer class="site-footer">
+      <div class="wrap">
+        条文と改正履歴は <a href={SOURCE_REPO}>houritsu</a>（e-Gov 法令データを Git の履歴にしたもの）から生成しています。
+        正式な法令の内容は <a href="https://laws.e-gov.go.jp/">e-Gov 法令検索</a> で確認してください。
+      </div>
+    </footer>
+    <script>
+      import { initSearch } from "../scripts/search.ts";
+      document.querySelectorAll<HTMLElement>("[data-search]").forEach((el) => initSearch(el));
+    </script>
+  </body>
+</html>
