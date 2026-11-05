@@ -1,0 +1,32 @@
+{
+  "name": "justitia",
+  "version": "1.0.0",
+  "description": "Japanese laws and their amendment history as a website, built from the houritsu git repository",
+  "scripts": {
+    "fetch-houritsu": "git clone --no-single-branch https://github.com/Kohei-Wada/houritsu.git houritsu || git -C houritsu fetch --prune origin",
+    "extract": "node scripts/extract/index.ts --repo houritsu --out data",
+    "typecheck": "tsc -p .",
+    "test": "node --test 'scripts/**/*.test.ts'"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/0xCAFEBABEx0/justitia.git"
+  },
+  "bugs": {
+    "url": "https://github.com/0xCAFEBABEx0/justitia/issues"
+  },
+  "homepage": "https://github.com/0xCAFEBABEx0/justitia#readme",
+  "dependencies": {
+    "diff": "^9.0.0",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "typescript": "^7.0.2"
+  },
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.18"
+  }
+}

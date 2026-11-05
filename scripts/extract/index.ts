@@ -1,0 +1,330 @@
+// Reads the git history of a houritsu clone and writes the JSON the site is built from.
+//
+//   node scripts/extract/index.ts --repo ../houritsu --out data
+//
+// Options:
+//   --repo <dir>       houritsu clone (default: ./houritsu)
+//   --out <dir>        output directory (default: ./data)
+//   --main <ref>       ref of enforced revisions (default: origin/main, falling back to main)
+//   --upcoming <ref>   ref of promulgated, not yet enforced revisions (default: origin/upcoming;
+//                      skipped when missing)
+//   --only <ids>       comma-separated law IDs: only these laws are written (for quick checks)
+
+import { mkdir, rm, writeFile } from "node:fs/promises";
+import { basename, join, resolve } from "node:path";
+import { parseArgs } from "node:util";
+import { countLines, diffBlocks, splitBlocks } from "./blocks.ts";
+import { splitLawFile, str } from "./frontmatter.ts";
+import { BlobReader, listCommits, tryRevParse, type RawCommit } from "./git.ts";
+import { first, ISO_DATE, parseMessage } from "./message.ts";
+import type {
+  Amendment,
+  AmendmentSummary,
+  Branch,
+  FileChange,
+  LawDetail,
+  LawRevision,
+  LawSummary,
+  Meta,
+} from "./types.ts";
+
+const CHANGED_LIMIT = 30;
+
+const { values: opts } = parseArgs({
+  options: {
+    repo: { type: "string", default: "houritsu" },
+    out: { type: "string", default: "data" },
+    main: { type: "string" },
+    upcoming: { type: "string" },
+    only: { type: "string" },
+  },
+});
+
+const repo = resolve(opts.repo!);
+const outDir = resolve(opts.out!);
+const only = opts.only ? new Set(opts.only.split(",").map((s) => s.trim())) : null;
+
+async function pickRef(explicit: string | undefined, candidates: string[]): Promise<[string, string] | null> {
+  for (const ref of explicit ? [explicit] : candidates) {
+    const sha = await tryRevParse(repo, ref);
+    if (sha) return [ref, sha];
+  }
+  if (explicit) throw new Error(`ref not found: ${explicit}`);
+  return null;
+}
+
+interface LawState {
+  summary: LawSummary;
+  frontmatter: Record<string, unknown>;
+  revisions: LawRevision[];
+  deletedOnMain: boolean;
+  seenOnMain: boolean;
+}
+
+const laws = new Map<string, LawState>();
+const summaries: AmendmentSummary[] = [];
+const keyCount = new Map<string, number>();
+const blobs = new BlobReader(repo);
+
+function lawIdOf(path: string): string {
+  return basename(path, ".md");
+}
+
+function lineCount(text: string): number {
+  return text.replace(/\n+$/, "").split("\n").length;
+}
+
+function dirOf(path: string): string {
+  return path.split("/")[1] ?? "";
+}
+
+function amendmentKey(lawId: string, enforced: string | null): string {
+  const base = `${lawId}_${enforced ? enforced.replaceAll("-", "") : "undetermined"}`;
+  const n = (keyCount.get(base) ?? 0) + 1;
+  keyCount.set(base, n);
+  return n === 1 ? base : `${base}-${n}`;
+}
+
+async function writeJson(path: string, value: unknown): Promise<void> {
+  await writeFile(path, JSON.stringify(value));
+}
+
+async function processCommit(c: RawCommit, branch: Branch): Promise<void> {
+  const info = parseMessage(c.subject, c.body);
+  const amendmentLawId = first(info, "Amendment-Law-Id") ?? "unknown";
+  const enforcedTrailer = first(info, "Enforced");
+  const enforced =
+    enforcedTrailer && ISO_DATE.test(enforcedTrailer)
+      ? enforcedTrailer
+      : enforcedTrailer === "undetermined"
+        ? null
+        : c.date.slice(0, 10);
+  const promulgated = info.fields["公布日"] && ISO_DATE.test(info.fields["公布日"]) ? info.fields["公布日"] : null;
+  const key = amendmentKey(amendmentLawId, enforced);
+
+  const changes = only ? c.changes.filter((ch) => only.has(lawIdOf(ch.path))) : c.changes;
+  if (only && changes.length === 0) return;
+
+  // Request every blob of the commit at once; cat-file answers in order.
+  const texts = await Promise.all(
+    changes.map((ch) =>
+      Promise.all([
+        ch.status !== "A" && ch.oldBlob ? blobs.read(ch.oldBlob) : Promise.resolve(null),
+        ch.status !== "D" && ch.newBlob ? blobs.read(ch.newBlob) : Promise.resolve(null),
+      ]),
+    ),
+  );
+
+  const files: FileChange[] = [];
+  changes.forEach((ch, idx) => {
+    const [oldText, newText] = texts[idx];
+    const lawId = lawIdOf(ch.path);
+    const oldDoc = oldText !== null ? splitLawFile(oldText) : null;
+    const newDoc = newText !== null ? splitLawFile(newText) : null;
+    const fm = (newDoc ?? oldDoc)!.frontmatter;
+
+    const kind =
+      ch.status === "D"
+        ? "repealed"
+        : ch.status === "A"
+          ? amendmentLawId === lawId
+            ? "enacted"
+            : "coverage_start"
+          : "amended";
+
+    const oldTitle = oldDoc ? str(oldDoc.frontmatter.title) : null;
+    const newTitle = newDoc ? str(newDoc.frontmatter.title) : null;
+    const titleChange = oldTitle && newTitle && oldTitle !== newTitle ? { from: oldTitle, to: newTitle } : undefined;
+
+    const blockChanges = kind === "amended" ? diffBlocks(splitBlocks(oldDoc!.body), splitBlocks(newDoc!.body)) : null;
+    const stats = blockChanges
+      ? countLines(blockChanges)
+      : { additions: newDoc ? lineCount(newDoc.body) : 0, deletions: oldDoc ? lineCount(oldDoc.body) : 0 };
+    const file: FileChange = {
+      lawId,
+      path: ch.path,
+      kind,
+      title: str(fm.title) ?? lawId,
+      lawNum: str(fm.law_num) ?? "",
+      ...stats,
+    };
+    if (titleChange) file.titleChange = titleChange;
+    if (blockChanges) file.blocks = blockChanges;
+    files.push(file);
+
+    // Per-law state.
+    let law = laws.get(lawId);
+    if (!law) {
+      law = {
+        summary: {
+          id: lawId,
+          num: "",
+          title: "",
+          kana: null,
+          abbrev: null,
+          type: "",
+          dir: dirOf(ch.path),
+          category: null,
+          path: ch.path,
+          status: "in_force",
+          firstRevision: null,
+          lastAmended: null,
+          revisionCount: 0,
+          upcomingCount: 0,
+        },
+        frontmatter: {},
+        revisions: [],
+        deletedOnMain: false,
+        seenOnMain: false,
+      };
+      laws.set(lawId, law);
+    }
+    // The frontmatter shown for a law is the one in force (main) when there is one.
+    if (branch === "main" || !law.seenOnMain) {
+      law.frontmatter = fm;
+      law.summary.path = ch.path;
+      law.summary.dir = dirOf(ch.path);
+    }
+    if (branch === "main") {
+      law.seenOnMain = true;
+      law.deletedOnMain = kind === "repealed";
+      law.summary.revisionCount++;
+      if (enforced) {
+        law.summary.firstRevision ??= enforced;
+        law.summary.lastAmended = enforced;
+      }
+    } else {
+      law.summary.upcomingCount++;
+    }
+    const blocks = file.blocks ?? [];
+    const rev: LawRevision = {
+      amendment: key,
+      branch,
+      enforced,
+      enforcedText: info.fields["施行日"] ?? null,
+      amendmentLawId,
+      amendmentLawNum: c.author,
+      amendmentTitle: info.title,
+      kind,
+      revisionId: newDoc ? str(newDoc.frontmatter.revision_id) : null,
+      additions: stats.additions,
+      deletions: stats.deletions,
+      changed: blocks.slice(0, CHANGED_LIMIT).map((b) => ({ op: b.op, heading: b.heading })),
+      changedCount: blocks.length,
+    };
+    if (titleChange) rev.titleChange = titleChange;
+    law.revisions.push(rev);
+  });
+
+  const bill = first(info, "Bill");
+  const amendment: Amendment = {
+    key,
+    sha: c.sha,
+    branch,
+    amendmentLawId,
+    amendmentLawNum: c.author,
+    title: info.title,
+    enforced,
+    enforcedText: info.fields["施行日"] ?? null,
+    promulgated,
+    skippedRevisions: info.trailers["Skipped-Revision"] ?? [],
+    files,
+  };
+  if (bill) amendment.bill = { name: bill, submitter: first(info, "Bill-Submitter"), url: first(info, "Bill-Url") };
+  await writeJson(join(outDir, "amendments", `${key}.json`), amendment);
+
+  summaries.push({
+    key,
+    branch,
+    amendmentLawNum: c.author,
+    title: info.title,
+    enforced,
+    promulgated,
+    laws: files.map((f) => ({ id: f.lawId, title: f.title, kind: f.kind })),
+    additions: files.reduce((s, f) => s + f.additions, 0),
+    deletions: files.reduce((s, f) => s + f.deletions, 0),
+  });
+}
+
+async function main(): Promise<void> {
+  const mainRef = await pickRef(opts.main, ["origin/main", "main"]);
+  if (!mainRef) throw new Error(`no main branch in ${repo}`);
+  const upcomingRef = await pickRef(opts.upcoming, ["origin/upcoming", "upcoming"]);
+
+  for (const sub of ["amendments", "laws", "timeline"]) {
+    await rm(join(outDir, sub), { recursive: true, force: true });
+    await mkdir(join(outDir, sub), { recursive: true });
+  }
+
+  const started = Date.now();
+  const mainCommits = await listCommits(repo, mainRef[0]);
+  const upcomingCommits = upcomingRef ? await listCommits(repo, upcomingRef[0], mainRef[0]) : [];
+  console.log(`${mainCommits.length} commits on ${mainRef[0]}, ${upcomingCommits.length} more on ${upcomingRef?.[0] ?? "(no upcoming)"}`);
+
+  const all: [RawCommit, Branch][] = [
+    ...mainCommits.map((c): [RawCommit, Branch] => [c, "main"]),
+    ...upcomingCommits.map((c): [RawCommit, Branch] => [c, "upcoming"]),
+  ];
+  for (let i = 0; i < all.length; i++) {
+    await processCommit(all[i][0], all[i][1]);
+    if ((i + 1) % 1000 === 0) console.log(`  ${i + 1}/${all.length} (${((Date.now() - started) / 1000).toFixed(0)}s)`);
+  }
+  blobs.close();
+
+  // Laws.
+  const lawSummaries: LawSummary[] = [];
+  for (const law of laws.values()) {
+    const fm = law.frontmatter;
+    const s = law.summary;
+    s.num = str(fm.law_num) ?? "";
+    s.title = str(fm.title) ?? s.id;
+    s.kana = str(fm.title_kana);
+    s.abbrev = str(fm.abbrev);
+    s.type = str(fm.law_type) ?? "";
+    s.category = str(fm.category);
+    s.status = !law.seenOnMain ? "upcoming_only" : law.deletedOnMain ? "repealed" : "in_force";
+    const detail: LawDetail = { ...s, frontmatter: fm, revisions: law.revisions };
+    await writeJson(join(outDir, "laws", `${s.id}.json`), detail);
+    lawSummaries.push(s);
+  }
+  lawSummaries.sort((a, b) => (a.kana ?? a.title).localeCompare(b.kana ?? b.title, "ja"));
+  await writeJson(join(outDir, "laws.json"), lawSummaries);
+
+  // Timeline by enforcement year.
+  const byYear = new Map<string, AmendmentSummary[]>();
+  for (const s of summaries) {
+    const year = s.enforced?.slice(0, 4) ?? "undetermined";
+    let list = byYear.get(year);
+    if (!list) byYear.set(year, (list = []));
+    list.push(s);
+  }
+  for (const [year, list] of byYear) {
+    list.sort((a, b) => (a.enforced ?? "9999").localeCompare(b.enforced ?? "9999"));
+    await writeJson(join(outDir, "timeline", `${year}.json`), list);
+  }
+
+  const meta: Meta = {
+    generatedAt: new Date().toISOString(),
+    source: {
+      repository: "https://github.com/Kohei-Wada/houritsu",
+      mainRef: mainRef[0],
+      mainCommit: mainRef[1],
+      upcomingRef: upcomingRef?.[0] ?? null,
+      upcomingCommit: upcomingRef?.[1] ?? null,
+    },
+    counts: {
+      laws: lawSummaries.length,
+      lawsInForce: lawSummaries.filter((l) => l.status === "in_force").length,
+      lawsRepealed: lawSummaries.filter((l) => l.status === "repealed").length,
+      amendments: summaries.length,
+      upcomingAmendments: summaries.filter((s) => s.branch === "upcoming").length,
+    },
+  };
+  await writeJson(join(outDir, "meta.json"), meta);
+  console.log(`done in ${((Date.now() - started) / 1000).toFixed(0)}s:`, meta.counts);
+}
+
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
+});
