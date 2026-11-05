@@ -1,0 +1,14 @@
+---
+import Base from "../../layouts/Base.astro";
+import { DATA_BASE } from "../../lib/site.ts";
+---
+<Base title="時点の条文" nav="laws">
+  <div id="versions" data-base={DATA_BASE}>
+    <p class="loading">読み込み中…</p>
+  </div>
+  <noscript>条文を表示するには JavaScript を有効にしてください。</noscript>
+  <script>
+    import { renderVersionsPage } from "../../scripts/versions.ts";
+    void renderVersionsPage(document.getElementById("versions")!);
+  </script>
+</Base>

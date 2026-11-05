@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { sanitize } from "./lawtext.ts";
+import { sanitize } from "./render.ts";
 
 test("sanitize keeps allowed markup and rebuilds attributes", () => {
   assert.equal(sanitize('<ruby>漢<rt>かん</rt></ruby><br/>'), "<ruby>漢<rt>かん</rt></ruby><br>");

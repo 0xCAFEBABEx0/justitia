@@ -11,12 +11,13 @@
 //   --only <ids>       comma-separated law IDs: only these laws are written (for quick checks)
 //   --related-only     recompute only the related laws in an existing output (no git access)
 
-import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { appendFile, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { diffBlocks, splitBlocks, type Block } from "./blocks.ts";
 import { splitLawFile, str } from "./frontmatter.ts";
 import { BlobReader, listCommits, tryRevParse, type RawCommit } from "./git.ts";
+import { buildHistory, historyEntry, type HistoryEntry } from "./history.ts";
 import { first, ISO_DATE, parseMessage } from "./message.ts";
 import { computeRelated } from "./related.ts";
 import type {
@@ -128,6 +129,18 @@ function blocksOf(doc: Doc): Block[] {
   return (doc.blocks ??= splitBlocks(doc.body));
 }
 
+// The block history of each law is appended to a log while walking the commits (holding every
+// version of every block in memory would take gigabytes), then built per law at the end.
+function historyLogPath(lawId: string): string {
+  return join(outDir, ".history-log", `${lawId}.ndjson`);
+}
+
+async function writeHistory(lawId: string): Promise<void> {
+  const lines = (await readFile(historyLogPath(lawId), "utf8")).split("\n").filter(Boolean);
+  const history = buildHistory(lines.map((l) => JSON.parse(l) as HistoryEntry));
+  await writeJson(join(outDir, "history", `${lawId}.json`), history);
+}
+
 async function writeJson(path: string, value: unknown): Promise<void> {
   await writeFile(path, JSON.stringify(value));
 }
@@ -159,6 +172,7 @@ async function processCommit(c: RawCommit, branch: Branch): Promise<void> {
   );
 
   const files: FileChange[] = [];
+  const historyWrites: Promise<void>[] = [];
   changes.forEach((ch, idx) => {
     const [oldDoc, newDoc] = docs[idx];
     const lawId = lawIdOf(ch.path);
@@ -255,10 +269,19 @@ async function processCommit(c: RawCommit, branch: Branch): Promise<void> {
       changedCount: blocks.length,
     };
     if (titleChange) rev.titleChange = titleChange;
+    const entry = historyEntry(
+      law.revisions.length,
+      oldDoc ? blocksOf(oldDoc) : [],
+      newDoc ? blocksOf(newDoc) : [],
+      kind !== "amended",
+    );
+    historyWrites.push(appendFile(historyLogPath(lawId), JSON.stringify(entry) + "\n"));
     // structuredClone copies the strings. Otherwise V8 keeps substrings (headings, YAML values)
     // pointing into the whole law text, and every revision of every law stays in memory.
     law.revisions.push(structuredClone(rev));
   });
+
+  await Promise.all(historyWrites);
 
   const bill = first(info, "Bill");
   const amendment: Amendment = {
@@ -295,7 +318,7 @@ async function main(): Promise<void> {
   if (!mainRef) throw new Error(`no main branch in ${repo}`);
   const upcomingRef = await pickRef(opts.upcoming, ["origin/upcoming", "upcoming"]);
 
-  for (const sub of ["amendments", "laws", "timeline"]) {
+  for (const sub of ["amendments", "laws", "history", "timeline", ".history-log"]) {
     await rm(join(outDir, sub), { recursive: true, force: true });
     await mkdir(join(outDir, sub), { recursive: true });
   }
@@ -333,8 +356,10 @@ async function main(): Promise<void> {
     s.status = !law.seenOnMain ? "upcoming_only" : law.deletedOnMain ? "repealed" : "in_force";
     const detail: LawDetail = { ...s, frontmatter: fm, related: related.get(s.id) ?? [], revisions: law.revisions };
     await writeJson(join(outDir, "laws", `${s.id}.json`), detail);
+    await writeHistory(s.id);
     lawSummaries.push(s);
   }
+  await rm(join(outDir, ".history-log"), { recursive: true, force: true });
   lawSummaries.sort((a, b) => (a.kana ?? a.title).localeCompare(b.kana ?? b.title, "ja"));
   await writeJson(join(outDir, "laws.json"), lawSummaries);
 
