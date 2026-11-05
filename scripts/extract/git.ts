@@ -36,13 +36,18 @@ interface Pending {
 export class BlobReader {
   private child: ChildProcessWithoutNullStreams;
   private queue: Pending[] = [];
-  private buf: Buffer = Buffer.alloc(0);
+  // Unconsumed output, kept as chunks: concatenating on every chunk is quadratic for
+  // multi-megabyte blobs.
+  private chunks: Buffer[] = [];
+  private buffered = 0;
+  private need = 0; // bytes required before the next parse attempt is worthwhile
 
   constructor(repo: string) {
     this.child = spawn("git", ["-C", repo, "cat-file", "--batch"]);
     this.child.stdout.on("data", (d: Buffer) => {
-      this.buf = this.buf.length ? Buffer.concat([this.buf, d]) : d;
-      this.drain();
+      this.chunks.push(d);
+      this.buffered += d.length;
+      if (this.buffered >= this.need) this.drain();
     });
     this.child.on("error", (e) => this.failAll(e));
     this.child.on("close", (code) => {
@@ -62,23 +67,30 @@ export class BlobReader {
   }
 
   private drain(): void {
+    let buf = this.chunks.length === 1 ? this.chunks[0] : Buffer.concat(this.chunks, this.buffered);
     while (this.queue.length) {
-      const nl = this.buf.indexOf(10);
-      if (nl < 0) return;
-      const header = this.buf.subarray(0, nl).toString("utf8");
+      const nl = buf.indexOf(10);
+      if (nl < 0) break;
+      const header = buf.subarray(0, nl).toString("utf8");
       const parts = header.split(" ");
       if (parts[1] === "missing" || parts.length < 3) {
-        this.buf = this.buf.subarray(nl + 1);
+        buf = buf.subarray(nl + 1);
         this.queue.shift()!.reject(new Error(`blob not found: ${header}`));
         continue;
       }
-      const size = Number(parts[2]);
-      const end = nl + 1 + size;
-      if (this.buf.length < end + 1) return; // wait for the body and its trailing newline
-      const text = this.buf.subarray(nl + 1, end).toString("utf8");
-      this.buf = this.buf.subarray(end + 1);
+      const end = nl + 1 + Number(parts[2]);
+      if (buf.length < end + 1) {
+        this.need = end + 1; // wait for the body and its trailing newline
+        break;
+      }
+      const text = buf.subarray(nl + 1, end).toString("utf8");
+      buf = buf.subarray(end + 1);
+      this.need = 0;
       this.queue.shift()!.resolve(text);
     }
+    this.chunks = buf.length ? [buf] : [];
+    this.buffered = buf.length;
+    if (this.need > 0 && this.need <= this.buffered) this.need = 0;
   }
 
   private failAll(err: Error): void {

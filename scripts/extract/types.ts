@@ -96,12 +96,22 @@ export interface BlockChange {
   oldHeading?: string; // when the heading text itself changed
   /** Enclosing headings, outermost first, e.g. ["第一編　総則", "第一章　通則"]. */
   context: string[];
-  /** Full text of the block before / after. Omitted when the block is large (see hunks). */
-  old?: string;
+  /** Text of an added block. */
   new?: string;
-  /** Unified-diff hunks, used instead of old/new when the block is larger than the limit. */
+  /** Text of a deleted block. */
+  old?: string;
+  /**
+   * For a modified block: a character diff covering the whole block. Joining the 0 and -1
+   * parts gives the old text, the 0 and 1 parts the new text. Omitted when only the heading
+   * changed, and replaced by hunks when the block is large (mostly 別表).
+   */
+  segments?: Segment[];
+  /** Unified-diff line hunks with 3 lines of context, for large modified blocks. */
   hunks?: Hunk[];
 }
+
+/** [op, text] with op -1 = deleted, 0 = unchanged, 1 = inserted. */
+export type Segment = [-1 | 0 | 1, string];
 
 export interface Hunk {
   oldStart: number;

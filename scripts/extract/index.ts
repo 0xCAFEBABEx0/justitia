@@ -13,7 +13,7 @@
 import { mkdir, rm, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
-import { countLines, diffBlocks, splitBlocks } from "./blocks.ts";
+import { diffBlocks, splitBlocks, type Block } from "./blocks.ts";
 import { splitLawFile, str } from "./frontmatter.ts";
 import { BlobReader, listCommits, tryRevParse, type RawCommit } from "./git.ts";
 import { first, ISO_DATE, parseMessage } from "./message.ts";
@@ -85,6 +85,41 @@ function amendmentKey(lawId: string, enforced: string | null): string {
   return n === 1 ? base : `${base}-${n}`;
 }
 
+interface Doc {
+  frontmatter: Record<string, unknown>;
+  body: string;
+  blocks?: Block[];
+}
+
+// Parsed law files by blob id. The old side of an amendment is usually the new side of the
+// previous one, so this saves reading, decoding and splitting most blobs twice. Bounded by
+// the total length of the bodies it holds.
+const CACHE_CHARS = 200_000_000;
+const docCache = new Map<string, Doc>();
+let cachedChars = 0;
+
+async function getDoc(sha: string): Promise<Doc> {
+  const hit = docCache.get(sha);
+  if (hit) {
+    docCache.delete(sha); // move to the most recently used end
+    docCache.set(sha, hit);
+    return hit;
+  }
+  const doc: Doc = splitLawFile(await blobs.read(sha));
+  docCache.set(sha, doc);
+  cachedChars += doc.body.length;
+  for (const [k, v] of docCache) {
+    if (cachedChars <= CACHE_CHARS) break;
+    docCache.delete(k);
+    cachedChars -= v.body.length;
+  }
+  return doc;
+}
+
+function blocksOf(doc: Doc): Block[] {
+  return (doc.blocks ??= splitBlocks(doc.body));
+}
+
 async function writeJson(path: string, value: unknown): Promise<void> {
   await writeFile(path, JSON.stringify(value));
 }
@@ -106,21 +141,19 @@ async function processCommit(c: RawCommit, branch: Branch): Promise<void> {
   if (only && changes.length === 0) return;
 
   // Request every blob of the commit at once; cat-file answers in order.
-  const texts = await Promise.all(
+  const docs = await Promise.all(
     changes.map((ch) =>
       Promise.all([
-        ch.status !== "A" && ch.oldBlob ? blobs.read(ch.oldBlob) : Promise.resolve(null),
-        ch.status !== "D" && ch.newBlob ? blobs.read(ch.newBlob) : Promise.resolve(null),
+        ch.status !== "A" && ch.oldBlob ? getDoc(ch.oldBlob) : Promise.resolve(null),
+        ch.status !== "D" && ch.newBlob ? getDoc(ch.newBlob) : Promise.resolve(null),
       ]),
     ),
   );
 
   const files: FileChange[] = [];
   changes.forEach((ch, idx) => {
-    const [oldText, newText] = texts[idx];
+    const [oldDoc, newDoc] = docs[idx];
     const lawId = lawIdOf(ch.path);
-    const oldDoc = oldText !== null ? splitLawFile(oldText) : null;
-    const newDoc = newText !== null ? splitLawFile(newText) : null;
     const fm = (newDoc ?? oldDoc)!.frontmatter;
 
     const kind =
@@ -136,9 +169,10 @@ async function processCommit(c: RawCommit, branch: Branch): Promise<void> {
     const newTitle = newDoc ? str(newDoc.frontmatter.title) : null;
     const titleChange = oldTitle && newTitle && oldTitle !== newTitle ? { from: oldTitle, to: newTitle } : undefined;
 
-    const blockChanges = kind === "amended" ? diffBlocks(splitBlocks(oldDoc!.body), splitBlocks(newDoc!.body)) : null;
-    const stats = blockChanges
-      ? countLines(blockChanges)
+    const diff = kind === "amended" ? diffBlocks(blocksOf(oldDoc!), blocksOf(newDoc!)) : null;
+    const blockChanges = diff?.changes ?? null;
+    const stats = diff
+      ? { additions: diff.additions, deletions: diff.deletions }
       : { additions: newDoc ? lineCount(newDoc.body) : 0, deletions: oldDoc ? lineCount(oldDoc.body) : 0 };
     const file: FileChange = {
       lawId,
@@ -181,7 +215,7 @@ async function processCommit(c: RawCommit, branch: Branch): Promise<void> {
     }
     // The frontmatter shown for a law is the one in force (main) when there is one.
     if (branch === "main" || !law.seenOnMain) {
-      law.frontmatter = fm;
+      law.frontmatter = structuredClone(fm);
       law.summary.path = ch.path;
       law.summary.dir = dirOf(ch.path);
     }
@@ -213,7 +247,9 @@ async function processCommit(c: RawCommit, branch: Branch): Promise<void> {
       changedCount: blocks.length,
     };
     if (titleChange) rev.titleChange = titleChange;
-    law.revisions.push(rev);
+    // structuredClone copies the strings. Otherwise V8 keeps substrings (headings, YAML values)
+    // pointing into the whole law text, and every revision of every law stays in memory.
+    law.revisions.push(structuredClone(rev));
   });
 
   const bill = first(info, "Bill");
@@ -233,7 +269,7 @@ async function processCommit(c: RawCommit, branch: Branch): Promise<void> {
   if (bill) amendment.bill = { name: bill, submitter: first(info, "Bill-Submitter"), url: first(info, "Bill-Url") };
   await writeJson(join(outDir, "amendments", `${key}.json`), amendment);
 
-  summaries.push({
+  summaries.push(structuredClone({
     key,
     branch,
     amendmentLawNum: c.author,
@@ -243,7 +279,7 @@ async function processCommit(c: RawCommit, branch: Branch): Promise<void> {
     laws: files.map((f) => ({ id: f.lawId, title: f.title, kind: f.kind })),
     additions: files.reduce((s, f) => s + f.additions, 0),
     deletions: files.reduce((s, f) => s + f.deletions, 0),
-  });
+  }));
 }
 
 async function main(): Promise<void> {
@@ -267,7 +303,10 @@ async function main(): Promise<void> {
   ];
   for (let i = 0; i < all.length; i++) {
     await processCommit(all[i][0], all[i][1]);
-    if ((i + 1) % 1000 === 0) console.log(`  ${i + 1}/${all.length} (${((Date.now() - started) / 1000).toFixed(0)}s)`);
+    if ((i + 1) % 1000 === 0) {
+      const heap = (process.memoryUsage().heapUsed / 1e6).toFixed(0);
+      console.log(`  ${i + 1}/${all.length} (${((Date.now() - started) / 1000).toFixed(0)}s, heap ${heap} MB)`);
+    }
   }
   blobs.close();
 

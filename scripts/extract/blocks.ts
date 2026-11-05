@@ -1,5 +1,6 @@
+import DiffMatchPatch from "diff-match-patch";
 import { diffLines, structuredPatch } from "diff";
-import type { BlockChange, Hunk } from "./types.ts";
+import type { BlockChange, Hunk, Segment } from "./types.ts";
 
 export interface Block {
   key: string;
@@ -96,41 +97,67 @@ function lineCount(text: string): number {
   return text === "" ? 0 : text.split("\n").length;
 }
 
-/**
- * Lines added and deleted by a set of block changes, counting a heading as a line. This is
- * close to `git diff --numstat` but much cheaper, since only changed blocks are compared.
- */
-export function countLines(changes: BlockChange[]): { additions: number; deletions: number } {
-  let additions = 0;
-  let deletions = 0;
-  for (const c of changes) {
-    const headingChanged = c.op === "modified" && c.oldHeading !== undefined;
-    if (c.op === "added") additions += 1 + lineCount(c.new ?? "");
-    else if (c.op === "deleted") deletions += 1 + lineCount(c.old ?? "");
-    if (headingChanged) {
-      additions++;
-      deletions++;
-    }
-    if (c.op !== "modified") continue;
-    if (c.hunks) {
-      for (const h of c.hunks) {
-        for (const l of h.lines) {
-          if (l[0] === "+") additions++;
-          else if (l[0] === "-") deletions++;
-        }
-      }
-    } else if (c.old !== undefined && c.new !== undefined) {
-      for (const part of diffLines(c.old + "\n", c.new + "\n")) {
-        if (part.added) additions += part.count ?? 0;
-        else if (part.removed) deletions += part.count ?? 0;
-      }
-    }
-  }
-  return { additions, deletions };
+/** Above this many characters (old + new) a modified block is stored as line hunks. */
+export const SEGMENT_LIMIT = 20_000;
+
+const dmp = new DiffMatchPatch();
+dmp.Diff_Timeout = 0.5; // seconds; past it the diff is coarser, not wrong
+
+function charDiff(oldText: string, newText: string): Segment[] {
+  const diffs = dmp.diff_main(oldText, newText, false);
+  dmp.diff_cleanupSemantic(diffs);
+  return diffs.map(([op, text]) => [op as -1 | 0 | 1, text]);
 }
 
-/** Above this many characters (old + new) a modified block is stored as hunks. */
-export const FULL_TEXT_LIMIT = 40_000;
+/**
+ * Diff of two block texts: lines first, then characters within each run of replaced lines, so
+ * the costly character diff only sees the lines that changed. Also counts changed lines.
+ */
+export function toSegments(oldText: string, newText: string): { segments: Segment[]; additions: number; deletions: number } {
+  const parts = diffLines(oldText + "\n", newText + "\n", { timeout: 5_000 });
+  if (!parts) {
+    const segments = charDiff(oldText, newText);
+    return { segments, additions: lineCount(newText), deletions: lineCount(oldText) };
+  }
+  const segments: Segment[] = [];
+  const push = (op: -1 | 0 | 1, text: string) => {
+    if (!text) return;
+    const last = segments[segments.length - 1];
+    if (last && last[0] === op) last[1] += text;
+    else segments.push([op, text]);
+  };
+  let additions = 0;
+  let deletions = 0;
+  for (let i = 0; i < parts.length; i++) {
+    const part = parts[i];
+    if (part.removed) {
+      deletions += part.count ?? 0;
+      const next = parts[i + 1];
+      if (next?.added) {
+        additions += next.count ?? 0;
+        for (const [op, text] of charDiff(part.value, next.value)) push(op, text);
+        i++;
+      } else {
+        push(-1, part.value);
+      }
+    } else if (part.added) {
+      additions += part.count ?? 0;
+      push(1, part.value);
+    } else {
+      push(0, part.value);
+    }
+  }
+  // Drop the "\n" appended to both texts above. Usually it is the end of a final unchanged
+  // segment; when the block ends in an insertion or a deletion, diff the whole block instead.
+  const last = segments.at(-1);
+  if (last && last[0] === 0 && last[1].endsWith("\n")) {
+    last[1] = last[1].slice(0, -1);
+    if (!last[1]) segments.pop();
+  } else {
+    return { segments: charDiff(oldText, newText), additions, deletions };
+  }
+  return { segments, additions, deletions };
+}
 
 function toHunks(oldText: string, newText: string): Hunk[] {
   const patch = structuredPatch("a", "b", oldText + "\n", newText + "\n", "", "", {
@@ -160,50 +187,56 @@ function toHunks(oldText: string, newText: string): Hunk[] {
   ];
 }
 
-function withText(change: BlockChange, oldText: string | null, newText: string | null): BlockChange {
-  const size = (oldText?.length ?? 0) + (newText?.length ?? 0);
-  if (oldText !== null && newText !== null && size > FULL_TEXT_LIMIT) {
-    change.hunks = toHunks(oldText, newText);
-  } else {
-    if (oldText !== null) change.old = oldText;
-    if (newText !== null) change.new = newText;
-  }
-  return change;
+export interface BlockDiff {
+  changes: BlockChange[];
+  /** Lines added and deleted, counting a heading as a line; close to `git diff --numstat`. */
+  additions: number;
+  deletions: number;
 }
 
 /**
  * Compares two versions of a law block by block. Changes come in the order of the new text,
  * with each deleted block placed after the block that preceded it in the old text.
  */
-export function diffBlocks(oldBlocks: Block[], newBlocks: Block[]): BlockChange[] {
+export function diffBlocks(oldBlocks: Block[], newBlocks: Block[]): BlockDiff {
   const oldByKey = new Map(oldBlocks.map((b) => [b.key, b]));
   const newIndex = new Map(newBlocks.map((b, i) => [b.key, i]));
   const out: { pos: number; sub: number; change: BlockChange }[] = [];
+  let additions = 0;
+  let deletions = 0;
 
   newBlocks.forEach((nb, i) => {
     const ob = oldByKey.get(nb.key);
+    const base = { key: nb.key, level: nb.level, heading: nb.heading, context: nb.context };
     if (!ob) {
-      out.push({
-        pos: i,
-        sub: 0,
-        change: withText(
-          { op: "added", key: nb.key, level: nb.level, heading: nb.heading, context: nb.context },
-          null,
-          nb.text,
-        ),
-      });
+      additions += 1 + lineCount(nb.text);
+      out.push({ pos: i, sub: 0, change: { op: "added", ...base, new: nb.text } });
       return;
     }
     if (ob.text === nb.text && ob.heading === nb.heading) return;
-    const change: BlockChange = {
-      op: "modified",
-      key: nb.key,
-      level: nb.level,
-      heading: nb.heading,
-      context: nb.context,
-    };
-    if (ob.heading !== nb.heading) change.oldHeading = ob.heading;
-    out.push({ pos: i, sub: 0, change: ob.text === nb.text ? change : withText(change, ob.text, nb.text) });
+    const change: BlockChange = { op: "modified", ...base };
+    if (ob.heading !== nb.heading) {
+      change.oldHeading = ob.heading;
+      additions++;
+      deletions++;
+    }
+    if (ob.text !== nb.text) {
+      if (ob.text.length + nb.text.length > SEGMENT_LIMIT) {
+        change.hunks = toHunks(ob.text, nb.text);
+        for (const h of change.hunks) {
+          for (const l of h.lines) {
+            if (l[0] === "+") additions++;
+            else if (l[0] === "-") deletions++;
+          }
+        }
+      } else {
+        const st = toSegments(ob.text, nb.text);
+        change.segments = st.segments;
+        additions += st.additions;
+        deletions += st.deletions;
+      }
+    }
+    out.push({ pos: i, sub: 0, change });
   });
 
   let anchor = -1;
@@ -213,17 +246,14 @@ export function diffBlocks(oldBlocks: Block[], newBlocks: Block[]): BlockChange[
       anchor = i;
       return;
     }
+    deletions += 1 + lineCount(ob.text);
     out.push({
       pos: anchor,
       sub: j + 1,
-      change: withText(
-        { op: "deleted", key: ob.key, level: ob.level, heading: ob.heading, context: ob.context },
-        ob.text,
-        null,
-      ),
+      change: { op: "deleted", key: ob.key, level: ob.level, heading: ob.heading, context: ob.context, old: ob.text },
     });
   });
 
   out.sort((a, b) => a.pos - b.pos || a.sub - b.sub);
-  return out.map((o) => o.change);
+  return { changes: out.map((o) => o.change), additions, deletions };
 }
