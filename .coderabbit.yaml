@@ -1,0 +1,65 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
+#
+# CodeRabbit configuration for justitia.
+# Reference: https://docs.coderabbit.ai/reference/configuration
+
+# Reviews, summaries and chat replies are in English, like the rest of the
+# repository's docs, issues and pull requests.
+language: en-US
+
+reviews:
+  profile: chill
+  high_level_summary: true
+  poem: false
+  in_progress_fortune: false
+  sequence_diagrams: false
+  collapse_walkthrough: true
+
+  auto_review:
+    enabled: true
+    drafts: false
+    auto_incremental_review: true
+
+  # Generated or vendored content that is not worth reviewing.
+  path_filters:
+    - "!package-lock.json"
+    - "!data/**"
+    - "!dist/**"
+    - "!houritsu/**"
+    - "!.astro/**"
+
+  path_instructions:
+    - path: "**/*"
+      instructions: |
+        The site UI and all law content are in Japanese on purpose; do not ask to
+        translate user-facing strings, law titles or headings. Code comments, docs,
+        commit messages, issues and pull requests are in English.
+    - path: "scripts/extract/**/*.ts"
+      instructions: |
+        Extraction reads the git history of the houritsu repository (Japanese laws,
+        one commit per amending law coming into force) and writes the JSON the site
+        is built from. It runs over the whole history (tens of thousands of commits,
+        about 1 GB of output), so watch for memory use, repeated git calls and
+        accidental quadratic work. Keys must not depend on commit SHAs, because
+        houritsu may rewrite its history. Dates come from the `Enforced` trailer,
+        not from commit dates. TypeScript runs directly on Node.js >= 22.18 with type
+        stripping, so only erasable syntax is allowed (no enums, namespaces or
+        parameter properties).
+    - path: "src/**"
+      instructions: |
+        Astro static site (output: "static"). Build output must stay within the
+        Cloudflare Workers static assets free tier (20,000 files, 25 MiB per file).
+        Per-amendment data is fetched client-side from PUBLIC_DATA_BASE; check that
+        law text from the data is escaped or sanitized before it reaches the DOM.
+    - path: "**/*.test.ts"
+      instructions: |
+        Tests use the built-in `node:test` runner and `node:assert`; do not suggest
+        adding a test framework.
+
+  tools:
+    # Prose checks flag Japanese law text as misspelled.
+    languagetool:
+      enabled: false
+
+chat:
+  auto_reply: true
