@@ -19,6 +19,10 @@ reviews:
     enabled: true
     drafts: false
     auto_incremental_review: true
+    # The repository's default branch is still the work branch, so list main
+    # explicitly (patterns are regular expressions).
+    base_branches:
+      - "^main$"
 
   # Generated or vendored content that is not worth reviewing.
   path_filters:
