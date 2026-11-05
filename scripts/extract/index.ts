@@ -67,7 +67,12 @@ interface LawState {
 const laws = new Map<string, LawState>();
 const summaries: AmendmentSummary[] = [];
 const keyCount = new Map<string, number>();
-const blobs = new BlobReader(repo);
+// Started on first use: --related-only reads no blobs, and a running `git cat-file` child
+// would keep the process from exiting.
+let blobReader: BlobReader | undefined;
+function blobs(): BlobReader {
+  return (blobReader ??= new BlobReader(repo));
+}
 
 function lawIdOf(path: string): string {
   return basename(path, ".md");
@@ -108,7 +113,7 @@ async function getDoc(sha: string): Promise<Doc> {
     docCache.set(sha, hit);
     return hit;
   }
-  const doc: Doc = splitLawFile(await blobs.read(sha));
+  const doc: Doc = splitLawFile(await blobs().read(sha));
   docCache.set(sha, doc);
   cachedChars += doc.body.length;
   for (const [k, v] of docCache) {
@@ -311,7 +316,7 @@ async function main(): Promise<void> {
       console.log(`  ${i + 1}/${all.length} (${((Date.now() - started) / 1000).toFixed(0)}s, heap ${heap} MB)`);
     }
   }
-  blobs.close();
+  blobReader?.close();
 
   // Laws.
   const related = computeRelated(summaries);
