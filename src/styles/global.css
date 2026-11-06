@@ -255,3 +255,16 @@
     .g-row .g-line2 { display: none; }
   }
 }
+
+/*
+ * A focused text field: daisyUI draws a 2px outline in the text color 2px outside the field,
+ * which reads as a stray frame (most visibly on the search page, which focuses its field on
+ * load). The field's own border turns the primary color instead. The outline stays in the
+ * cascade with a transparent color, so forced-colors mode (Windows high contrast), which
+ * replaces it with a system color, still shows it. Unlayered, so it wins over daisyUI's layer.
+ */
+.input:focus,
+.input:focus-within {
+  --input-color: var(--color-primary);
+  outline-color: transparent;
+}
