@@ -3,6 +3,7 @@ import Base from "../layouts/Base.astro";
 import AmendmentList from "../components/AmendmentList.astro";
 import BrowseTabs from "../components/BrowseTabs.astro";
 import { jpDate, meta, timeline, timelineYears, type AmendmentSummary } from "../lib/data.ts";
+import { SITE_TAGLINE } from "../lib/site.ts";
 
 const m = meta();
 const today = m.generatedAt.slice(0, 10);
@@ -26,7 +27,7 @@ const upcoming = pool(thisYear, thisYear + 2)
   description={`日本の法令 ${m.counts.lawsInForce.toLocaleString()} 件の条文と、${m.counts.amendments.toLocaleString()} 件の改正を新旧対照で。いつ・どこが・どう変わったかを、改正ごとの差分・年表・グラフで見られます。`}
 >
   <section style="margin:12px 0 28px">
-    <h1 class="page-title" style="font-size:32px">法令と、その改正の履歴</h1>
+    <h1 class="page-title" style="font-size:32px">{SITE_TAGLINE}</h1>
     <p class="subtitle" style="font-size:15px;max-width:46em">
       日本の法令 {m.counts.lawsInForce.toLocaleString()} 件の条文と、{m.counts.amendments.toLocaleString()} 件の改正を、
       「いつ・どこが・どう変わったか」が分かる新旧対照の形で見られます。
