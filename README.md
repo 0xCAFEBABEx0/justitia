@@ -194,9 +194,12 @@ The data goes first, so a new page never links to data that is not there yet. Da
 `Cache-Control: public, max-age=3600`. The pages fetch `amendments/`, `laws/` and `history/` files with the data
 version in the query string (`?v=`, `dataVersion` in `meta.json`), which is part of the cache key. The data version is
 a hash of those files, so a build that changes any of them gets new URLs (a page never mixes files from two builds),
-and a build that changes none, such as a day without new commits in houritsu, keeps the cached copies. Pagefind's
-`pagefind-entry.json` and our `pagefind/shards.json` are always fetched with a `?ts=` query, which skips the cache,
-so the search page picks up a new index right away. The bucket also holds `_publish/data-version.txt` and
+and a build that changes none, such as a day without new commits in houritsu, keeps the cached copies. The search
+page goes through the cache too, since each request that misses it is a read in R2 (Class B, 10 million a month
+free): it fetches `pagefind/shards.json` with `?ts=` set to the current 5-minute period, so a new index is used within
+5 minutes, and gives Pagefind the index's input hash from `shards.json` as `metaCacheTag`, so each shard's
+`pagefind-entry.json` is fetched as `?ts=<input hash>` and cached until the index changes (by default Pagefind adds
+the current time, which skips the cache on every page load). The bucket also holds `_publish/data-version.txt` and
 `_publish/pagefind-input.txt` (see above), and `_publish/pagefind-unused.txt`, the upload script's list of Pagefind
 files to delete on the next run.
 

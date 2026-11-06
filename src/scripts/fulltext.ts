@@ -1,8 +1,15 @@
 // Full-text search over the law text (/search/?q=...), with the Pagefind index built by
 // scripts/search-index.ts: one record per article (block), so each result is an article.
 // The index is split into shards under <data base>/pagefind/<n>/; shard 0 is loaded and the
-// others are merged into it. shards.json is fetched past the data domain's cache, like Pagefind's
-// own pagefind-entry.json, so a new index is used as soon as it is uploaded.
+// others are merged into it.
+//
+// Every request that misses the data domain's cache is a read in R2, so the files the search page
+// fetches on each load go through the cache too. shards.json (uploaded after the rest of the index)
+// is fetched with a query that changes every SHARDS_TTL_MS, so a new index is used within that time
+// and each data center asks R2 for it at most once per period. Pagefind's own pagefind-entry.json
+// (one per shard) is fetched with the input hash from shards.json as Pagefind's metaCacheTag
+// (?ts=<hash>), so it is cached until the index changes; without it, Pagefind adds Date.now() and
+// every page load would read all the entries from R2.
 
 import { SITE_NAME } from "../lib/site-name.ts";
 
@@ -28,15 +35,22 @@ function excerpt(s: string): string {
   return esc(s.replace(/<\/?mark>/g, "\u0001")).replace(/\u0001([^\u0001]*)\u0001/g, "<mark>$1</mark>").replace(/\u0001/g, "");
 }
 
+const SHARDS_TTL_MS = 5 * 60 * 1000;
+
 let loading: Promise<Pagefind> | null = null;
 function loadPagefind(base: string): Promise<Pagefind> {
   return (loading ??= (async () => {
-    const { shards } = (await (await fetch(`${base}/pagefind/shards.json?ts=${Date.now()}`)).json()) as { shards: number };
+    const period = Math.floor(Date.now() / SHARDS_TTL_MS);
+    const res = await fetch(`${base}/pagefind/shards.json?ts=${period}`);
+    if (!res.ok) throw new Error(`${res.status} shards.json`);
+    const { shards, input } = (await res.json()) as { shards: number; input?: string };
     const pf = (await import(/* @vite-ignore */ `${base}/pagefind/0/pagefind.js`)) as Pagefind;
     // The indexed URLs are site paths. Without baseUrl, Pagefind prefixes them with the directory
     // the index is loaded from (/data/ locally, the data domain in production).
-    await pf.options({ baseUrl: "/", excerptLength: 40 });
-    for (let n = 1; n < shards; n++) await pf.mergeIndex(`${base}/pagefind/${n}/`, { baseUrl: "/" });
+    // metaCacheTag applies to each index it is given to, so the merged shards get it too.
+    const shared = input ? { baseUrl: "/", metaCacheTag: input } : { baseUrl: "/" };
+    await pf.options({ ...shared, excerptLength: 40 });
+    for (let n = 1; n < shards; n++) await pf.mergeIndex(`${base}/pagefind/${n}/`, shared);
     return pf;
   })());
 }
