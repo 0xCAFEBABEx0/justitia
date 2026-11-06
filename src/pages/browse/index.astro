@@ -10,7 +10,11 @@ const categories = new Map<string, number>();
 for (const l of inForce) if (l.category) categories.set(l.category, (categories.get(l.category) ?? 0) + 1);
 const cats = [...categories].sort((a, b) => a[0].localeCompare(b[0], "ja"));
 ---
-<Base title="法令一覧" nav="laws">
+<Base
+  title="法令一覧"
+  description={`現行の法令 ${inForce.length.toLocaleString()} 件を、五十音・種別（法律・政令・府省令など）・分野から探せます。`}
+  nav="laws"
+>
   <h1 class="page-title">法令一覧</h1>
   <p class="subtitle">現行 {inForce.length.toLocaleString()} 件、廃止 {all.filter((l) => l.status === "repealed").length.toLocaleString()} 件。五十音・種別・分野から探せます。</p>
   <BrowseTabs mode="none" />

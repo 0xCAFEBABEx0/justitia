@@ -9,6 +9,7 @@ import { blocksAt } from "../../scripts/extract/history.ts";
 import type { LawDetail, LawHistory, LawRevision } from "../../scripts/extract/types.ts";
 import { renderBlocks, renderBlockText } from "../lib/render.ts";
 import { blockHtml, esc, jpDate, VIEW_KEY, type View } from "./amendment.ts";
+import { SITE_NAME } from "../lib/site-name.ts";
 import { dataUrl } from "./data-url.ts";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
@@ -107,7 +108,7 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
 
     const blocks = at >= 0 && revs[at].kind !== "repealed" ? toBlocks(hist, at) : [];
     const title = blocks.find((b) => b.level === 1)?.heading ?? law.title;
-    document.title = `${title}（${from >= 0 ? "改正の比較" : "時点の条文"}） | justitia`;
+    document.title = `${title}（${from >= 0 ? "改正の比較" : "時点の条文"}） | ${SITE_NAME}`;
 
     const controls = `<div class="versions-controls">
       <label>表示する時点 <select data-at>${options(revs, at)}</select></label>

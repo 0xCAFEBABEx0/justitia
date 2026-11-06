@@ -3,7 +3,12 @@ import Base from "../../layouts/Base.astro";
 import { dataVersion } from "../../lib/data.ts";
 import { DATA_BASE } from "../../lib/site.ts";
 ---
-<Base title="時点の条文" nav="laws">
+<Base
+  title="時点の条文"
+  description="過去の改正の後や、施行前の改正を反映した将来の時点の条文と、2つの時点の間の新旧対照を見られます。"
+  nav="laws"
+  canonical={false}
+>
   <div id="versions" data-base={DATA_BASE} data-v={dataVersion()}>
     <p class="loading">読み込み中…</p>
   </div>

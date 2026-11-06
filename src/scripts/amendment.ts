@@ -4,6 +4,7 @@
 // before it on the right, with the changed parts marked. An inline view puts both in one column.
 
 import type { Amendment, BlockChange, FileChange, Hunk, Segment } from "../../scripts/extract/types.ts";
+import { SITE_NAME } from "../lib/site-name.ts";
 import { dataUrl } from "./data-url.ts";
 
 const KIND: Record<FileChange["kind"], string> = {
@@ -176,7 +177,7 @@ export async function renderAmendmentPage(root: HTMLElement): Promise<void> {
     root.innerHTML = `<p class="note">改正「${esc(key)}」が見つかりませんでした。</p>`;
     return;
   }
-  document.title = `${a.title}（${jpDate(a.enforced)}施行） | justitia`;
+  document.title = `${a.title}（${jpDate(a.enforced)}施行） | ${SITE_NAME}`;
 
   let view: View = "side";
   try {

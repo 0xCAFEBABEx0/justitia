@@ -5,7 +5,11 @@ import { DATA_BASE } from "../../lib/site.ts";
 
 const today = buildDate();
 ---
-<Base title="改正のグラフ" nav="graph">
+<Base
+  title="改正のグラフ"
+  description="法令ごとの改正を Git のブランチのような図で並べます。同じ改正法令で一緒に変わった法令は線でつながります。"
+  nav="graph"
+>
   <h1 class="page-title">改正のグラフ</h1>
   <p class="subtitle">
     法令ごとに1本の枝を立て、施行日の新しい順に改正を並べています。同じ改正法令で一緒に変わった法令は横線でつながります。

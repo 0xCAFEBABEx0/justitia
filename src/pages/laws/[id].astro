@@ -23,10 +23,19 @@ const source = typeof law.frontmatter.source === "string" ? law.frontmatter.sour
 const revisions = [...law.revisions].reverse(); // newest first
 const latest = law.revisions.filter((r) => r.branch === "main").at(-1);
 const anchor = `#law-${law.id}`;
+const amendments = law.revisionCount - 1; // the first revision is the enactment or the start of coverage
+const named = `${law.title}（${law.num}${law.abbrev ? `、略称：${law.abbrev}` : ""}）`;
+const pageTitle = law.status === "repealed" ? `${law.title}（廃止）の改正履歴` : `${law.title}の条文と改正履歴`;
+const description =
+  law.status === "repealed"
+    ? `${named}は廃止された法令です。廃止までの改正の履歴と新旧対照を見られます。`
+    : law.status === "upcoming_only"
+      ? `${named}は公布済みで、まだ施行されていない法令です。施行後の条文を見られます。`
+      : `${named}の現行の条文と、${amendments > 0 ? `改正 ${amendments} 件の履歴・新旧対照${law.lastAmended ? `（最終改正：${jpDate(law.lastAmended)}施行）` : ""}` : "改正の履歴"}${law.upcomingCount > 0 ? `。未施行の改正 ${law.upcomingCount} 件も見られます` : ""}。`;
 // The law and the laws most often amended together with it.
 const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => r.id)].join(",")}`;
 ---
-<Base title={law.title} description={`${law.title}（${law.num}）の条文と改正履歴`}>
+<Base title={pageTitle} description={description}>
   <div class="crumbs">
     <a href="/browse/">法令一覧</a> / <a href={`/browse/type/${law.dir}/`}>{typeLabel(law.dir)}</a>
     {law.category && <> / <a href={`/browse/category/${law.category}/`}>{law.category}</a></>}

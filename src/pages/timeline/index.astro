@@ -6,7 +6,11 @@ const years = timelineYears().map((y) => ({ y, n: timeline(y).length }));
 const max = Math.max(...years.map((x) => x.n));
 const thisYear = new Date().getFullYear().toString();
 ---
-<Base title="改正の年表" nav="timeline">
+<Base
+  title="改正の年表"
+  description="施行年ごとの法令の改正の件数と、年ごとの改正の一覧。公布済みで施行前の改正も含みます。"
+  nav="timeline"
+>
   <h1 class="page-title">改正の年表</h1>
   <p class="subtitle">
     施行年ごとの改正の件数です。houritsu の履歴は e-Gov の改正データがそろう 2015 年ごろから増えるので、

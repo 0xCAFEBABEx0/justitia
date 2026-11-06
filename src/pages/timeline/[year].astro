@@ -13,7 +13,11 @@ const label = year === "undetermined" ? "施行日未定" : `${year}年`;
 const future = year === "undetermined" || year > new Date().getFullYear().toString();
 const heading = year === "undetermined" ? "施行日が未定の改正" : `${label}に${future ? "施行予定" : "施行"}の改正`;
 ---
-<Base title={heading} nav="timeline">
+<Base
+  title={heading}
+  description={`${heading} ${items.length.toLocaleString()} 件の一覧。改正ごとに、変わった条を新旧対照で見られます。`}
+  nav="timeline"
+>
   <div class="crumbs"><a href="/timeline/">改正の年表</a></div>
   <h1 class="page-title">{heading}</h1>
   <p class="subtitle">{items.length.toLocaleString()} 件。日付は施行日です。</p>
