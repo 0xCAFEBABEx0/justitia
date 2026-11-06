@@ -1,16 +1,25 @@
 ---
 import "../styles/site.css";
-import { SITE_NAME, SOURCE_REPO } from "../lib/site.ts";
+import { SITE_NAME, SITE_TAGLINE, SOURCE_REPO } from "../lib/site.ts";
 
 interface Props {
   title?: string;
   description?: string;
   nav?: "laws" | "timeline" | "graph" | "search" | "about";
   narrow?: boolean;
+  /**
+   * Whether this URL (without its query string) is the page's address. False for pages whose
+   * content comes from the query string (/amendment/?k=..., /versions/?law=...): a canonical
+   * link there would make every amendment look like the same page.
+   */
+  canonical?: boolean;
 }
-const { title, description, nav, narrow = false } = Astro.props;
-const fullTitle = title ? `${title} | ${SITE_NAME}` : `${SITE_NAME} — 法令とその改正履歴`;
-const desc = description ?? "日本の法令の条文と、いつ・どう改正されたかを、改正ごとの差分で見られるサイトです。";
+const { title, description, nav, narrow = false, canonical = true } = Astro.props;
+const fullTitle = title ? `${title} | ${SITE_NAME}` : `${SITE_NAME} — ${SITE_TAGLINE}`;
+const desc = description ?? "日本の法令の条文と、いつ・どこが・どう改正されたかを、改正ごとの新旧対照で見られるサイトです。";
+const url = canonical ? new URL(Astro.url.pathname, Astro.site).href : null;
+// One image for every page (a per-law image would add about 9,000 files to the site).
+const ogImage = new URL("/og-image.png", Astro.site).href;
 ---
 <!doctype html>
 <html lang="ja">
@@ -19,12 +28,29 @@ const desc = description ?? "日本の法令の条文と、いつ・どう改正
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     <meta name="description" content={desc} />
+    {url && <link rel="canonical" href={url} />}
+    <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1c1d20" media="(prefers-color-scheme: dark)" />
+    <meta property="og:site_name" content={SITE_NAME} />
+    <meta property="og:locale" content="ja_JP" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title ?? fullTitle} />
+    <meta property="og:description" content={desc} />
+    {url && <meta property="og:url" content={url} />}
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:type" content="image/png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={`${SITE_NAME}：${SITE_TAGLINE}`} />
+    <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
     <header class="site-header">
       <div class="wrap">
-        <a class="logo" href="/">justi<span>tia</span></a>
+        <a class="logo" href="/">Anisotro<span>pics</span></a>
         <nav class="site-nav">
           <a href="/browse/" aria-current={nav === "laws" ? "page" : undefined}>法令一覧</a>
           <a href="/timeline/" aria-current={nav === "timeline" ? "page" : undefined}>改正の年表</a>

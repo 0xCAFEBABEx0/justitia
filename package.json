@@ -23,6 +23,7 @@
   },
   "homepage": "https://github.com/0xCAFEBABEx0/justitia#readme",
   "dependencies": {
+    "@astrojs/sitemap": "^3.7.4",
     "astro": "^7.4.7",
     "diff": "^9.0.0",
     "diff-match-patch": "^1.0.5",

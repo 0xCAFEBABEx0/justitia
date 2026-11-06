@@ -4,6 +4,8 @@
 // others are merged into it. shards.json is fetched past the data domain's cache, like Pagefind's
 // own pagefind-entry.json, so a new index is used as soon as it is uploaded.
 
+import { SITE_NAME } from "../lib/site-name.ts";
+
 interface ResultData {
   url: string;
   excerpt: string;
@@ -57,7 +59,7 @@ export async function initFulltext(root: HTMLElement): Promise<void> {
     if (q) url.searchParams.set("q", q);
     else url.searchParams.delete("q");
     history.replaceState(null, "", url);
-    document.title = q ? `「${q}」の全文検索 | justitia` : "全文検索 | justitia";
+    document.title = q ? `「${q}」の全文検索 | ${SITE_NAME}` : `全文検索 | ${SITE_NAME}`;
     out.innerHTML = "";
     if (!q) {
       say("");

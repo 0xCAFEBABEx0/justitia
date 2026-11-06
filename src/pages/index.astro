@@ -22,7 +22,9 @@ const upcoming = pool(thisYear, thisYear + 2)
   .sort((a, b) => a.enforced!.localeCompare(b.enforced!))
   .slice(0, 10);
 ---
-<Base>
+<Base
+  description={`日本の法令 ${m.counts.lawsInForce.toLocaleString()} 件の条文と、${m.counts.amendments.toLocaleString()} 件の改正を新旧対照で。いつ・どこが・どう変わったかを、改正ごとの差分・年表・グラフで見られます。`}
+>
   <section style="margin:12px 0 28px">
     <h1 class="page-title" style="font-size:32px">法令と、その改正の履歴</h1>
     <p class="subtitle" style="font-size:15px;max-width:46em">

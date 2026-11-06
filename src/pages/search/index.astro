@@ -2,7 +2,7 @@
 import Base from "../../layouts/Base.astro";
 import { DATA_BASE } from "../../lib/site.ts";
 ---
-<Base title="全文検索" nav="search">
+<Base title="全文検索" description="現行の法令の条文から語句を探し、見つかった条へ移動できます。" nav="search">
   <h1 class="page-title">全文検索</h1>
   <p class="subtitle">現行の法令の条文から、語句を含む条を探します。スペースで区切ると、すべての語を含む条を探します。</p>
   <div id="fulltext" data-base={DATA_BASE}>

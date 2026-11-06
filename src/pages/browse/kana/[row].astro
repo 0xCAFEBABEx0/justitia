@@ -10,7 +10,11 @@ export function getStaticPaths() {
 const { row } = Astro.params;
 const list = laws().filter((l) => l.status !== "repealed" && kanaRow(l) === row);
 ---
-<Base title={`法令一覧（${row}行）`} nav="laws">
+<Base
+  title={`法令一覧（${row}行）`}
+  description={`法令名の読みが${row === OTHER_ROW ? "五十音以外で始まる" : `${row}行で始まる`}現行の法令 ${list.length.toLocaleString()} 件の一覧。`}
+  nav="laws"
+>
   <div class="crumbs"><a href="/browse/">法令一覧</a></div>
   <h1 class="page-title">{row === OTHER_ROW ? "その他" : `${row}行`}の法令</h1>
   <p class="subtitle">{list.length.toLocaleString()} 件（廃止された法令は除く）</p>

@@ -114,6 +114,23 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | `/graph/?laws=<ID>,<ID>,…` | Amendment graph: one lane per law, with laws changed by the same amending law joined by a line (git-graph style) |
 | (any other path) | The 404 page |
 
+### Name and page metadata
+
+The site is called **Anisotropics** after its domain (`SITE_NAME` in `src/lib/site-name.ts`); "justitia" is only
+the name of this project and does not appear on the site.
+
+- Every page has its own title (`<page> | Anisotropics`) and description, plus Open Graph and X card tags. All pages
+  share one card image, `public/og-image.png` (an image per law would add about 9,000 files). The amendment and
+  versions pages are filled in by the browser from their query string, so link previews (which do not run scripts)
+  show their generic title.
+- Pages get a canonical link, except the amendment and versions pages (their content depends on the query string,
+  and a canonical link without it would mark every amendment as the same page) and the 404 page (served at any
+  missing path).
+- Icons: `public/favicon.svg` is the drawing; `favicon.ico` (16, 32 and 48 px; Google Search does not use SVG
+  favicons), `apple-touch-icon.png` (180 px) and `og-image.png` are rendered from it.
+- `@astrojs/sitemap` writes `sitemap-index.xml` (all pages except the amendment, versions and 404 pages), which
+  `public/robots.txt` points to.
+
 ## Publishing
 
 `.github/workflows/publish.yml` publishes the site every day at 06:30 JST, on every push to `main`, and when run by

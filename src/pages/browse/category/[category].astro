@@ -13,7 +13,11 @@ const list = laws()
   .filter((l) => l.category === category && l.status !== "repealed")
   .sort((a, b) => TYPE_ORDER.indexOf(a.dir) - TYPE_ORDER.indexOf(b.dir));
 ---
-<Base title={`${category}の法令`} nav="laws">
+<Base
+  title={`${category}の法令`}
+  description={`分野「${category}」の現行の法令 ${list.length.toLocaleString()} 件の一覧。条文と改正の履歴へ移動できます。`}
+  nav="laws"
+>
   <div class="crumbs"><a href="/browse/">法令一覧</a> / <a href="/browse/#category">分野</a></div>
   <h1 class="page-title">{category}</h1>
   <p class="subtitle">{list.length.toLocaleString()} 件（種別順・五十音順）</p>

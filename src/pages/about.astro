@@ -1,14 +1,19 @@
 ---
 import Base from "../layouts/Base.astro";
 import { jpDate, meta } from "../lib/data.ts";
-import { SOURCE_REPO } from "../lib/site.ts";
+import { SITE_NAME, SOURCE_REPO } from "../lib/site.ts";
 
 const m = meta();
 ---
-<Base title="このサイトについて" nav="about" narrow>
+<Base
+  title="このサイトについて"
+  description={`${SITE_NAME} は、日本の法令の条文と改正の履歴を見るための非公式のサイトです。見られるもの、注意、データの出どころ。`}
+  nav="about"
+  narrow
+>
   <h1 class="page-title">このサイトについて</h1>
   <p>
-    justitia は、日本の法令の条文と改正の履歴を見るためのサイトです。法令を Git で管理している
+    {SITE_NAME} は、日本の法令の条文と改正の履歴を見るためのサイトです。法令を Git で管理している
     <a href={SOURCE_REPO}>houritsu</a> リポジトリから毎日生成しています。houritsu では、1つの改正法令の施行が1つのコミットになっています。
   </p>
   <h2>見られるもの</h2>
