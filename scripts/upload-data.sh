@@ -2,11 +2,13 @@
 # Uploads the data the pages fetch in the browser to the R2 bucket behind https://data.anisotro.pics:
 # amendments/, laws/, history/ and pagefind/ from the extractor's output directory.
 #
-#   CLOUDFLARE_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... scripts/upload-data.sh [--check]
+#   CLOUDFLARE_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... scripts/upload-data.sh [--check | PART...]
 #
+# PART is "data" (amendments/, laws/ and history/) or "pagefind"; without one, both are uploaded.
+# The workflow uploads only the parts it rebuilt.
 # With --check, it only writes, reads back and deletes one small object (_publish/check.txt), so that a
 # wrong key or an rclone problem shows up in seconds, before the build (the workflow runs this first).
-# Needs rclone (the workflow uses 1.68.2). Only files whose content changed are uploaded (rclone compares MD5
+# Needs rclone (the workflow uses 1.68.2) and Node.js. Only files whose content changed are uploaded (rclone compares MD5
 # checksums with R2's ETags), and files that are no longer in the output are deleted from the bucket
 # (pagefind/ files one run later; see below).
 # Optional: JUSTITIA_DATA (default ./data), R2_BUCKET (default justitia-data-prod).
@@ -18,21 +20,34 @@ bucket="${R2_BUCKET:-justitia-data-prod}"
 : "${R2_ACCESS_KEY_ID:?set R2_ACCESS_KEY_ID}"
 : "${R2_SECRET_ACCESS_KEY:?set R2_SECRET_ACCESS_KEY}"
 
-check=false
+usage() { echo "usage: $0 [--check | data | pagefind ...]" >&2; exit 2; }
+check=false upload_data=false upload_pagefind=false
 case "${1:-}" in
-  --check) check=true ;;
-  "") ;;
-  *) echo "usage: $0 [--check]" >&2; exit 2 ;;
+  --check) check=true; (($# == 1)) || usage ;;
+  "") (($# == 0)) || usage; upload_data=true upload_pagefind=true ;;
+  *)
+    for part in "$@"; do
+      case "$part" in
+        data) upload_data=true ;;
+        pagefind) upload_pagefind=true ;;
+        *) usage ;;
+      esac
+    done
+    ;;
 esac
 
 # A sync deletes what is not in the source, so refuse to run on incomplete output.
-$check || for f in meta.json pagefind/shards.json; do
-  [[ -s "$data/$f" ]] || { echo "upload-data: $data/$f is missing; run the extractor and the search index first" >&2; exit 1; }
-done
-$check || for dir in amendments laws history; do
-  [[ -n "$(find "$data/$dir" -maxdepth 1 -name '*.json' -print -quit 2>/dev/null)" ]] ||
-    { echo "upload-data: $data/$dir is empty" >&2; exit 1; }
-done
+if $upload_data; then
+  [[ -s "$data/meta.json" ]] || { echo "upload-data: $data/meta.json is missing; run the extractor first" >&2; exit 1; }
+  for dir in amendments laws history; do
+    [[ -n "$(find "$data/$dir" -maxdepth 1 -name '*.json' -print -quit 2>/dev/null)" ]] ||
+      { echo "upload-data: $data/$dir is empty" >&2; exit 1; }
+  done
+fi
+if $upload_pagefind; then
+  [[ -s "$data/pagefind/shards.json" ]] ||
+    { echo "upload-data: $data/pagefind/shards.json is missing; run the search index first" >&2; exit 1; }
+fi
 
 # rclone remote "r2", configured from the environment.
 export RCLONE_CONFIG_R2_TYPE=s3
@@ -42,9 +57,10 @@ export RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
 export RCLONE_CONFIG_R2_ENDPOINT="https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
 export RCLONE_CONFIG_R2_NO_CHECK_BUCKET=true
 
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+
 if $check; then
-  work="$(mktemp -d)"
-  trap 'rm -rf "$work"' EXIT
   echo "upload-data check $(date -u +%FT%TZ)" >"$work/check.txt"
   rclone copyto "$work/check.txt" "r2:$bucket/_publish/check.txt" --header-upload "Cache-Control: no-store"
   rclone cat "r2:$bucket/_publish/check.txt" | cmp -s - "$work/check.txt" ||
@@ -55,23 +71,48 @@ if $check; then
 fi
 
 # The data domain's cache keeps files for up to an hour (see README, "Publishing"). The pages ask
-# for amendments/, laws/ and history/ files with the build's data version in the query string, so
-# a page never mixes files from two builds; files that are gone can be deleted right away.
+# for amendments/, laws/ and history/ files with the data version in the query string (a hash of
+# those files, so it changes only when one of them does), so a page never mixes files from two
+# builds; files that are gone can be deleted right away.
 upload=(--checksum --fast-list --transfers 32 --checkers 32
-  --header-upload "Cache-Control: public, max-age=3600" --stats 60s --stats-one-line)
-for dir in amendments laws history; do
-  echo "upload-data: $dir/"
-  rclone sync "$data/$dir" "r2:$bucket/$dir" "${upload[@]}"
-done
+  --header-upload "Cache-Control: public, max-age=3600"
+  # Print the counts (files checked, uploaded, deleted) every minute and at the end. Stats are
+  # logged at INFO by default, which the default NOTICE level hides.
+  --stats 60s --stats-log-level NOTICE)
+# _publish/data-version.txt records which data R2 holds; the workflow uses its cached data only when
+# that matches. It says "incomplete" while the data is being synced, so an upload that fails halfway
+# makes the next run extract and upload again.
+if $upload_data; then
+  node -p 'require(process.argv[1]).dataVersion' "$(cd "$data" && pwd)/meta.json" | grep -Ex '[0-9a-f]{16}' >"$work/data-version.txt" ||
+    { echo "upload-data: $data/meta.json has no dataVersion" >&2; exit 1; }
+  echo incomplete >"$work/incomplete.txt"
+  rclone copyto "$work/incomplete.txt" "r2:$bucket/_publish/data-version.txt" --header-upload "Cache-Control: no-store"
+  for dir in amendments laws history; do
+    echo "upload-data: $dir/"
+    rclone sync "$data/$dir" "r2:$bucket/$dir" "${upload[@]}"
+  done
+  rclone copyto "$work/data-version.txt" "r2:$bucket/_publish/data-version.txt" --header-upload "Cache-Control: no-store"
+fi
 
-# pagefind/ goes last: its shards.json lists the shards to load. A search page that is already
-# open keeps using the index it loaded and fetches that index's (content-hashed) chunks as it
-# goes, so the files a new index no longer uses are deleted one run later, not right away.
-# _publish/pagefind-unused.txt lists the files that the previous run found unused.
+$upload_pagefind || exit 0
+
+# pagefind/ goes last. shards.json, which lists the shards to load, is uploaded after all the
+# other files, so it never points to shards that are not uploaded yet.
+# A search page that is already open keeps using the index it loaded and fetches that index's
+# (content-hashed) chunks as it goes, so the files a new index no longer uses are deleted one run
+# later, not right away. _publish/pagefind-unused.txt lists the files that the previous run found
+# unused.
+# _publish/pagefind-input.txt holds the input hash of the published index (the workflow skips the
+# indexing when it is unchanged). Like data-version.txt, it says "incomplete" during the upload, so
+# an upload that fails halfway gets the index rebuilt and uploaded again on the next run.
 echo "upload-data: pagefind/"
-rclone copy "$data/pagefind" "r2:$bucket/pagefind" "${upload[@]}"
-work="$(mktemp -d)"
-trap 'rm -rf "$work"' EXIT
+node -p 'require(process.argv[1]).input' "$(cd "$data" && pwd)/pagefind/shards.json" | grep -Ex '[0-9a-f]{16}' >"$work/pagefind-input.txt" ||
+  { echo "upload-data: $data/pagefind/shards.json has no input hash" >&2; exit 1; }
+echo incomplete >"$work/incomplete.txt"
+rclone copyto "$work/incomplete.txt" "r2:$bucket/_publish/pagefind-input.txt" --header-upload "Cache-Control: no-store"
+rclone copy "$data/pagefind" "r2:$bucket/pagefind" --exclude /shards.json "${upload[@]}"
+rclone copyto "$data/pagefind/shards.json" "r2:$bucket/pagefind/shards.json" "${upload[@]}"
+rclone copyto "$work/pagefind-input.txt" "r2:$bucket/_publish/pagefind-input.txt" --header-upload "Cache-Control: no-store"
 export LC_ALL=C
 (cd "$data/pagefind" && find . -type f | sed 's|^\./||' | sort) >"$work/local"
 rclone lsf -R --files-only --fast-list "r2:$bucket/pagefind" | sort >"$work/remote"

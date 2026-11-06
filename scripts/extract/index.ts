@@ -15,6 +15,7 @@ import { appendFile, mkdir, readdir, readFile, rm, writeFile } from "node:fs/pro
 import { basename, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { diffBlocks, splitBlocks, type Block } from "./blocks.ts";
+import { dataVersion } from "./data-version.ts";
 import { splitLawFile, str } from "./frontmatter.ts";
 import { BlobReader, listCommits, tryRevParse, type RawCommit } from "./git.ts";
 import { buildHistory, historyEntry, type HistoryEntry } from "./history.ts";
@@ -378,6 +379,7 @@ async function main(): Promise<void> {
 
   const meta: Meta = {
     generatedAt: new Date().toISOString(),
+    dataVersion: await dataVersion(outDir),
     source: {
       repository: "https://github.com/Kohei-Wada/houritsu",
       mainRef: mainRef[0],
@@ -412,6 +414,10 @@ async function relatedOnly(): Promise<void> {
     await writeJson(path, { ...rest, related: related.get(detail.id) ?? [], revisions });
     n++;
   }
+  // laws/ changed, so the data version has to follow.
+  const metaPath = join(outDir, "meta.json");
+  const meta = JSON.parse(await readFile(metaPath, "utf8")) as Meta;
+  await writeJson(metaPath, { ...meta, dataVersion: await dataVersion(outDir) });
   console.log(`related laws written for ${n} laws`);
 }
 

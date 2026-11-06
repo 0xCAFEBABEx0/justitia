@@ -2,11 +2,11 @@
 import Base from "../layouts/Base.astro";
 import AmendmentList from "../components/AmendmentList.astro";
 import BrowseTabs from "../components/BrowseTabs.astro";
-import { jpDate, meta, timeline, timelineYears, type AmendmentSummary } from "../lib/data.ts";
+import { buildDate, jpDate, jstDate, meta, timeline, timelineYears, type AmendmentSummary } from "../lib/data.ts";
 import { SITE_TAGLINE } from "../lib/site.ts";
 
 const m = meta();
-const today = m.generatedAt.slice(0, 10);
+const today = buildDate();
 const thisYear = Number(today.slice(0, 4));
 // The latest enforced amendments come from this year and last year; the next upcoming ones
 // from this year and the next two.
@@ -57,7 +57,7 @@ const upcoming = pool(thisYear, thisYear + 2)
           <div class="stat"><b>{m.counts.lawsRepealed.toLocaleString()}</b><span>廃止された法令</span></div>
           <div class="stat"><b>{m.counts.amendments.toLocaleString()}</b><span>改正</span></div>
         </div>
-        <p class="note" style="margin:0">データ更新：{jpDate(today)}</p>
+        <p class="note" style="margin:0">データ更新：{jpDate(jstDate(m.generatedAt))}</p>
       </section>
     </aside>
   </div>

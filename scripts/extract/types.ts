@@ -15,6 +15,8 @@ export type Branch = "main" | "upcoming";
 
 export interface Meta {
   generatedAt: string;
+  /** Hash of amendments/, laws/ and history/ (see data-version.ts). Missing in older output. */
+  dataVersion?: string;
   source: {
     repository: string;
     mainRef: string;
