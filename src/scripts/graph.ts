@@ -7,6 +7,7 @@
 // promulgated but not yet in force are drawn dashed.
 
 import type { FileChangeKind, LawDetail } from "../../scripts/extract/types.ts";
+import { dataUrl } from "./data-url.ts";
 import { initSearch } from "./search.ts";
 
 const DEFAULT_LAWS = ["140AC0000000045"]; // 刑法
@@ -48,10 +49,10 @@ function shortDate(iso: string | null): string {
 }
 
 const cache = new Map<string, Promise<LawDetail | null>>();
-function loadLaw(base: string, id: string): Promise<LawDetail | null> {
+function loadLaw(root: HTMLElement, id: string): Promise<LawDetail | null> {
   let p = cache.get(id);
   if (!p) {
-    p = fetch(`${base}/laws/${id}.json`)
+    p = fetch(dataUrl(root, `laws/${id}.json`))
       .then((r) => (r.ok ? (r.json() as Promise<LawDetail>) : null))
       .catch(() => null);
     cache.set(id, p);
@@ -183,7 +184,6 @@ function rowsHtml(items: Item[], laws: LawDetail[], today: string): string {
 }
 
 export function initGraph(root: HTMLElement): void {
-  const base = root.dataset.base!;
   const today = root.dataset.today!;
   const lanesEl = root.querySelector<HTMLElement>("[data-lanes]")!;
   const suggestEl = root.querySelector<HTMLElement>("[data-suggest]")!;
@@ -209,7 +209,7 @@ export function initGraph(root: HTMLElement): void {
 
   const render = async () => {
     const mine = ++seq;
-    const loaded = await Promise.all(ids.map((id) => loadLaw(base, id)));
+    const loaded = await Promise.all(ids.map((id) => loadLaw(root, id)));
     if (mine !== seq) return;
     const laws = loaded.filter((l): l is LawDetail => l !== null);
     const missing = ids.filter((_, i) => loaded[i] === null);

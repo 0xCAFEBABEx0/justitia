@@ -9,6 +9,7 @@ import { blocksAt } from "../../scripts/extract/history.ts";
 import type { LawDetail, LawHistory, LawRevision } from "../../scripts/extract/types.ts";
 import { renderBlocks, renderBlockText } from "../lib/render.ts";
 import { blockHtml, esc, jpDate, VIEW_KEY, type View } from "./amendment.ts";
+import { dataUrl } from "./data-url.ts";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -65,13 +66,12 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
     root.innerHTML = `<p class="note">法令が指定されていません。<a href="/browse/">法令一覧</a>から選んでください。</p>`;
     return;
   }
-  const base = root.dataset.base;
   let law: LawDetail;
   let hist: LawHistory;
   try {
     [law, hist] = await Promise.all([
-      getJson<LawDetail>(`${base}/laws/${id}.json`),
-      getJson<LawHistory>(`${base}/history/${id}.json`),
+      getJson<LawDetail>(dataUrl(root, `laws/${id}.json`)),
+      getJson<LawHistory>(dataUrl(root, `history/${id}.json`)),
     ]);
   } catch {
     root.innerHTML = `<p class="note">法令「${esc(id)}」の履歴が見つかりませんでした。</p>`;

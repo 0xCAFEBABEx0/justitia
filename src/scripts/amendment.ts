@@ -4,6 +4,7 @@
 // before it on the right, with the changed parts marked. An inline view puts both in one column.
 
 import type { Amendment, BlockChange, FileChange, Hunk, Segment } from "../../scripts/extract/types.ts";
+import { dataUrl } from "./data-url.ts";
 
 const KIND: Record<FileChange["kind"], string> = {
   enacted: "制定",
@@ -168,7 +169,7 @@ export async function renderAmendmentPage(root: HTMLElement): Promise<void> {
   }
   let a: Amendment;
   try {
-    const res = await fetch(`${root.dataset.base}/amendments/${key}.json`);
+    const res = await fetch(dataUrl(root, `amendments/${key}.json`));
     if (!res.ok) throw new Error(String(res.status));
     a = (await res.json()) as Amendment;
   } catch {

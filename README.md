@@ -71,13 +71,14 @@ The types are in `scripts/extract/types.ts`.
 
 ## Site
 
-A static [Astro](https://astro.build/) site, to be hosted on Cloudflare's free tier.
+A static [Astro](https://astro.build/) site, hosted on Cloudflare's free tier (see [Publishing](#publishing)).
 
 - **Site** (`https://anisotro.pics`): `dist/` is served as Workers static assets. Requests for static assets are free
   and unlimited. The site has about 10,000 files, within the free tier's 20,000-file limit.
 - **Per-amendment and per-law JSON and the search index** (`https://data.anisotro.pics`): `data/amendments/`,
   `data/laws/`, `data/history/` and `data/pagefind/` go in a public R2 bucket, served through a custom domain with
-  Cloudflare caching. The amendment, graph, version and search pages fetch them in the browser.
+  Cloudflare caching. The amendment, graph, version and search pages fetch them in the browser. No Worker runs in
+  front of either, so there is no per-request limit to run into.
 - **Full-text search** uses [Pagefind](https://pagefind.app/) (its extended build segments Japanese words). Each
   article (block) is its own search record, so a result is the matching article, and words in its heading count
   more: a search for 正当防衛 finds 刑法第三十六条 first, where whole-law records ranked unrelated laws higher.
@@ -111,3 +112,63 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | `/versions/?law=<law ID>&at=<amendment key or YYYY-MM-DD>[&from=<…>]` | The law's text at any revision, past or upcoming; with `from`, what changed between two revisions (like `git diff from..at`) |
 | `/search/?q=<words>` | Full-text search over the current law text, with links to the matching articles |
 | `/graph/?laws=<ID>,<ID>,…` | Amendment graph: one lane per law, with laws changed by the same amending law joined by a line (git-graph style) |
+| (any other path) | The 404 page |
+
+## Publishing
+
+`.github/workflows/publish.yml` publishes the site every day at 06:30 JST, on every push to `main`, and when run by
+hand (Actions → Publish → Run workflow). It takes about 40 minutes on a GitHub-hosted runner:
+
+1. fetch houritsu, extract the data, build the site and the search index (as in [Site](#site));
+2. `npm run upload-data` (`scripts/upload-data.sh`): sync `amendments/`, `laws/`, `history/` and `pagefind/` to the
+   R2 bucket with rclone. Only files whose content changed are uploaded, and files that are gone are deleted
+   (Pagefind files one run later, so a search page that was open during the upload keeps working);
+3. `npm run deploy`: deploy `dist/` to Workers static assets with Wrangler (`wrangler.jsonc`). Wrangler uploads
+   only the files that changed.
+
+The data goes first, so a new page never links to data that is not there yet. Data files are uploaded with
+`Cache-Control: public, max-age=3600`. The pages fetch `amendments/`, `laws/` and `history/` files with the build's
+data version in the query string (`?v=`, from `generatedAt` in `meta.json`), which is part of the cache key, so a
+new build never gets files cached from an older one, and a page never mixes the two. Pagefind's
+`pagefind-entry.json` and our `pagefind/shards.json` are always fetched with a `?ts=` query, which skips the cache,
+so the search page picks up a new index right away. The bucket also holds `_publish/pagefind-unused.txt`, the
+upload script's list of Pagefind files to delete on the next run.
+
+### One-time setup
+
+In the Cloudflare account that has the `anisotro.pics` zone:
+
+1. **R2 bucket**: create `justitia-data-prod` with the location hint *Asia-Pacific*, close to most readers.
+2. **Custom domain**: in the bucket's settings, connect `data.anisotro.pics`. Keep the `r2.dev` URL disabled.
+3. **Cache rule** (Caching → Cache Rules): when the hostname equals `data.anisotro.pics`, make the request
+   *eligible for cache*, with the edge TTL taken from the `Cache-Control` header. Without it, Cloudflare caches only
+   some file types, and none of the JSON.
+4. **CORS header** (Rules → Transform Rules → Response Header): when the hostname equals `data.anisotro.pics`, set
+   the static header `Access-Control-Allow-Origin: *`. The pages on `anisotro.pics` read this cross-origin data
+   (including `pagefind.js`, which is loaded as a module). A transform rule is used instead of the bucket's CORS
+   policy because R2 adds CORS headers only to requests that send an `Origin` header, and the cache keeps whichever
+   response it got first; a transform rule adds the header to every response, cached or not. All of the data is
+   public.
+5. **API token for Wrangler** (Manage account → Account API tokens → Create token): use the *Edit Cloudflare
+   Workers* template, limited to this account and the `anisotro.pics` zone. The first deploy creates the
+   `anisotro.pics` custom domain for the Worker, which fails if the apex already has a DNS record pointing
+   elsewhere.
+6. **R2 API token** (R2 → Manage API tokens → Create account API token): *Object Read & Write*, limited to the
+   `justitia-data-prod` bucket. It gives an access key ID and a secret access key.
+
+In the GitHub repository (Settings → Secrets and variables → Actions), add these repository secrets:
+
+| Secret | Value |
+| --- | --- |
+| `CLOUDFLARE_ACCOUNT_ID` | The Cloudflare account ID |
+| `CLOUDFLARE_API_TOKEN` | The token from step 5 |
+| `R2_ACCESS_KEY_ID` | The access key ID from step 6 |
+| `R2_SECRET_ACCESS_KEY` | The secret access key from step 6 |
+
+Then run the workflow by hand once. The first upload is about 79,000 files and 3.5 GB, within R2's free tier
+(10 GB stored, 1 million writes a month); later runs upload only what changed. GitHub turns off scheduled workflows
+in a public repository after 60 days without activity; turn the workflow back on under Actions if that happens.
+
+To publish from your own machine instead, set the same four values as environment variables (and install rclone),
+then run `npm run upload-data` and `npm run deploy` after building.
+

@@ -1,7 +1,8 @@
 // Full-text search over the law text (/search/?q=...), with the Pagefind index built by
 // scripts/search-index.ts: one record per article (block), so each result is an article.
 // The index is split into shards under <data base>/pagefind/<n>/; shard 0 is loaded and the
-// others are merged into it.
+// others are merged into it. shards.json is fetched past the data domain's cache, like Pagefind's
+// own pagefind-entry.json, so a new index is used as soon as it is uploaded.
 
 interface ResultData {
   url: string;
@@ -28,7 +29,7 @@ function excerpt(s: string): string {
 let loading: Promise<Pagefind> | null = null;
 function loadPagefind(base: string): Promise<Pagefind> {
   return (loading ??= (async () => {
-    const { shards } = (await (await fetch(`${base}/pagefind/shards.json`)).json()) as { shards: number };
+    const { shards } = (await (await fetch(`${base}/pagefind/shards.json?ts=${Date.now()}`)).json()) as { shards: number };
     const pf = (await import(/* @vite-ignore */ `${base}/pagefind/0/pagefind.js`)) as Pagefind;
     // The indexed URLs are site paths. Without baseUrl, Pagefind prefixes them with the directory
     // the index is loaded from (/data/ locally, the data domain in production).

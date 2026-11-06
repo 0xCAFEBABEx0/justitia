@@ -39,6 +39,11 @@ export function meta(): Meta {
   return readJson<Meta>("meta.json");
 }
 
+/** Changes with every extraction; the pages put it on their data URLs (see src/scripts/data-url.ts). */
+export function dataVersion(): string {
+  return meta().generatedAt.replace(/[^0-9]/g, "");
+}
+
 let yearsCache: string[] | null = null;
 /** Years that have a timeline file, oldest first; "undetermined" last. */
 export function timelineYears(): string[] {

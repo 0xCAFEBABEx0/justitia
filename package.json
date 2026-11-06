@@ -10,7 +10,9 @@
     "dev": "astro dev",
     "build": "astro build",
     "search-index": "node scripts/search-index.ts",
-    "preview": "node scripts/preview.ts"
+    "preview": "node scripts/preview.ts",
+    "upload-data": "scripts/upload-data.sh",
+    "deploy": "npx --yes wrangler@4.151.3 deploy"
   },
   "repository": {
     "type": "git",
