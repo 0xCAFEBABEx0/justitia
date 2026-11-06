@@ -62,14 +62,15 @@ jobs:
         run: npm run search-index
 
       # Ubuntu's rclone (1.60) gets "501 NotImplemented" from R2 on some uploads; use a current release.
+      # (Not RCLONE_VERSION: rclone reads every RCLONE_* variable as a flag, and that one is --version.)
       - name: Install rclone
         run: |
-          curl -fsSL -o "$RUNNER_TEMP/rclone.zip" "https://downloads.rclone.org/v${RCLONE_VERSION}/rclone-v${RCLONE_VERSION}-linux-amd64.zip"
+          curl -fsSL -o "$RUNNER_TEMP/rclone.zip" "https://downloads.rclone.org/v${RELEASE}/rclone-v${RELEASE}-linux-amd64.zip"
           unzip -q -j "$RUNNER_TEMP/rclone.zip" "*/rclone" -d "$RUNNER_TEMP/rclone"
           sudo install "$RUNNER_TEMP/rclone/rclone" /usr/local/bin/rclone
           rclone version
         env:
-          RCLONE_VERSION: 1.68.2
+          RELEASE: 1.68.2
 
       - name: Upload data to R2
         run: npm run upload-data
