@@ -2,8 +2,10 @@
 # Uploads the data the pages fetch in the browser to the R2 bucket behind https://data.anisotro.pics:
 # amendments/, laws/, history/ and pagefind/ from the extractor's output directory.
 #
-#   CLOUDFLARE_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... scripts/upload-data.sh
+#   CLOUDFLARE_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... scripts/upload-data.sh [--check]
 #
+# With --check, it only writes, reads back and deletes one small object (_publish/check.txt), so that a
+# wrong key or an rclone problem shows up in seconds, before the build (the workflow runs this first).
 # Needs rclone (the workflow uses 1.68.2). Only files whose content changed are uploaded (rclone compares MD5
 # checksums with R2's ETags), and files that are no longer in the output are deleted from the bucket
 # (pagefind/ files one run later; see below).
@@ -16,11 +18,18 @@ bucket="${R2_BUCKET:-justitia-data-prod}"
 : "${R2_ACCESS_KEY_ID:?set R2_ACCESS_KEY_ID}"
 : "${R2_SECRET_ACCESS_KEY:?set R2_SECRET_ACCESS_KEY}"
 
+check=false
+case "${1:-}" in
+  --check) check=true ;;
+  "") ;;
+  *) echo "usage: $0 [--check]" >&2; exit 2 ;;
+esac
+
 # A sync deletes what is not in the source, so refuse to run on incomplete output.
-for f in meta.json pagefind/shards.json; do
+$check || for f in meta.json pagefind/shards.json; do
   [[ -s "$data/$f" ]] || { echo "upload-data: $data/$f is missing; run the extractor and the search index first" >&2; exit 1; }
 done
-for dir in amendments laws history; do
+$check || for dir in amendments laws history; do
   [[ -n "$(find "$data/$dir" -maxdepth 1 -name '*.json' -print -quit 2>/dev/null)" ]] ||
     { echo "upload-data: $data/$dir is empty" >&2; exit 1; }
 done
@@ -32,6 +41,18 @@ export RCLONE_CONFIG_R2_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID"
 export RCLONE_CONFIG_R2_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY"
 export RCLONE_CONFIG_R2_ENDPOINT="https://${CLOUDFLARE_ACCOUNT_ID}.r2.cloudflarestorage.com"
 export RCLONE_CONFIG_R2_NO_CHECK_BUCKET=true
+
+if $check; then
+  work="$(mktemp -d)"
+  trap 'rm -rf "$work"' EXIT
+  echo "upload-data check $(date -u +%FT%TZ)" >"$work/check.txt"
+  rclone copyto "$work/check.txt" "r2:$bucket/_publish/check.txt" --header-upload "Cache-Control: no-store"
+  rclone cat "r2:$bucket/_publish/check.txt" | cmp -s - "$work/check.txt" ||
+    { echo "upload-data: _publish/check.txt read back differently" >&2; exit 1; }
+  rclone deletefile "r2:$bucket/_publish/check.txt"
+  echo "upload-data: R2 bucket $bucket is writable"
+  exit 0
+fi
 
 # The data domain's cache keeps files for up to an hour (see README, "Publishing"). The pages ask
 # for amendments/, laws/ and history/ files with the build's data version in the query string, so
