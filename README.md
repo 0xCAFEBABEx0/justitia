@@ -169,6 +169,6 @@ Then run the workflow by hand once. The first upload is about 79,000 files and 3
 (10 GB stored, 1 million writes a month); later runs upload only what changed. GitHub turns off scheduled workflows
 in a public repository after 60 days without activity; turn the workflow back on under Actions if that happens.
 
-To publish from your own machine instead, set the same four values as environment variables (and install rclone),
+To publish from your own machine instead, set the same four values as environment variables (and install rclone 1.68 or later),
 then run `npm run upload-data` and `npm run deploy` after building.
 
