@@ -7,7 +7,8 @@ interface Props {
 }
 const { mode, current } = Astro.props;
 const kanaRows = [...KANA_ROWS.map((r) => r.row), OTHER_ROW];
-const tab = (active: boolean) => ["tab", { "tab-active": active }];
+// daisyUI draws inactive tabs at 50% of the text color, too faint on base-200 for WCAG AA (4.5:1).
+const tab = (active: boolean) => ["tab", active ? "tab-active" : "text-base-content/65 hover:text-base-content"];
 ---
 <div class="mb-4 flex flex-col gap-2">
   <nav class="tabs tabs-box tabs-sm w-fit max-w-full flex-wrap border border-base-300" aria-label="五十音">

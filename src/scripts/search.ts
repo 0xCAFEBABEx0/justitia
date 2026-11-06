@@ -105,7 +105,7 @@ export function initSearch(root: HTMLElement, onPick?: (id: string, title: strin
       ? rows
           .map(
             (r) =>
-              `<li><a class="block" href="/laws/${r[0]}/" data-id="${r[0]}" data-title="${esc(r[1])}">${esc(r[1])}<small class="ml-1.5 text-xs text-base-content/60">${esc(r[4])}${r[5] ? `・${STATUS[r[5]]}` : ""}</small></a></li>`,
+              `<li><a class="block" href="/laws/${r[0]}/" data-id="${r[0]}" data-title="${esc(r[1])}">${esc(r[1])}<small class="ml-1.5 text-xs text-base-content/65">${esc(r[4])}${r[5] ? `・${STATUS[r[5]]}` : ""}</small></a></li>`,
           )
           .join("")
       : empty("法令名では見つかりませんでした");

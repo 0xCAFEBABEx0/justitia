@@ -23,7 +23,7 @@ const cats = [...categories].sort((a, b) => a[0].localeCompare(b[0], "ja"));
   <div class="grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-3">
     {byType.map(({ t, n }) => (
       <a class="card card-border card-sm bg-base-100 transition-colors hover:border-primary" href={`/browse/type/${t}/`}>
-        <div class="card-body"><b class="text-base">{TYPE_LABELS[t]}</b><div class="text-xs text-base-content/60">{n.toLocaleString()} 件</div></div>
+        <div class="card-body"><b class="text-base">{TYPE_LABELS[t]}</b><div class="text-xs text-base-content/65">{n.toLocaleString()} 件</div></div>
       </a>
     ))}
   </div>
@@ -32,7 +32,7 @@ const cats = [...categories].sort((a, b) => a[0].localeCompare(b[0], "ja"));
   <div class="grid grid-cols-[repeat(auto-fill,minmax(14rem,1fr))] gap-3">
     {cats.map(([c, n]) => (
       <a class="card card-border card-sm bg-base-100 transition-colors hover:border-primary" href={`/browse/category/${c}/`}>
-        <div class="card-body"><b class="text-base">{c}</b><div class="text-xs text-base-content/60">{n.toLocaleString()} 件</div></div>
+        <div class="card-body"><b class="text-base">{c}</b><div class="text-xs text-base-content/65">{n.toLocaleString()} 件</div></div>
       </a>
     ))}
   </div>

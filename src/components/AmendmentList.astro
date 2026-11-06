@@ -7,8 +7,11 @@ interface Props {
   groupByDate?: boolean;
   /** Draw the list without its own border and background (inside a card). */
   bare?: boolean;
+  /** Level of the date headings: one below the heading the list sits under. */
+  headingLevel?: 2 | 3;
 }
-const { items, groupByDate = true, bare = false } = Astro.props;
+const { items, groupByDate = true, bare = false, headingLevel = 3 } = Astro.props;
+const DateHeading = `h${headingLevel}` as const;
 const groups: [string, AmendmentSummary[]][] = [];
 for (const a of items) {
   const d = a.enforced ?? "";
@@ -19,7 +22,7 @@ for (const a of items) {
 ---
 {groups.map(([date, list]) => (
   <section>
-    {groupByDate && <h3 class="mt-5 mb-1.5 text-sm font-bold text-base-content/70">{date ? jpDate(date) : "施行日未定"}</h3>}
+    {groupByDate && <DateHeading class="mt-5 mb-1.5 text-sm font-bold text-base-content/70">{date ? jpDate(date) : "施行日未定"}</DateHeading>}
     <ul class:list={["list", { "rounded-box border border-base-300 bg-base-100": !bare }]}>
       {list.map((a) => (
         <li class:list={["list-row", bare ? "px-0 py-2.5" : "py-3"]}>
@@ -27,7 +30,7 @@ for (const a of items) {
             {!groupByDate && <div class="text-xs font-bold text-base-content/70">{jpDate(a.enforced)}</div>}
             <a class="link link-hover font-bold text-primary" href={amendmentUrl(a.key)}>{a.title}</a>
             {a.branch === "upcoming" && <StatusBadge kind="upcoming" label="施行予定" />}
-            <div class="mt-0.5 text-xs text-base-content/60">
+            <div class="mt-1.5 text-xs text-base-content/65">
               {a.amendmentLawNum}・
               {a.laws.slice(0, 4).map((l, i) => (
                 <>{i > 0 && "、"}<a class="link link-hover" href={lawUrl(l.id)}>{l.title}</a>{l.kind !== "amended" && `（${KIND_LABELS[l.kind]}）`}</>

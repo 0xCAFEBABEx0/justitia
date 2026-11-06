@@ -30,7 +30,7 @@
   --color-info-content: #ffffff;
   --color-success: #1d7a35;
   --color-success-content: #ffffff;
-  --color-warning: #a86a00;
+  --color-warning: #966000;
   --color-warning-content: #ffffff;
   --color-error: #b3261e;
   --color-error-content: #ffffff;
@@ -226,7 +226,7 @@
   }
   .hunks .hl.a { background: var(--color-add-bg); color: var(--color-add); }
   .hunks .hl.d { background: var(--color-del-bg); color: var(--color-del); }
-  .hunks .hh { @apply bg-base-200 px-4 py-0.5 text-base-content/60; }
+  .hunks .hh { @apply bg-base-200 px-4 py-0.5 text-base-content/65; }
 
   /* ---- Graph page (drawn by src/scripts/graph.ts) ---- */
   .g-wrap { @apply relative overflow-x-auto rounded-box border border-base-300 bg-base-100; }
@@ -243,8 +243,8 @@
   .g-row .g-line1,
   .g-row .g-line2 { overflow: hidden; text-overflow: ellipsis; }
   .g-row .g-line1 { @apply text-sm leading-[22px]; }
-  .g-row .g-line2 { @apply text-xs leading-[18px] text-base-content/60; }
-  .g-row .g-date { @apply mr-2.5 text-xs tabular-nums text-base-content/60; }
+  .g-row .g-line2 { @apply text-xs leading-[18px] text-base-content/65; }
+  .g-row .g-date { @apply mr-2.5 text-xs tabular-nums text-base-content/65; }
   .g-row.upcoming .g-line1 a { font-style: italic; }
   .g-dots { display: inline-flex; gap: 2px; margin-right: 6px; vertical-align: -1px; }
   .g-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
@@ -254,4 +254,17 @@
     .g-row .g-line1 { line-height: 18px; }
     .g-row .g-line2 { display: none; }
   }
+}
+
+/*
+ * A focused text field: daisyUI draws a 2px outline in the text color 2px outside the field,
+ * which reads as a stray frame (most visibly on the search page, which focuses its field on
+ * load). The field's own border turns the primary color instead. The outline stays in the
+ * cascade with a transparent color, so forced-colors mode (Windows high contrast), which
+ * replaces it with a system color, still shows it. Unlayered, so it wins over daisyUI's layer.
+ */
+.input:focus,
+.input:focus-within {
+  --input-color: var(--color-primary);
+  outline-color: transparent;
 }

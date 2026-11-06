@@ -90,12 +90,12 @@ const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => 
                     {r.branch === "upcoming" ? <StatusBadge kind="upcoming" label="施行予定" /> : <StatusBadge kind={r.kind} label={KIND_LABELS[r.kind]} />}
                   </div>
                   <div>
-                    <a class="link link-hover link-primary" href={amendmentUrl(r.amendment) + anchor}>{r.amendmentTitle}</a>
-                    <span class="text-xs text-base-content/60">（{r.amendmentLawNum}）</span>
+                    <a class="link link-primary" href={amendmentUrl(r.amendment) + anchor}>{r.amendmentTitle}</a>
+                    <span class="text-xs text-base-content/65">（{r.amendmentLawNum}）</span>
                   </div>
-                  {r.titleChange && <div class="text-xs text-base-content/60">題名を「{r.titleChange.from}」から変更</div>}
+                  {r.titleChange && <div class="text-xs text-base-content/65">題名を「{r.titleChange.from}」から変更</div>}
                   {r.changedCount > 0 && (
-                    <div class="text-xs text-base-content/60">
+                    <div class="text-xs text-base-content/65">
                       {r.changed.slice(0, 6).map((c, i) => <>{i > 0 && "・"}<span set:html={renderInline(c.heading)} /></>)}
                       {r.changedCount > 6 && <>ほか {r.changedCount - 6} 件</>}
                     </div>
@@ -114,7 +114,7 @@ const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => 
 
       {rendered && rendered.toc.length > 0 && (
         <details class="collapse-arrow collapse border border-base-300 bg-base-100" open={rendered.toc.length <= 60}>
-          <summary class="collapse-title font-bold">目次<span class="ml-1 font-normal text-base-content/60">（条文 {rendered.articleCount.toLocaleString()} 条）</span></summary>
+          <summary class="collapse-title font-bold">目次<span class="ml-1 font-normal text-base-content/65">（条文 {rendered.articleCount.toLocaleString()} 条）</span></summary>
           <div class="collapse-content px-2">
             <ul class="menu menu-sm w-full p-0">
               {rendered.toc.map((t) => (

@@ -150,7 +150,9 @@ function svgFor(items: Item[], laws: LawDetail[]): string {
       } else {
         shape = `<circle cx="${cx}" cy="${cy}" r="5.5" fill="${it.upcoming ? "var(--color-base-100)" : color}" stroke="${color}" stroke-width="2.5"/>`;
       }
-      parts.push(`<a href="${href}"><title>${esc(label)}</title>${shape}<circle cx="${cx}" cy="${cy}" r="10" fill="transparent"/></a>`);
+      // The drawing is hidden from screen readers (the rows beside it carry the same links), so its
+      // links stay out of the tab order too: focusable content inside aria-hidden is an ARIA error.
+      parts.push(`<a href="${href}" tabindex="-1"><title>${esc(label)}</title>${shape}<circle cx="${cx}" cy="${cy}" r="10" fill="transparent"/></a>`);
     }
   });
 
