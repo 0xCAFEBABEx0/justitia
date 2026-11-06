@@ -8,7 +8,7 @@
 # The workflow uploads only the parts it rebuilt.
 # With --check, it only writes, reads back and deletes one small object (_publish/check.txt), so that a
 # wrong key or an rclone problem shows up in seconds, before the build (the workflow runs this first).
-# Needs rclone (the workflow uses 1.68.2). Only files whose content changed are uploaded (rclone compares MD5
+# Needs rclone (the workflow uses 1.68.2) and Node.js. Only files whose content changed are uploaded (rclone compares MD5
 # checksums with R2's ETags), and files that are no longer in the output are deleted from the bucket
 # (pagefind/ files one run later; see below).
 # Optional: JUSTITIA_DATA (default ./data), R2_BUCKET (default justitia-data-prod).
@@ -84,6 +84,10 @@ if $upload_data; then
     echo "upload-data: $dir/"
     rclone sync "$data/$dir" "r2:$bucket/$dir" "${upload[@]}"
   done
+  # Records which data R2 now holds; the workflow uses its cached data only when that matches.
+  node -p 'require(process.argv[1]).dataVersion' "$(cd "$data" && pwd)/meta.json" | grep -Ex '[0-9a-f]{16}' >"$work/data-version.txt" ||
+    { echo "upload-data: $data/meta.json has no dataVersion" >&2; exit 1; }
+  rclone copyto "$work/data-version.txt" "r2:$bucket/_publish/data-version.txt" --header-upload "Cache-Control: no-store"
 fi
 
 $upload_pagefind || exit 0

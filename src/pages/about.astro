@@ -1,6 +1,6 @@
 ---
 import Base from "../layouts/Base.astro";
-import { jpDate, meta } from "../lib/data.ts";
+import { jpDate, jstDate, meta } from "../lib/data.ts";
 import { SOURCE_REPO } from "../lib/site.ts";
 
 const m = meta();
@@ -32,7 +32,7 @@ const m = meta();
   </ul>
   <h2>データ</h2>
   <p class="note">
-    最終更新：{jpDate(m.generatedAt.slice(0, 10))}・houritsu の
+    最終更新：{jpDate(jstDate(m.generatedAt))}・houritsu の
     <a href={`${SOURCE_REPO}/commit/${m.source.mainCommit}`}>{m.source.mainCommit.slice(0, 9)}</a> 時点
   </p>
 </Base>

@@ -1,9 +1,9 @@
 ---
 import Base from "../../layouts/Base.astro";
-import { dataVersion, meta } from "../../lib/data.ts";
+import { buildDate, dataVersion } from "../../lib/data.ts";
 import { DATA_BASE } from "../../lib/site.ts";
 
-const today = meta().generatedAt.slice(0, 10);
+const today = buildDate();
 ---
 <Base title="改正のグラフ" nav="graph">
   <h1 class="page-title">改正のグラフ</h1>
