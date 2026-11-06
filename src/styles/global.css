@@ -182,9 +182,17 @@
   .law-text th {
     @apply border border-base-300 px-2 py-1 align-top;
   }
+  /*
+   * A long law (民法 has about 1,600 blocks) took seconds of layout on load, redone as each font
+   * subset arrived. Blocks off screen are skipped until they come near the viewport; 'auto' in
+   * the size makes the browser remember a block's real height once it has been drawn. Find in
+   * page, anchors (#…) and the accessibility tree still see the skipped blocks.
+   */
   .law-text .blk {
     @apply rounded-box;
     scroll-margin-top: 4.5rem;
+    content-visibility: auto;
+    contain-intrinsic-size: auto 8em;
   }
   .law-text .blk:target {
     @apply bg-primary/10;
