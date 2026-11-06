@@ -24,7 +24,7 @@ usage() { echo "usage: $0 [--check | data | pagefind ...]" >&2; exit 2; }
 check=false upload_data=false upload_pagefind=false
 case "${1:-}" in
   --check) check=true; (($# == 1)) || usage ;;
-  "") upload_data=true upload_pagefind=true ;;
+  "") (($# == 0)) || usage; upload_data=true upload_pagefind=true ;;
   *)
     for part in "$@"; do
       case "$part" in
@@ -79,14 +79,18 @@ upload=(--checksum --fast-list --transfers 32 --checkers 32
   # Print the counts (files checked, uploaded, deleted) every minute and at the end. Stats are
   # logged at INFO by default, which the default NOTICE level hides.
   --stats 60s --stats-log-level NOTICE)
+# _publish/data-version.txt records which data R2 holds; the workflow uses its cached data only when
+# that matches. It says "incomplete" while the data is being synced, so an upload that fails halfway
+# makes the next run extract and upload again.
 if $upload_data; then
+  node -p 'require(process.argv[1]).dataVersion' "$(cd "$data" && pwd)/meta.json" | grep -Ex '[0-9a-f]{16}' >"$work/data-version.txt" ||
+    { echo "upload-data: $data/meta.json has no dataVersion" >&2; exit 1; }
+  echo incomplete >"$work/incomplete.txt"
+  rclone copyto "$work/incomplete.txt" "r2:$bucket/_publish/data-version.txt" --header-upload "Cache-Control: no-store"
   for dir in amendments laws history; do
     echo "upload-data: $dir/"
     rclone sync "$data/$dir" "r2:$bucket/$dir" "${upload[@]}"
   done
-  # Records which data R2 now holds; the workflow uses its cached data only when that matches.
-  node -p 'require(process.argv[1]).dataVersion' "$(cd "$data" && pwd)/meta.json" | grep -Ex '[0-9a-f]{16}' >"$work/data-version.txt" ||
-    { echo "upload-data: $data/meta.json has no dataVersion" >&2; exit 1; }
   rclone copyto "$work/data-version.txt" "r2:$bucket/_publish/data-version.txt" --header-upload "Cache-Control: no-store"
 fi
 

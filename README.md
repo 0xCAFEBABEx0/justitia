@@ -125,7 +125,7 @@ It rebuilds only what changed:
    extractor's code and `package-lock.json`, and the cache holds what the site build reads (`meta.json`,
    `laws.json`, `laws/`, `timeline/`). A change to the site alone, or a day without new commits in houritsu, uses
    the cache, as long as R2 still holds the same data: the upload records the data version it uploaded in
-   `_publish/data-version.txt`, and a cached copy with another version (after an extractor change is reverted, for
+   `_publish/data-version.txt` (`incomplete` while it uploads), and a cached copy with another version (after an extractor change is reverted, for
    example) is extracted and uploaded again;
 2. build the site, then the search index (`npm run search-index -- --skip-if-same <published shards.json>`),
    unless the published index was built from the same input: `shards.json` records a hash of the indexed parts
