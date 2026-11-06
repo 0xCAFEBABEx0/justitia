@@ -10,7 +10,7 @@ interface ResultData {
 }
 interface Pagefind {
   options(o: Record<string, unknown>): Promise<void>;
-  mergeIndex(url: string): Promise<void>;
+  mergeIndex(url: string, o?: Record<string, unknown>): Promise<void>;
   search(q: string): Promise<{ results: { id: string; data(): Promise<ResultData> }[] }>;
 }
 
@@ -30,8 +30,10 @@ function loadPagefind(base: string): Promise<Pagefind> {
   return (loading ??= (async () => {
     const { shards } = (await (await fetch(`${base}/pagefind/shards.json`)).json()) as { shards: number };
     const pf = (await import(/* @vite-ignore */ `${base}/pagefind/0/pagefind.js`)) as Pagefind;
-    await pf.options({ excerptLength: 40 });
-    for (let n = 1; n < shards; n++) await pf.mergeIndex(`${base}/pagefind/${n}/`);
+    // The indexed URLs are site paths. Without baseUrl, Pagefind prefixes them with the directory
+    // the index is loaded from (/data/ locally, the data domain in production).
+    await pf.options({ baseUrl: "/", excerptLength: 40 });
+    for (let n = 1; n < shards; n++) await pf.mergeIndex(`${base}/pagefind/${n}/`, { baseUrl: "/" });
     return pf;
   })());
 }
