@@ -100,6 +100,7 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
     const url = new URL(location.href);
     url.searchParams.set("law", id);
     if (at >= 0) url.searchParams.set("at", revs[at].amendment);
+    else if (date) url.searchParams.set("at", date); // a date before the first revision
     if (from >= 0) url.searchParams.set("from", revs[from].amendment);
     else url.searchParams.delete("from");
     history.replaceState(null, "", url);
