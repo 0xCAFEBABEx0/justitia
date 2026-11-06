@@ -1,0 +1,76 @@
+# Rebuilds everything from houritsu and publishes it to Cloudflare: the data the pages fetch in the
+# browser to R2 (https://data.anisotro.pics), then the site to Workers static assets
+# (https://anisotro.pics). See README, "Publishing", for the one-time Cloudflare setup and secrets.
+name: Publish
+
+on:
+  schedule:
+    - cron: "30 21 * * *" # 06:30 JST every day
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: publish
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    env:
+      PUBLIC_DATA_BASE: https://data.anisotro.pics
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Check secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          missing=0
+          for name in CLOUDFLARE_ACCOUNT_ID CLOUDFLARE_API_TOKEN R2_ACCESS_KEY_ID R2_SECRET_ACCESS_KEY; do
+            if [ -z "${!name}" ]; then echo "::error::Repository secret $name is not set (see README, Publishing)"; missing=1; fi
+          done
+          exit $missing
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+
+      - name: Fetch houritsu
+        run: npm run fetch-houritsu
+
+      - name: Extract data (about 15 minutes)
+        run: npm run extract
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+
+      - name: Build the site
+        run: npm run build
+
+      - name: Build the search index (about 17 minutes)
+        run: npm run search-index
+
+      - name: Install rclone
+        run: sudo apt-get update -q && sudo apt-get install -y -q rclone
+
+      - name: Upload data to R2
+        run: npm run upload-data
+        env:
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+      - name: Deploy the site
+        run: npm run deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

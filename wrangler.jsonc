@@ -1,0 +1,15 @@
+// Cloudflare Workers static assets: the built site (dist/) served at https://anisotro.pics.
+// There is no Worker script, so every request is a static asset request (free and unlimited).
+// The data the pages fetch in the browser lives in R2 (see scripts/upload-data.sh).
+{
+  "name": "justitia",
+  "compatibility_date": "2026-10-20",
+  "assets": {
+    "directory": "./dist",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  "routes": [{ "pattern": "anisotro.pics", "custom_domain": true }],
+  "workers_dev": false,
+  "preview_urls": false
+}
