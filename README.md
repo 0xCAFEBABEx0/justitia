@@ -39,6 +39,7 @@ The types are in `scripts/extract/types.ts`.
 | `laws/<law ID>.json` | Per-law details, amendment history (oldest first, upcoming amendments last), and the laws most often amended together with it |
 | `amendments/<key>.json` | Per-amendment (one houritsu commit) details, with an article-level diff for each law it changed |
 | `timeline/<year>.json` | Amendments by year of entry into force (`undetermined.json` when the date is not yet fixed) |
+| `history/<law ID>.json` | Every version of every block of the law, so its text at any revision can be put together in the browser (see `scripts/extract/history.ts`) |
 
 ### Design decisions
 
@@ -60,6 +61,11 @@ The types are in `scripts/extract/types.ts`.
 - **Enactment and start of coverage are different events.** Where a law first appears in a commit whose amending law
   is the law itself, it is "enacted" (`enacted`); otherwise it is the point where houritsu started covering it
   (`coverage_start`). houritsu's history starts around 2015, so most laws begin at the start of coverage.
+- **Past and future text comes from a block history.** Storing the full text of every revision would take about
+  18 GB. Instead, `history/<law ID>.json` stores each distinct version of each block once, together with an order of
+  blocks that is consistent with every revision. This is 1 to 4 times the size of the current text (about 43 MB for
+  the largest law, 租税特別措置法, before compression). It reproduces the text of every revision exactly (checked
+  against git for all 429 revisions of four of the largest laws, and 2,821 revisions of 400 randomly chosen laws).
 - **The law text matches the extracted history.** The law pages read the houritsu working tree, so the build stops if
   that checkout is not the commit recorded in `meta.json` (or `laws/` has local changes).
 
@@ -69,12 +75,20 @@ A static [Astro](https://astro.build/) site, to be hosted on Cloudflare's free t
 
 - **Site** (`https://anisotro.pics`): `dist/` is served as Workers static assets. Requests for static assets are free
   and unlimited. The site has about 10,000 files, within the free tier's 20,000-file limit.
-- **Per-amendment and per-law JSON** (`https://data.anisotro.pics`): `data/amendments/` and `data/laws/` go in a public
-  R2 bucket, served through a custom domain with Cloudflare caching. The amendment and graph pages fetch it in the browser.
+- **Per-amendment and per-law JSON and the search index** (`https://data.anisotro.pics`): `data/amendments/`,
+  `data/laws/`, `data/history/` and `data/pagefind/` go in a public R2 bucket, served through a custom domain with
+  Cloudflare caching. The amendment, graph, version and search pages fetch them in the browser.
+- **Full-text search** uses [Pagefind](https://pagefind.app/) (its extended build segments Japanese words). Each
+  article (block) is its own search record, so a result is the matching article, and words in its heading count
+  more: a search for 正当防衛 finds 刑法第三十六条 first, where whole-law records ranked unrelated laws higher.
+  Indexing all law text at once needs over 13 GB of memory, so `npm run search-index` splits the laws into shards of
+  about 45 MB of law HTML (under 5 GB of memory each). All laws make 16 shards, about 530,000 records and 600 MB,
+  and take about 17 minutes. The search page merges the shards.
 
 ```sh
 npm run extract          # build data/ (see above)
 npm run build            # build dist/ (including text pages for about 9,400 laws)
+npm run search-index     # build the full-text search index from dist/ into data/pagefind/
 npm run preview          # serve dist/ and data/ at http://localhost:4321/
 ```
 
@@ -94,4 +108,6 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | `/laws/<law ID>/` | Law text (an anchor per heading), table of contents, amendment history |
 | `/amendment/?k=<amendment key>` | Old and new text of the articles an amendment changed (side by side, or inline) |
 | `/timeline/`, `/timeline/<year>/` | Amendments by year of entry into force |
+| `/versions/?law=<law ID>&at=<amendment key or YYYY-MM-DD>[&from=<…>]` | The law's text at any revision, past or upcoming; with `from`, what changed between two revisions (like `git diff from..at`) |
+| `/search/?q=<words>` | Full-text search over the current law text, with links to the matching articles |
 | `/graph/?laws=<ID>,<ID>,…` | Amendment graph: one lane per law, with laws changed by the same amending law joined by a line (git-graph style) |

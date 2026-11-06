@@ -87,7 +87,13 @@ export function initSearch(root: HTMLElement, onPick?: (id: string, title: strin
               `<a href="/laws/${r[0]}/" data-id="${r[0]}" data-title="${esc(r[1])}">${esc(r[1])}<small>${esc(r[4])}${r[5] ? `・${STATUS[r[5]]}` : ""}</small></a>`,
           )
           .join("")
-      : `<div class="empty">見つかりませんでした</div>`;
+      : `<div class="empty">法令名では見つかりませんでした</div>`;
+    if (!onPick) {
+      box.insertAdjacentHTML(
+        "beforeend",
+        `<a class="fulltext" href="/search/?q=${encodeURIComponent(q)}">「${esc(q)}」を条文から全文検索</a>`,
+      );
+    }
     box.hidden = false;
     active = -1;
   };

@@ -307,3 +307,69 @@ details > summary { cursor: pointer; }
   .g-row .g-line1 { line-height: 18px; }
   .g-row .g-line2 { display: none; }
 }
+
+/* Header search: link to the full-text search */
+.search-results a.fulltext { border-top: 1px solid var(--border); margin-top: 4px; color: var(--accent); font-size: 14px; }
+
+/* Law page history: per-revision links */
+.history .rev-links { font-size: 13px; margin-top: 2px; }
+
+/* Text at a revision / comparison of two revisions */
+.versions-controls {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 2fr);
+  gap: 10px 16px;
+  align-items: end;
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 14px;
+}
+.versions-controls label { display: flex; flex-direction: column; gap: 4px; color: var(--muted); min-width: 0; }
+.versions-controls select, .versions-controls input {
+  font: inherit;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  width: 100%;
+}
+@media (max-width: 640px) {
+  .versions-controls { grid-template-columns: 1fr; }
+}
+
+/* Full-text search */
+.fulltext-form { display: flex; gap: 8px; margin-bottom: 16px; }
+.fulltext-form input {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+}
+.fulltext-form button, button.more {
+  font: inherit;
+  padding: 8px 16px;
+  border: 1px solid var(--accent);
+  border-radius: 8px;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+button.more { background: var(--surface); color: var(--accent); margin: 8px 0 24px; }
+.ft-results { list-style: none; padding: 0; margin: 0; }
+.ft-results > li { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.ft-results .law { font-size: 13px; color: var(--muted); }
+.ft-results .t { font-weight: 600; }
+.ft-results small { color: var(--muted); }
+.ft-results .ex { font-family: var(--font-text); font-size: 14px; color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
+.ft-results mark { background: #fff1a8; color: inherit; padding: 0 1px; }
+@media (prefers-color-scheme: dark) {
+  .ft-results mark { background: #5b4a00; }
+}

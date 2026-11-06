@@ -1,0 +1,20 @@
+---
+import Base from "../../layouts/Base.astro";
+import { DATA_BASE } from "../../lib/site.ts";
+---
+<Base title="全文検索" nav="search">
+  <h1 class="page-title">全文検索</h1>
+  <p class="subtitle">現行の法令の条文から、語句を含む条を探します。スペースで区切ると、すべての語を含む条を探します。</p>
+  <div id="fulltext" data-base={DATA_BASE}>
+    <form class="fulltext-form" role="search">
+      <input type="search" name="q" placeholder="例：正当防衛、相続 放棄" aria-label="条文から検索" autocomplete="off" />
+      <button type="submit">検索</button>
+    </form>
+    <div data-results></div>
+  </div>
+  <noscript>検索するには JavaScript を有効にしてください。</noscript>
+  <script>
+    import { initFulltext } from "../../scripts/fulltext.ts";
+    void initFulltext(document.getElementById("fulltext")!);
+  </script>
+</Base>
