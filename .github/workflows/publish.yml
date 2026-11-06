@@ -1,6 +1,12 @@
-# Rebuilds everything from houritsu and publishes it to Cloudflare: the data the pages fetch in the
-# browser to R2 (https://data.anisotro.pics), then the site to Workers static assets
-# (https://anisotro.pics). See README, "Publishing", for the one-time Cloudflare setup and secrets.
+# Publishes the site to Cloudflare: the data the pages fetch in the browser to R2
+# (https://data.anisotro.pics), then the site to Workers static assets (https://anisotro.pics).
+# See README, "Publishing", for the one-time Cloudflare setup and secrets.
+#
+# Only what changed is rebuilt. The extracted data is cached under a key made of the houritsu
+# commits and the extractor's code: when neither changed (a change to the site, or a day without
+# new commits in houritsu), the cached data is used and nothing is extracted or uploaded. The search
+# index is rebuilt only when the law text on the built pages (or the indexer) changed. A change to
+# the site alone takes a few minutes; new commits in houritsu take about 30.
 name: Publish
 
 on:
@@ -8,7 +14,13 @@ on:
     - cron: "30 21 * * *" # 06:30 JST every day
   push:
     branches: [main]
+    paths-ignore: ["**/*.md", ".coderabbit.yaml", ".github/dependabot.yml", ".github/rulesets/**"]
   workflow_dispatch:
+    inputs:
+      rebuild:
+        description: Extract the data and build the search index even if their inputs did not change
+        type: boolean
+        default: false
 
 concurrency:
   group: publish
@@ -77,9 +89,30 @@ jobs:
       - run: npm test
 
       - name: Fetch houritsu
-        run: npm run fetch-houritsu
+        id: houritsu
+        run: |
+          npm run fetch-houritsu
+          main=$(git -C houritsu rev-parse origin/main)
+          upcoming=$(git -C houritsu rev-parse --verify -q origin/upcoming || echo none)
+          echo "commits=$main-$upcoming" >>"$GITHUB_OUTPUT"
+
+      # What the site build reads from the extracted data (about 100 MB). amendments/ and history/
+      # are only fetched by the browser, from R2, so a cache hit needs neither.
+      - name: Restore the extracted data
+        id: data
+        uses: actions/cache/restore@v5
+        with:
+          path: |
+            data/meta.json
+            data/laws.json
+            data/laws
+            data/timeline
+          key: data-${{ steps.houritsu.outputs.commits }}-${{ hashFiles('scripts/extract/**', '!scripts/extract/**/*.test.ts', 'package-lock.json') }}
+          lookup-only: ${{ inputs.rebuild == true }}
 
       - name: Extract data (about 15 minutes)
+        id: extract
+        if: steps.data.outputs.cache-hit != 'true' || inputs.rebuild == true
         run: npm run extract
         env:
           NODE_OPTIONS: --max-old-space-size=8192
@@ -87,14 +120,43 @@ jobs:
       - name: Build the site
         run: npm run build
 
-      - name: Build the search index (about 17 minutes)
-        run: npm run search-index
+      # Skipped (in a few seconds) when the published index was built from the same input.
+      - name: Build the search index (about 10 minutes when it changed)
+        run: |
+          if [[ "$REBUILD" == true ]]; then
+            npm run search-index
+          else
+            npm run search-index -- --skip-if-same "$PUBLIC_DATA_BASE/pagefind/shards.json"
+          fi
+        env:
+          REBUILD: ${{ inputs.rebuild == true }}
 
       - name: Upload data to R2
-        run: npm run upload-data
+        run: |
+          parts=()
+          if [[ "$EXTRACTED" == success ]]; then parts+=(data); fi
+          if [[ -f data/pagefind/shards.json ]]; then parts+=(pagefind); fi
+          if ((${#parts[@]})); then
+            scripts/upload-data.sh "${parts[@]}"
+          else
+            echo "Nothing to upload: the data and the search index are unchanged"
+          fi
         env:
+          EXTRACTED: ${{ steps.extract.outcome }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+      # Saved only once the data is in R2, so a cache hit always means published data.
+      - name: Save the extracted data
+        if: steps.data.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            data/meta.json
+            data/laws.json
+            data/laws
+            data/timeline
+          key: ${{ steps.data.outputs.cache-primary-key }}
 
       - name: Deploy the site
         run: npm run deploy
