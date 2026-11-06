@@ -121,14 +121,18 @@ hand (Actions → Publish → Run workflow). It takes about 40 minutes on a GitH
 
 1. fetch houritsu, extract the data, build the site and the search index (as in [Site](#site));
 2. `npm run upload-data` (`scripts/upload-data.sh`): sync `amendments/`, `laws/`, `history/` and `pagefind/` to the
-   R2 bucket with rclone. Only files whose content changed are uploaded, and files that are gone are deleted;
+   R2 bucket with rclone. Only files whose content changed are uploaded, and files that are gone are deleted
+   (Pagefind files one run later, so a search page that was open during the upload keeps working);
 3. `npm run deploy`: deploy `dist/` to Workers static assets with Wrangler (`wrangler.jsonc`). Wrangler uploads
    only the files that changed.
 
 The data goes first, so a new page never links to data that is not there yet. Data files are uploaded with
-`Cache-Control: public, max-age=3600`, so the data domain's cache serves an updated file within an hour. Pagefind's
+`Cache-Control: public, max-age=3600`. The pages fetch `amendments/`, `laws/` and `history/` files with the build's
+data version in the query string (`?v=`, from `generatedAt` in `meta.json`), which is part of the cache key, so a
+new build never gets files cached from an older one, and a page never mixes the two. Pagefind's
 `pagefind-entry.json` and our `pagefind/shards.json` are always fetched with a `?ts=` query, which skips the cache,
-so the search page picks up a new index right away.
+so the search page picks up a new index right away. The bucket also holds `_publish/pagefind-unused.txt`, the
+upload script's list of Pagefind files to delete on the next run.
 
 ### One-time setup
 
