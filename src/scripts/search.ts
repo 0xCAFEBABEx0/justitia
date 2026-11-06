@@ -67,7 +67,12 @@ function esc(s: string): string {
 export function initSearch(root: HTMLElement, onPick?: (id: string, title: string) => void): void {
   const input = root.querySelector("input")!;
   const box = document.createElement("div");
-  box.className = "search-results";
+  // Below the box, at least 32rem wide where there is room. The header box is narrow on phones,
+  // so there the list spans the screen under the (sticky) header instead.
+  const place = root.closest("header")
+    ? "max-sm:fixed max-sm:inset-x-2 max-sm:top-14 sm:absolute sm:top-full sm:right-0 sm:w-[32rem]"
+    : "absolute top-full right-0 w-full sm:min-w-[32rem]";
+  box.className = `${place} z-40 mt-1 max-h-[70vh] overflow-auto rounded-box border border-base-300 bg-base-100 p-1 shadow-lg`;
   box.hidden = true;
   root.append(box);
   let active = -1;
@@ -76,7 +81,7 @@ export function initSearch(root: HTMLElement, onPick?: (id: string, title: strin
   const setActive = (i: number) => {
     const ls = links();
     active = Math.max(-1, Math.min(i, ls.length - 1));
-    ls.forEach((a, j) => a.classList.toggle("active", j === active));
+    ls.forEach((a, j) => a.classList.toggle("menu-focus", j === active));
     ls[active]?.scrollIntoView({ block: "nearest" });
   };
 
@@ -93,22 +98,21 @@ export function initSearch(root: HTMLElement, onPick?: (id: string, title: strin
       rows = null; // the full-text link below still works without the title index
     }
     if (input.value.trim() !== q) return; // a newer query is on its way
-    box.innerHTML = !rows
-      ? `<div class="empty">法令名の索引を読み込めませんでした</div>`
+    const empty = (text: string) => `<li class="menu-disabled"><span>${text}</span></li>`;
+    const items = !rows
+      ? empty("法令名の索引を読み込めませんでした")
       : rows.length
       ? rows
           .map(
             (r) =>
-              `<a href="/laws/${r[0]}/" data-id="${r[0]}" data-title="${esc(r[1])}">${esc(r[1])}<small>${esc(r[4])}${r[5] ? `・${STATUS[r[5]]}` : ""}</small></a>`,
+              `<li><a class="block" href="/laws/${r[0]}/" data-id="${r[0]}" data-title="${esc(r[1])}">${esc(r[1])}<small class="ml-1.5 text-xs text-base-content/60">${esc(r[4])}${r[5] ? `・${STATUS[r[5]]}` : ""}</small></a></li>`,
           )
           .join("")
-      : `<div class="empty">法令名では見つかりませんでした</div>`;
-    if (!onPick) {
-      box.insertAdjacentHTML(
-        "beforeend",
-        `<a class="fulltext" href="/search/?q=${encodeURIComponent(q)}">「${esc(q)}」を条文から全文検索</a>`,
-      );
-    }
+      : empty("法令名では見つかりませんでした");
+    const fulltext = onPick
+      ? ""
+      : `<li class="mt-1 border-t border-base-300 pt-1"><a class="text-primary" href="/search/?q=${encodeURIComponent(q)}">「${esc(q)}」を条文から全文検索</a></li>`;
+    box.innerHTML = `<ul class="menu menu-sm w-full p-0">${items}${fulltext}</ul>`;
     box.hidden = false;
     active = -1;
   };

@@ -8,7 +8,7 @@ import { diffBlocks, type Block } from "../../scripts/extract/blocks.ts";
 import { blocksAt } from "../../scripts/extract/history.ts";
 import type { LawDetail, LawHistory, LawRevision } from "../../scripts/extract/types.ts";
 import { renderBlocks, renderBlockText } from "../lib/render.ts";
-import { blockHtml, esc, jpDate, VIEW_KEY, type View } from "./amendment.ts";
+import { blockHtml, esc, jpDate, NOTE, VIEW_KEY, viewToggleHtml, type View } from "./amendment.ts";
 import { SITE_NAME } from "../lib/site-name.ts";
 import { dataUrl } from "./data-url.ts";
 
@@ -64,7 +64,7 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
   const params = new URLSearchParams(location.search);
   const id = params.get("law");
   if (!id || !/^[0-9A-Za-z]+$/.test(id)) {
-    root.innerHTML = `<p class="note">法令が指定されていません。<a href="/browse/">法令一覧</a>から選んでください。</p>`;
+    root.innerHTML = `<p class="${NOTE}">法令が指定されていません。<a class="link link-primary" href="/browse/">法令一覧</a>から選んでください。</p>`;
     return;
   }
   let law: LawDetail;
@@ -75,7 +75,7 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
       getJson<LawHistory>(dataUrl(root, `history/${id}.json`)),
     ]);
   } catch {
-    root.innerHTML = `<p class="note">法令「${esc(id)}」の履歴が見つかりませんでした。</p>`;
+    root.innerHTML = `<p class="${NOTE}">法令「${esc(id)}」の履歴が見つかりませんでした。</p>`;
     return;
   }
   const revs = law.revisions;
@@ -110,34 +110,33 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
     const title = blocks.find((b) => b.level === 1)?.heading ?? law.title;
     document.title = `${title}（${from >= 0 ? "改正の比較" : "時点の条文"}） | ${SITE_NAME}`;
 
-    const controls = `<div class="versions-controls">
-      <label>表示する時点 <select data-at>${options(revs, at)}</select></label>
-      <label>日付で選ぶ <input type="date" data-date value="${date}" /></label>
-      <label>比べる時点 <select data-from>${options(revs, from, "比べない（条文を表示）")}</select></label>
-    </div>`;
+    const field = (label: string, control: string) =>
+      `<label class="fieldset min-w-0 py-0"><span class="fieldset-legend pt-0 pb-1 text-xs font-normal text-base-content/70">${label}</span>${control}</label>`;
+    const controls = `<div class="card card-border mb-4 bg-base-100"><div class="card-body grid gap-3 p-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)]">
+      ${field("表示する時点", `<select class="select select-sm w-full" data-at>${options(revs, at)}</select>`)}
+      ${field("日付で選ぶ", `<input class="input input-sm w-full" type="date" data-date value="${date}" />`)}
+      ${field("比べる時点", `<select class="select select-sm w-full" data-from>${options(revs, from, "比べない（条文を表示）")}</select>`)}
+    </div></div>`;
 
     let body: string;
     if (at < 0) {
-      body = `<p class="note">その日より前の条文はありません。houritsu の収録は ${revs[0]?.enforced ? jpDate(revs[0].enforced) : "最初の改正"} からです。</p>`;
+      body = `<p class="${NOTE}">その日より前の条文はありません。houritsu の収録は ${revs[0]?.enforced ? jpDate(revs[0].enforced) : "最初の改正"} からです。</p>`;
     } else if (from >= 0) {
       const diff = diffBlocks(toBlocks(hist, from), blocks);
       const older = Math.min(from, at) === from;
       body =
-        `<p class="note">${esc(revLabel(revs[from]))} の時点から ${esc(revLabel(revs[at]))} の時点までに変わった箇所です${older ? "" : "（新しい時点から古い時点への変化として表示しています）"}。` +
-        ` <span class="plus">+${diff.additions}</span> <span class="minus">−${diff.deletions}</span>・変更 ${diff.changes.length} か所</p>` +
-        `<div class="view-toggle" role="group" aria-label="表示">
-          <button type="button" data-view="side" aria-pressed="${view === "side"}">新旧対照</button>
-          <button type="button" data-view="inline" aria-pressed="${view === "inline"}">インライン</button>
-        </div>` +
+        `<p class="${NOTE}">${esc(revLabel(revs[from]))} の時点から ${esc(revLabel(revs[at]))} の時点までに変わった箇所です${older ? "" : "（新しい時点から古い時点への変化として表示しています）"}。` +
+        ` <span class="tabular-nums"><span class="text-add">+${diff.additions}</span> <span class="text-del">−${diff.deletions}</span></span>・変更 ${diff.changes.length} か所</p>` +
+        viewToggleHtml(view) +
         (diff.changes.length
           ? diff.changes
               .map((b) =>
                 blockHtml(b, id, view, (key) => `/versions/?law=${id}&at=${encodeURIComponent(revs[at].amendment)}#${encodeURIComponent(key)}`),
               )
               .join("")
-          : `<p class="note">条文の違いはありません。</p>`);
+          : `<p class="${NOTE}">条文の違いはありません。</p>`);
     } else if (revs[at].kind === "repealed") {
-      body = `<p class="note">この時点で廃止されています。</p>`;
+      body = `<p class="${NOTE}">この時点で廃止されています。</p>`;
     } else {
       const titleBlock = blocks.find((b) => b.level === 1);
       const rendered = renderBlocks(blocks);
@@ -149,14 +148,14 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
           : r.branch === "upcoming"
             ? "まだ施行されていない改正を反映した条文です。"
             : "過去の条文です。現在の条文とは異なります。";
-      body = `<p class="note">${esc(revLabel(r))} の後の条文。${notice}
-          <a href="/amendment/?k=${encodeURIComponent(r.amendment)}#law-${esc(id)}">この改正の新旧対照</a></p>
+      body = `<p class="${NOTE} mb-4">${esc(revLabel(r))} の後の条文。${notice}
+          <a class="link link-primary" href="/amendment/?k=${encodeURIComponent(r.amendment)}#law-${esc(id)}">この改正の新旧対照</a></p>
         <article class="law-text">${preamble}${rendered.html}</article>`;
     }
 
     root.className = from >= 0 && view === "inline" ? "inline-view" : "";
-    root.innerHTML = `<div class="crumbs"><a href="/laws/${esc(id)}/">${esc(law.title)}</a></div>
-      <h1 class="page-title">${esc(title)}</h1>
+    root.innerHTML = `<div class="breadcrumbs py-0 text-sm text-base-content/70"><ul><li><a href="/laws/${esc(id)}/">${esc(law.title)}</a></li></ul></div>
+      <h1 class="mb-4 text-2xl leading-snug font-bold sm:text-3xl">${esc(title)}</h1>
       ${controls}${body}`;
 
     root.querySelector<HTMLSelectElement>("[data-at]")!.addEventListener("change", (e) => {

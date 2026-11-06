@@ -1,11 +1,14 @@
 ---
 import { amendmentUrl, jpDate, KIND_LABELS, lawUrl, type AmendmentSummary } from "../lib/data.ts";
+import StatusBadge from "./StatusBadge.astro";
 
 interface Props {
   items: AmendmentSummary[];
   groupByDate?: boolean;
+  /** Draw the list without its own border and background (inside a card). */
+  bare?: boolean;
 }
-const { items, groupByDate = true } = Astro.props;
+const { items, groupByDate = true, bare = false } = Astro.props;
 const groups: [string, AmendmentSummary[]][] = [];
 for (const a of items) {
   const d = a.enforced ?? "";
@@ -16,20 +19,22 @@ for (const a of items) {
 ---
 {groups.map(([date, list]) => (
   <section>
-    {groupByDate && <h3 style="font-size:15px;margin:20px 0 4px">{date ? jpDate(date) : "施行日未定"}</h3>}
-    <ul class="list">
+    {groupByDate && <h3 class="mt-5 mb-1.5 text-sm font-bold text-base-content/70">{date ? jpDate(date) : "施行日未定"}</h3>}
+    <ul class:list={["list", { "rounded-box border border-base-300 bg-base-100": !bare }]}>
       {list.map((a) => (
-        <li>
-          {!groupByDate && <span class="note">{jpDate(a.enforced)}　</span>}
-          <a href={amendmentUrl(a.key)}>{a.title}</a>
-          {a.branch === "upcoming" && <span class="badge upcoming">施行予定</span>}
-          <div class="meta">
-            {a.amendmentLawNum}・
-            {a.laws.slice(0, 4).map((l, i) => (
-              <>{i > 0 && "、"}<a href={lawUrl(l.id)} style="color:inherit">{l.title}</a>{l.kind !== "amended" && `（${KIND_LABELS[l.kind]}）`}</>
-            ))}
-            {a.laws.length > 4 && <>ほか {a.laws.length - 4} 法令</>}
-            {a.additions + a.deletions > 0 && <> <span class="plus">+{a.additions}</span> <span class="minus">−{a.deletions}</span></>}
+        <li class:list={["list-row", bare ? "px-0 py-2.5" : "py-3"]}>
+          <div class="list-col-grow">
+            {!groupByDate && <div class="text-xs font-bold text-base-content/70">{jpDate(a.enforced)}</div>}
+            <a class="link link-hover font-bold text-primary" href={amendmentUrl(a.key)}>{a.title}</a>
+            {a.branch === "upcoming" && <StatusBadge kind="upcoming" label="施行予定" />}
+            <div class="mt-0.5 text-xs text-base-content/60">
+              {a.amendmentLawNum}・
+              {a.laws.slice(0, 4).map((l, i) => (
+                <>{i > 0 && "、"}<a class="link link-hover" href={lawUrl(l.id)}>{l.title}</a>{l.kind !== "amended" && `（${KIND_LABELS[l.kind]}）`}</>
+              ))}
+              {a.laws.length > 4 && <>ほか {a.laws.length - 4} 法令</>}
+              {a.additions + a.deletions > 0 && <> <span class="text-add">+{a.additions}</span> <span class="text-del">−{a.deletions}</span></>}
+            </div>
           </div>
         </li>
       ))}

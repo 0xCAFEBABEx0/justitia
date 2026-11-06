@@ -80,12 +80,12 @@ export async function initFulltext(root: HTMLElement): Promise<void> {
       return;
     }
     say(`${results.length.toLocaleString()} 件の条が見つかりました。`);
-    out.innerHTML = `<ol class="ft-results"></ol>`;
+    out.innerHTML = `<ol class="list rounded-box border border-base-300 bg-base-100"></ol>`;
     const list = out.querySelector("ol")!;
     let shown = 0;
     const more = document.createElement("button");
     more.type = "button";
-    more.className = "more";
+    more.className = "btn btn-outline btn-primary mt-3 mb-6";
     const showMore = async () => {
       more.disabled = true;
       let page: ResultData[];
@@ -102,9 +102,10 @@ export async function initFulltext(root: HTMLElement): Promise<void> {
       for (const d of page) {
         list.insertAdjacentHTML(
           "beforeend",
-          `<li><div class="law">${esc(d.meta.law ?? "")} <small>${esc(d.meta.num ?? "")}</small></div>` +
-            `<a class="t" href="${esc(d.url)}">${esc(d.meta.title ?? d.url)}</a>` +
-            `<div class="ex">${excerpt(d.excerpt)}</div></li>`,
+          `<li class="list-row py-3"><div class="list-col-grow">` +
+            `<div class="text-xs text-base-content/60">${esc(d.meta.law ?? "")} <small>${esc(d.meta.num ?? "")}</small></div>` +
+            `<a class="link link-hover font-bold text-primary" href="${esc(d.url)}">${esc(d.meta.title ?? d.url)}</a>` +
+            `<div class="mt-0.5 text-sm text-base-content/70 [overflow-wrap:anywhere]">${excerpt(d.excerpt)}</div></div></li>`,
         );
       }
       shown += page.length;

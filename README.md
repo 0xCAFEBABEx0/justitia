@@ -131,6 +131,23 @@ the name of this project and does not appear on the site.
 - `@astrojs/sitemap` writes `sitemap-index.xml` (all pages except the amendment, versions and 404 pages), which
   `public/robots.txt` points to.
 
+### Styling
+
+- [Tailwind CSS](https://tailwindcss.com/) v4 (through `@tailwindcss/vite`) and [daisyUI](https://daisyui.com/) 5.
+  Pages and the browser scripts use daisyUI components (navbar, drawer, menu, tabs, card, list, badge, timeline,
+  stats, breadcrumbs, input, select, button, join, collapse, loading, swap, theme controller) and Tailwind utilities.
+  `src/styles/global.css` holds the theme and the few styles neither covers: the law text, the diffs and the graph.
+- Colors come from daisyUI's `light` and `dark` themes, adjusted in `global.css`. The sun/moon switch at the top
+  right (daisyUI's theme controller and swap, `src/scripts/theme.ts`) picks one; the choice is kept in
+  `localStorage` and applied in `<head>` before the page is drawn. Until it is used, the theme follows the
+  operating system setting. The colors for added and deleted text (`text-add`, `text-del`, ...) are theme
+  variables there too.
+- One font for the whole site, law text included: Noto Sans JP (400 and 700) from `@fontsource/noto-sans-jp`,
+  served from the site itself, so no request goes to a font service. The font is split by Unicode range, so a
+  page only downloads the parts for the characters it uses (about 1.3 MB for 民法, cached for every later page).
+  Fontsource also lists a WOFF copy of each file; `astro.config.mjs` drops those, since every current browser
+  reads WOFF2, which keeps about 250 unused files out of `dist/`.
+
 ## Publishing
 
 `.github/workflows/publish.yml` publishes the site every day at 06:30 JST, on every push to `main` (except
@@ -139,7 +156,9 @@ It rebuilds only what changed:
 
 1. fetch houritsu, then extract the data (as in [Data extraction](#data-extraction)), unless the data is in the
    workflow's cache. The cache key is made of the houritsu commits (`main` and `upcoming`) and a hash of the
-   extractor's code and `package-lock.json`, and the cache holds what the site build reads (`meta.json`,
+   extractor's code and the installed versions of the packages it imports (`diff`, `diff-match-patch`, `yaml`;
+   `scripts/extract/cache-key.test.ts` checks that list against the imports), so a change to the site's
+   dependencies does not extract again. The cache holds what the site build reads (`meta.json`,
    `laws.json`, `laws/`, `timeline/`). A change to the site alone, or a day without new commits in houritsu, uses
    the cache, as long as R2 still holds the same data: the upload records the data version it uploaded in
    `_publish/data-version.txt` (`incomplete` while it uploads), and a cached copy with another version (after an extractor change is reverted, for

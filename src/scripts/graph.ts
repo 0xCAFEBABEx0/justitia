@@ -148,7 +148,7 @@ function svgFor(items: Item[], laws: LawDetail[]): string {
       } else if (kind === "enacted") {
         shape = `<rect x="${cx - 6}" y="${cy - 6}" width="12" height="12" rx="2" fill="${color}"/>`;
       } else {
-        shape = `<circle cx="${cx}" cy="${cy}" r="5.5" fill="${it.upcoming ? "var(--surface)" : color}" stroke="${color}" stroke-width="2.5"/>`;
+        shape = `<circle cx="${cx}" cy="${cy}" r="5.5" fill="${it.upcoming ? "var(--color-base-100)" : color}" stroke="${color}" stroke-width="2.5"/>`;
       }
       parts.push(`<a href="${href}"><title>${esc(label)}</title>${shape}<circle cx="${cx}" cy="${cy}" r="10" fill="transparent"/></a>`);
     }
@@ -171,12 +171,12 @@ function rowsHtml(items: Item[], laws: LawDetail[], today: string): string {
         del += n.deletions;
         if (n.kind !== "amended") notes.push(`${esc(laws[lane].title)}を${KIND[n.kind]}`);
       }
-      const dots = lanes.map((l) => `<i style="background:${COLORS[l % COLORS.length]}"></i>`).join("");
+      const dots = lanes.map((l) => `<i class="g-dot" style="background:${COLORS[l % COLORS.length]}"></i>`).join("");
       const href = `/amendment/?k=${encodeURIComponent(it.key)}#law-${laws[lanes[0]].id}`;
       return `<div class="g-row${it.upcoming ? " upcoming" : ""}">
-        <div class="g-line1"><span class="g-date">${shortDate(it.enforced)}</span><a href="${href}">${esc(it.title)}</a></div>
+        <div class="g-line1"><span class="g-date">${shortDate(it.enforced)}</span><a class="link link-hover link-primary" href="${href}">${esc(it.title)}</a></div>
         <div class="g-line2"><span class="g-dots">${dots}</span>${esc(it.lawNum)}${notes.length ? `・${notes.join("、")}` : ""}${
-          add + del > 0 ? ` <span class="plus">+${add}</span> <span class="minus">−${del}</span>` : ""
+          add + del > 0 ? ` <span class="tabular-nums"><span class="text-add">+${add}</span> <span class="text-del">−${del}</span></span>` : ""
         }</div>
       </div>`;
     })
@@ -217,13 +217,13 @@ export function initGraph(root: HTMLElement): void {
     lanesEl.innerHTML = laws.length
       ? laws
           .map(
-            (l, i) => `<span class="g-chip"><i style="background:${COLORS[i % COLORS.length]}"></i>
-              <a href="/laws/${l.id}/">${esc(l.title)}</a>
-              <button type="button" data-remove="${l.id}" aria-label="${esc(l.title)}を外す">×</button></span>`,
+            (l, i) => `<span class="badge badge-outline h-7 max-w-full gap-1.5 pr-0.5"><i class="g-dot" style="background:${COLORS[i % COLORS.length]}"></i>
+              <a class="link link-hover truncate" href="/laws/${l.id}/">${esc(l.title)}</a>
+              <button type="button" class="btn btn-circle btn-ghost btn-xs" data-remove="${l.id}" aria-label="${esc(l.title)}を外す">✕</button></span>`,
           )
           .join("")
-      : `<span class="note">法令を追加してください。</span>`;
-    if (missing.length) lanesEl.insertAdjacentHTML("beforeend", `<span class="note">見つからない法令 ID：${missing.map(esc).join("、")}</span>`);
+      : `<span class="text-sm text-base-content/70">法令を追加してください。</span>`;
+    if (missing.length) lanesEl.insertAdjacentHTML("beforeend", `<span class="text-sm text-base-content/70">見つからない法令 ID：${missing.map(esc).join("、")}</span>`);
     lanesEl.querySelectorAll<HTMLButtonElement>("[data-remove]").forEach((b) =>
       b.addEventListener("click", () => setIds(ids.filter((id) => id !== b.dataset.remove))),
     );
@@ -241,8 +241,8 @@ export function initGraph(root: HTMLElement): void {
     const sugg = [...score].sort((a, b) => b[1].n - a[1].n).slice(0, 8);
     suggestEl.innerHTML =
       sugg.length && ids.length < MAX_LANES
-        ? `<span class="note">一緒に改正されることが多い法令：</span>` +
-          sugg.map(([id, s]) => `<button type="button" data-add="${id}">＋ ${esc(s.title)}</button>`).join("")
+        ? `<span class="text-base-content/70">一緒に改正されることが多い法令：</span>` +
+          sugg.map(([id, s]) => `<button type="button" class="btn btn-dash btn-primary btn-xs" data-add="${id}">＋ ${esc(s.title)}</button>`).join("")
         : "";
     suggestEl.querySelectorAll<HTMLButtonElement>("[data-add]").forEach((b) =>
       b.addEventListener("click", () => setIds([...ids, b.dataset.add!])),

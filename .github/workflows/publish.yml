@@ -99,6 +99,9 @@ jobs:
 
       # What the site build reads from the extracted data (about 100 MB). amendments/ and history/
       # are only fetched by the browser, from R2, so a cache hit needs neither.
+      # The key covers the extractor's code and the packages it imports (installed versions), not the
+      # whole package-lock.json, so a change to the site's dependencies does not extract again. Add a
+      # package here when scripts/extract/ starts importing it.
       - name: Restore the extracted data
         id: data
         uses: actions/cache/restore@v5
@@ -108,7 +111,7 @@ jobs:
             data/laws.json
             data/laws
             data/timeline
-          key: data-${{ steps.houritsu.outputs.commits }}-${{ hashFiles('scripts/extract/**', '!scripts/extract/**/*.test.ts', 'package-lock.json') }}
+          key: data-${{ steps.houritsu.outputs.commits }}-${{ hashFiles('scripts/extract/**', '!scripts/extract/**/*.test.ts', 'node_modules/diff/package.json', 'node_modules/diff-match-patch/package.json', 'node_modules/yaml/package.json') }}
           lookup-only: ${{ inputs.rebuild == true }}
 
       # A cache entry is used only while R2 holds the same data (_publish/data-version.txt, written by

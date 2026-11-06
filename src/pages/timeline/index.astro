@@ -1,5 +1,6 @@
 ---
 import Base from "../../layouts/Base.astro";
+import PageHeader from "../../components/PageHeader.astro";
 import { timeline, timelineYears } from "../../lib/data.ts";
 
 const years = timelineYears().map((y) => ({ y, n: timeline(y).length }));
@@ -11,18 +12,19 @@ const thisYear = new Date().getFullYear().toString();
   description="施行年ごとの法令の改正の件数と、年ごとの改正の一覧。公布済みで施行前の改正も含みます。"
   nav="timeline"
 >
-  <h1 class="page-title">改正の年表</h1>
-  <p class="subtitle">
+  <PageHeader title="改正の年表">
     施行年ごとの改正の件数です。houritsu の履歴は e-Gov の改正データがそろう 2015 年ごろから増えるので、
     それ以前の件数は少なく見えます（実際の改正数ではありません）。
-  </p>
-  <div class="card">
-    {years.map(({ y, n }) => (
-      <div style="display:grid;grid-template-columns:5em 1fr 4em;gap:8px;align-items:center;font-size:13px">
-        <a href={`/timeline/${y}/`}>{y === "undetermined" ? "未定" : y}{y === thisYear && "（今年）"}</a>
-        <div style={`height:10px;border-radius:3px;background:var(--accent);opacity:${y > thisYear ? 0.45 : 0.85};width:${Math.max(0.5, (n / max) * 100)}%`} />
-        <span class="note" style="text-align:right">{n.toLocaleString()}</span>
-      </div>
-    ))}
+  </PageHeader>
+  <div class="card card-border bg-base-100">
+    <div class="card-body gap-0.5 p-4 sm:p-6">
+      {years.map(({ y, n }) => (
+        <div class="grid grid-cols-[6em_1fr_4em] items-center gap-2 text-sm">
+          <a class="link link-hover link-primary tabular-nums" href={`/timeline/${y}/`}>{y === "undetermined" ? "未定" : y}{y === thisYear && "（今年）"}</a>
+          <progress class:list={["progress h-2.5", y > thisYear ? "progress-info opacity-50" : "progress-primary"]} value={Math.max(n, max / 200)} max={max} aria-hidden="true"></progress>
+          <span class="text-right text-xs tabular-nums text-base-content/60">{n.toLocaleString()}<span class="sr-only"> 件</span></span>
+        </div>
+      ))}
+    </div>
   </div>
 </Base>

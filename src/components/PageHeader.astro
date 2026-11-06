@@ -1,0 +1,19 @@
+---
+// Breadcrumbs, the page heading and a line under it. The heading can hold extra markup (a badge)
+// through the "badge" slot; the line under it is the default slot.
+
+interface Props {
+  title: string;
+  crumbs?: { href: string; label: string }[];
+}
+const { title, crumbs = [] } = Astro.props;
+---
+<header class="mb-5">
+  {crumbs.length > 0 && (
+    <div class="breadcrumbs py-0 text-sm text-base-content/70">
+      <ul>{crumbs.map((c) => <li><a href={c.href}>{c.label}</a></li>)}</ul>
+    </div>
+  )}
+  <h1 class="text-2xl leading-snug font-bold sm:text-3xl" data-page-title>{title}<slot name="badge" /></h1>
+  {Astro.slots.has("default") && <div class="mt-1.5 text-sm text-base-content/70"><slot /></div>}
+</header>
