@@ -4,7 +4,7 @@
 #
 #   CLOUDFLARE_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... scripts/upload-data.sh
 #
-# Needs rclone (1.59 or later). Only files whose content changed are uploaded (rclone compares MD5
+# Needs rclone (the workflow uses 1.68.2). Only files whose content changed are uploaded (rclone compares MD5
 # checksums with R2's ETags), and files that are no longer in the output are deleted from the bucket
 # (pagefind/ files one run later; see below).
 # Optional: JUSTITIA_DATA (default ./data), R2_BUCKET (default justitia-data-prod).
@@ -55,11 +55,14 @@ export LC_ALL=C
 (cd "$data/pagefind" && find . -type f | sed 's|^\./||' | sort) >"$work/local"
 rclone lsf -R --files-only --fast-list "r2:$bucket/pagefind" | sort >"$work/remote"
 comm -23 "$work/remote" "$work/local" >"$work/unused"
-rclone cat "r2:$bucket/_publish/pagefind-unused.txt" 2>/dev/null | sort >"$work/before" || : >"$work/before"
+rclone cat "r2:$bucket/_publish/pagefind-unused.txt" 2>/dev/null | { grep -v '^#' || :; } | sort >"$work/before" ||
+  : >"$work/before"
 comm -12 "$work/unused" "$work/before" >"$work/delete"
 comm -23 "$work/unused" "$work/before" >"$work/keep"
 echo "upload-data: deleting $(wc -l <"$work/delete") unused pagefind files, keeping $(wc -l <"$work/keep") for one more run"
 if [[ -s "$work/delete" ]]; then
   rclone delete "r2:$bucket/pagefind" --files-from-raw "$work/delete" --fast-list
 fi
-rclone rcat "r2:$bucket/_publish/pagefind-unused.txt" <"$work/keep"
+# Uploaded from a file (not streamed), with a comment line so that it is never empty.
+{ echo "# Pagefind files unused by the index uploaded at $(date -u +%FT%TZ)"; cat "$work/keep"; } >"$work/unused.txt"
+rclone copyto "$work/unused.txt" "r2:$bucket/_publish/pagefind-unused.txt" --header-upload "Cache-Control: no-store"
