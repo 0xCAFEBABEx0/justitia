@@ -116,15 +116,31 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 
 ## Publishing
 
-`.github/workflows/publish.yml` publishes the site every day at 06:30 JST, on every push to `main`, and when run by
-hand (Actions → Publish → Run workflow). It takes about 40 minutes on a GitHub-hosted runner:
+`.github/workflows/publish.yml` publishes the site every day at 06:30 JST, on every push to `main` (except
+changes to Markdown files and repository settings), and when run by hand (Actions → Publish → Run workflow).
+It rebuilds only what changed:
 
-1. fetch houritsu, extract the data, build the site and the search index (as in [Site](#site));
-2. `npm run upload-data` (`scripts/upload-data.sh`): sync `amendments/`, `laws/`, `history/` and `pagefind/` to the
-   R2 bucket with rclone. Only files whose content changed are uploaded, and files that are gone are deleted
-   (Pagefind files one run later, so a search page that was open during the upload keeps working);
-3. `npm run deploy`: deploy `dist/` to Workers static assets with Wrangler (`wrangler.jsonc`). Wrangler uploads
+1. fetch houritsu, then extract the data (as in [Data extraction](#data-extraction)), unless the data is in the
+   workflow's cache. The cache key is made of the houritsu commits (`main` and `upcoming`) and a hash of the
+   extractor's code and `package-lock.json`, and the cache holds what the site build reads (`meta.json`,
+   `laws.json`, `laws/`, `timeline/`). A change to the site alone, or a day without new commits in houritsu, uses
+   the cache, as long as R2 still holds the same data: the upload records the data version it uploaded in
+   `_publish/data-version.txt` (`incomplete` while it uploads), and a cached copy with another version (after an extractor change is reverted, for
+   example) is extracted and uploaded again;
+2. build the site, then the search index (`npm run search-index -- --skip-if-same <published input hash>`),
+   unless the published index was built from the same input: `shards.json` records a hash of the indexed parts
+   of the law pages, the indexer and the Pagefind version, and the upload publishes it as
+   `_publish/pagefind-input.txt` once the whole index is uploaded (`incomplete` while it uploads);
+3. `npm run upload-data` (`scripts/upload-data.sh`): sync to the R2 bucket with rclone only the parts that were
+   rebuilt: `data` (`amendments/`, `laws/`, `history/`) and `pagefind`. Only files whose content changed are
+   uploaded, and files that are gone are deleted (Pagefind files one run later, so a search page that was open
+   during the upload keeps working). The cache is saved after this step, so a run that fails earlier saves nothing;
+4. `npm run deploy`: deploy `dist/` to Workers static assets with Wrangler (`wrangler.jsonc`). Wrangler uploads
    only the files that changed.
+
+A change to the site takes a few minutes. New commits in houritsu take about 15 minutes more for the extraction
+and, when the law text changed, about 10 for the search index. To rebuild everything anyway, run the workflow by
+hand with *rebuild* checked.
 
 The data goes first, so a new page never links to data that is not there yet. Data files are uploaded with
 `Cache-Control: public, max-age=3600`. The pages fetch `amendments/`, `laws/` and `history/` files with the data
@@ -132,8 +148,12 @@ version in the query string (`?v=`, `dataVersion` in `meta.json`), which is part
 a hash of those files, so a build that changes any of them gets new URLs (a page never mixes files from two builds),
 and a build that changes none, such as a day without new commits in houritsu, keeps the cached copies. Pagefind's
 `pagefind-entry.json` and our `pagefind/shards.json` are always fetched with a `?ts=` query, which skips the cache,
-so the search page picks up a new index right away. The bucket also holds `_publish/pagefind-unused.txt`, the
-upload script's list of Pagefind files to delete on the next run.
+so the search page picks up a new index right away. The bucket also holds `_publish/data-version.txt` and
+`_publish/pagefind-input.txt` (see above), and `_publish/pagefind-unused.txt`, the upload script's list of Pagefind
+files to delete on the next run.
+
+The home page and the graph take today's date from the build (in Japan time), not from the data, so the daily
+publish moves amendments from upcoming to enforced even on days that reuse the cached data.
 
 ### One-time setup
 

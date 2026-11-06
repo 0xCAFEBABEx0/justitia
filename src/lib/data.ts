@@ -39,6 +39,19 @@ export function meta(): Meta {
   return readJson<Meta>("meta.json");
 }
 
+/** The date (YYYY-MM-DD) in Japan at a time, such as meta().generatedAt. */
+export function jstDate(time: string | Date): string {
+  return new Date(new Date(time).getTime() + 9 * 3600_000).toISOString().slice(0, 10); // JST has no daylight saving
+}
+
+/**
+ * Today's date (YYYY-MM-DD) in Japan, when the site is built. Pages use it, not meta().generatedAt,
+ * to tell enforced amendments from upcoming ones: a build can reuse data extracted days before.
+ */
+export function buildDate(): string {
+  return jstDate(new Date());
+}
+
 /**
  * Changes only when a file the pages fetch changes; the pages put it on their data URLs (see
  * src/scripts/data-url.ts and scripts/extract/data-version.ts). Output from before it existed falls
