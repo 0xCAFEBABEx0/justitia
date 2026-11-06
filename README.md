@@ -138,7 +138,7 @@ upload script's list of Pagefind files to delete on the next run.
 
 In the Cloudflare account that has the `anisotro.pics` zone:
 
-1. **R2 bucket**: create `justitia-data` with the location hint *Asia-Pacific*, close to most readers.
+1. **R2 bucket**: create `justitia-data-prod` with the location hint *Asia-Pacific*, close to most readers.
 2. **Custom domain**: in the bucket's settings, connect `data.anisotro.pics`. Keep the `r2.dev` URL disabled.
 3. **Cache rule** (Caching → Cache Rules): when the hostname equals `data.anisotro.pics`, make the request
    *eligible for cache*, with the edge TTL taken from the `Cache-Control` header. Without it, Cloudflare caches only
@@ -154,7 +154,7 @@ In the Cloudflare account that has the `anisotro.pics` zone:
    `anisotro.pics` custom domain for the Worker, which fails if the apex already has a DNS record pointing
    elsewhere.
 6. **R2 API token** (R2 → Manage API tokens → Create account API token): *Object Read & Write*, limited to the
-   `justitia-data` bucket. It gives an access key ID and a secret access key.
+   `justitia-data-prod` bucket. It gives an access key ID and a secret access key.
 
 In the GitHub repository (Settings → Secrets and variables → Actions), add these repository secrets:
 

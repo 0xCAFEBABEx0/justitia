@@ -7,11 +7,11 @@
 # Needs rclone (1.59 or later). Only files whose content changed are uploaded (rclone compares MD5
 # checksums with R2's ETags), and files that are no longer in the output are deleted from the bucket
 # (pagefind/ files one run later; see below).
-# Optional: JUSTITIA_DATA (default ./data), R2_BUCKET (default justitia-data).
+# Optional: JUSTITIA_DATA (default ./data), R2_BUCKET (default justitia-data-prod).
 set -euo pipefail
 
 data="${JUSTITIA_DATA:-data}"
-bucket="${R2_BUCKET:-justitia-data}"
+bucket="${R2_BUCKET:-justitia-data-prod}"
 : "${CLOUDFLARE_ACCOUNT_ID:?set CLOUDFLARE_ACCOUNT_ID}"
 : "${R2_ACCESS_KEY_ID:?set R2_ACCESS_KEY_ID}"
 : "${R2_SECRET_ACCESS_KEY:?set R2_SECRET_ACCESS_KEY}"
