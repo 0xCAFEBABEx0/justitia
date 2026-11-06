@@ -5,7 +5,15 @@ type Row = [string, string, string, string, string, number];
 
 let index: Promise<Row[]> | null = null;
 function loadIndex(): Promise<Row[]> {
-  return (index ??= fetch("/search-index.json").then((r) => r.json() as Promise<Row[]>));
+  return (index ??= fetch("/search-index.json")
+    .then((r) => {
+      if (!r.ok) throw new Error(`${r.status} /search-index.json`);
+      return r.json() as Promise<Row[]>;
+    })
+    .catch((err: unknown) => {
+      index = null; // try again on the next query
+      throw err;
+    }));
 }
 
 const norm = (s: string) => s.normalize("NFKC").toLowerCase().replace(/\s+/g, "");
@@ -78,16 +86,29 @@ export function initSearch(root: HTMLElement, onPick?: (id: string, title: strin
       box.hidden = true;
       return;
     }
-    const rows = search(await loadIndex(), q);
+    let rows: Row[] | null;
+    try {
+      rows = search(await loadIndex(), q);
+    } catch {
+      rows = null; // the full-text link below still works without the title index
+    }
     if (input.value.trim() !== q) return; // a newer query is on its way
-    box.innerHTML = rows.length
+    box.innerHTML = !rows
+      ? `<div class="empty">法令名の索引を読み込めませんでした</div>`
+      : rows.length
       ? rows
           .map(
             (r) =>
               `<a href="/laws/${r[0]}/" data-id="${r[0]}" data-title="${esc(r[1])}">${esc(r[1])}<small>${esc(r[4])}${r[5] ? `・${STATUS[r[5]]}` : ""}</small></a>`,
           )
           .join("")
-      : `<div class="empty">見つかりませんでした</div>`;
+      : `<div class="empty">法令名では見つかりませんでした</div>`;
+    if (!onPick) {
+      box.insertAdjacentHTML(
+        "beforeend",
+        `<a class="fulltext" href="/search/?q=${encodeURIComponent(q)}">「${esc(q)}」を条文から全文検索</a>`,
+      );
+    }
     box.hidden = false;
     active = -1;
   };

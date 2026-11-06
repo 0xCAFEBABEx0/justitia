@@ -13,10 +13,10 @@ const KIND: Record<FileChange["kind"], string> = {
 };
 const OP: Record<BlockChange["op"], string> = { added: "新設", deleted: "削除", modified: "改正" };
 
-type View = "side" | "inline";
-const VIEW_KEY = "justitia:view";
+export type View = "side" | "inline";
+export const VIEW_KEY = "justitia:view";
 
-function esc(s: string): string {
+export function esc(s: string): string {
   return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 }
 
@@ -34,7 +34,7 @@ function plain(s: string): string {
   );
 }
 
-function jpDate(iso: string | null): string {
+export function jpDate(iso: string | null): string {
   if (!iso) return "未定";
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
   return m ? `${m[1]}年${Number(m[2])}月${Number(m[3])}日` : iso;
@@ -80,9 +80,14 @@ function headingHtml(h: string): string {
   return plain(h);
 }
 
-function blockHtml(b: BlockChange, lawId: string, view: View): string {
+/**
+ * One changed block. "条文へ" links to the block in the current law text, or to `articleUrl(key)`
+ * when given (the version page links to the revision being compared instead).
+ */
+export function blockHtml(b: BlockChange, lawId: string, view: View, articleUrl?: (key: string) => string): string {
   const ctx = b.context.length ? `<span class="ctx">${b.context.map(headingHtml).join(" › ")}</span>` : "";
-  const link = b.op !== "deleted" ? ` <a class="note" href="/laws/${lawId}/#${encodeURIComponent(b.key)}">条文へ</a>` : "";
+  const href = articleUrl ? articleUrl(b.key) : `/laws/${lawId}/#${encodeURIComponent(b.key)}`;
+  const link = b.op !== "deleted" ? ` <a class="note" href="${esc(href)}">条文へ</a>` : "";
   const heading = b.oldHeading
     ? `<del>${headingHtml(b.oldHeading)}</del> → <b>${headingHtml(b.heading)}</b>`
     : `<b>${headingHtml(b.heading) || "（前文）"}</b>`;
@@ -105,7 +110,7 @@ function blockHtml(b: BlockChange, lawId: string, view: View): string {
   return `<section class="change ${b.op}"><header><span class="op">${OP[b.op]}</span>${heading}${link}${ctx}</header>${body}</section>`;
 }
 
-function fileHtml(f: FileChange, view: View): string {
+function fileHtml(f: FileChange, view: View, amendmentKey?: string): string {
   const stats =
     f.kind === "amended" ? ` <span class="plus">+${f.additions}</span> <span class="minus">−${f.deletions}</span>` : "";
   const title = f.titleChange ? `<div class="note">題名：<del>${esc(f.titleChange.from)}</del> → ${esc(f.titleChange.to)}</div>` : "";
@@ -119,9 +124,13 @@ function fileHtml(f: FileChange, view: View): string {
   } else {
     body = `<p class="note">${f.kind === "enacted" ? "この法令はここで制定されました。" : "この法令は houritsu にここから収録されています（それ以前の改正履歴はありません）。"}全文は<a href="/laws/${f.lawId}/">条文ページ</a>で見られます。</p>`;
   }
+  const versions =
+    f.kind !== "repealed" && amendmentKey
+      ? `・<a href="/versions/?law=${f.lawId}&at=${encodeURIComponent(amendmentKey)}">改正後の条文</a>`
+      : "";
   return `<section class="file" id="law-${esc(f.lawId)}">
     <h2><a href="/laws/${f.lawId}/">${esc(f.title)}</a> <span class="badge ${f.kind}">${KIND[f.kind]}</span></h2>
-    <div class="file-meta">${esc(f.lawNum)}${stats}${f.blocks ? `・変更 ${f.blocks.length} か所` : ""}</div>
+    <div class="file-meta">${esc(f.lawNum)}${stats}${f.blocks ? `・変更 ${f.blocks.length} か所` : ""}${versions}</div>
     ${title}${body}
   </section>`;
 }
@@ -184,7 +193,7 @@ export async function renderAmendmentPage(root: HTMLElement): Promise<void> {
         </div>`
       : "";
     root.className = view === "inline" ? "inline-view" : "";
-    root.innerHTML = headHtml(a) + toggle + a.files.map((f) => fileHtml(f, view)).join("");
+    root.innerHTML = headHtml(a) + toggle + a.files.map((f) => fileHtml(f, view, a.key)).join("");
     root.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((btn) =>
       btn.addEventListener("click", () => {
         view = btn.dataset.view as View;

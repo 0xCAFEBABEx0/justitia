@@ -169,3 +169,14 @@ export interface AmendmentSummary {
   additions: number;
   deletions: number;
 }
+
+/**
+ * history/<law ID>.json: every version of every block of a law. `texts` holds each distinct
+ * [level, heading, text] once. `blocks` lists the blocks in an order that is consistent with every
+ * revision; `v` is a flat list of [revision index, text index] pairs, where text index -1 means
+ * the block is absent from that revision on. Revision indexes are positions in LawDetail.revisions.
+ */
+export interface LawHistory {
+  texts: [number, string, string][];
+  blocks: { k: string; v: number[] }[];
+}
