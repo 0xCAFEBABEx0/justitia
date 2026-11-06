@@ -139,7 +139,8 @@ It rebuilds only what changed:
 
 1. fetch houritsu, then extract the data (as in [Data extraction](#data-extraction)), unless the data is in the
    workflow's cache. The cache key is made of the houritsu commits (`main` and `upcoming`) and a hash of the
-   extractor's code and `package-lock.json`, and the cache holds what the site build reads (`meta.json`,
+   extractor's code and of the versions of the npm packages it imports (`scripts/extract/cache-key.ts`; a change
+   to the site's own dependencies does not change it), and the cache holds what the site build reads (`meta.json`,
    `laws.json`, `laws/`, `timeline/`). A change to the site alone, or a day without new commits in houritsu, uses
    the cache, as long as R2 still holds the same data: the upload records the data version it uploaded in
    `_publish/data-version.txt` (`incomplete` while it uploads), and a cached copy with another version (after an extractor change is reverted, for

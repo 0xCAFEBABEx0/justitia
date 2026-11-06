@@ -96,6 +96,10 @@ jobs:
           main=$(git -C houritsu rev-parse origin/main)
           upcoming=$(git -C houritsu rev-parse --verify -q origin/upcoming || echo none)
           echo "commits=$main-$upcoming" >>"$GITHUB_OUTPUT"
+          # The extractor's code and the versions of the packages it uses, not the whole lockfile,
+          # so that a change to the site's dependencies keeps the cached data.
+          extractor=$(node scripts/extract/cache-key.ts)
+          echo "extractor=$extractor" >>"$GITHUB_OUTPUT"
 
       # What the site build reads from the extracted data (about 100 MB). amendments/ and history/
       # are only fetched by the browser, from R2, so a cache hit needs neither.
@@ -108,7 +112,7 @@ jobs:
             data/laws.json
             data/laws
             data/timeline
-          key: data-${{ steps.houritsu.outputs.commits }}-${{ hashFiles('scripts/extract/**', '!scripts/extract/**/*.test.ts', 'package-lock.json') }}
+          key: data-${{ steps.houritsu.outputs.commits }}-${{ steps.houritsu.outputs.extractor }}
           lookup-only: ${{ inputs.rebuild == true }}
 
       # A cache entry is used only while R2 holds the same data (_publish/data-version.txt, written by
