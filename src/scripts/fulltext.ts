@@ -103,7 +103,7 @@ export async function initFulltext(root: HTMLElement): Promise<void> {
         list.insertAdjacentHTML(
           "beforeend",
           `<li class="list-row py-3"><div class="list-col-grow">` +
-            `<div class="text-xs text-base-content/60">${esc(d.meta.law ?? "")} <small>${esc(d.meta.num ?? "")}</small></div>` +
+            `<div class="text-xs text-base-content/65">${esc(d.meta.law ?? "")} <small>${esc(d.meta.num ?? "")}</small></div>` +
             `<a class="link link-hover font-bold text-primary" href="${esc(d.url)}">${esc(d.meta.title ?? d.url)}</a>` +
             `<div class="mt-0.5 text-sm text-base-content/70 [overflow-wrap:anywhere]">${excerpt(d.excerpt)}</div></div></li>`,
         );
