@@ -3,7 +3,6 @@ import "@fontsource/noto-sans-jp/400.css";
 import "@fontsource/noto-sans-jp/700.css";
 import "../styles/global.css";
 import { SITE_NAME, SITE_TAGLINE, SOURCE_REPO } from "../lib/site.ts";
-import { DISCLAIMER_URL, EGOV_URL } from "../lib/disclaimer.ts";
 
 interface Props {
   title?: string;
@@ -101,13 +100,9 @@ const ogImage = new URL("/og-image.png", Astro.site).href;
           </div>
         </main>
         <footer class="border-t border-base-300 bg-base-100 py-6 text-sm text-base-content/70">
-          <div class="mx-auto max-w-[1180px] space-y-2 px-4">
-            <p>
-              条文と改正履歴は <a class="link" href={SOURCE_REPO}>houritsu</a>（e-Gov 法令データを Git の履歴にしたもの）からプログラムで自動的に生成しています。変換の誤りや不具合により、条文の表示が崩れたり、誤った新旧対照が表示されたりすることがあります。正式な法令の内容は <a class="link" href={EGOV_URL}>e-Gov 法令検索</a> で確認してください。
-            </p>
-            <p>
-              <b class="text-base-content">免責事項：</b>本サイトは非公式のサイトで、内容の正確性を保証しません。本サイトの利用により生じた損害について、管理者は一切の責任を負いません。<a class="link" href={DISCLAIMER_URL}>詳しく</a>
-            </p>
+          <div class="mx-auto max-w-[1180px] px-4">
+            条文と改正履歴は <a class="link" href={SOURCE_REPO}>houritsu</a>（e-Gov 法令データを Git の履歴にしたもの）から生成しています。
+            正式な法令の内容は <a class="link" href="https://laws.e-gov.go.jp/">e-Gov 法令検索</a> で確認してください。
           </div>
         </footer>
       </div>
