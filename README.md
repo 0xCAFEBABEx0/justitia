@@ -135,9 +135,11 @@ the name of this project and does not appear on the site.
 
 - [Tailwind CSS](https://tailwindcss.com/) v4 (through `@tailwindcss/vite`) and [daisyUI](https://daisyui.com/) 5.
   Pages and the browser scripts use daisyUI components (navbar, drawer, menu, tabs, card, list, badge, timeline,
-  stats, breadcrumbs, input, select, button, join, collapse, loading) and Tailwind utilities.
+  stats, breadcrumbs, input, select, button, join, collapse, loading, swap, theme controller) and Tailwind utilities.
   `src/styles/global.css` holds the theme and the few styles neither covers: the law text, the diffs and the graph.
-- Colors come from daisyUI's `light` and `dark` themes, adjusted in `global.css`; the dark theme follows the
+- Colors come from daisyUI's `light` and `dark` themes, adjusted in `global.css`. The sun/moon switch at the top
+  right (daisyUI's theme controller and swap, `src/scripts/theme.ts`) picks one; the choice is kept in
+  `localStorage` and applied in `<head>` before the page is drawn. Until it is used, the theme follows the
   operating system setting. The colors for added and deleted text (`text-add`, `text-del`, ...) are theme
   variables there too.
 - One font for the whole site, law text included: Noto Sans JP (400 and 700) from `@fontsource/noto-sans-jp`,

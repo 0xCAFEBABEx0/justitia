@@ -91,7 +91,10 @@
   --color-hit: #fff1a8;
 }
 
-/* The diff colors for the dark theme (also the theme daisyUI uses when the OS prefers dark). */
+/*
+ * The diff colors for the dark theme: when the OS prefers dark and no theme was picked, or when
+ * the header switch picked dark (selectors as daisyUI's own for the dark theme).
+ */
 @layer base {
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -102,6 +105,7 @@
       --color-hit: #5b4a00;
     }
   }
+  :root:has(input.theme-controller[value="dark"]:checked),
   [data-theme="dark"] {
     --color-add: #9be0ad;
     --color-add-bg: #173822;
