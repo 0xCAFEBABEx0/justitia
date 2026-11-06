@@ -21,8 +21,8 @@ const thisYear = new Date().getFullYear().toString();
       {years.map(({ y, n }) => (
         <div class="grid grid-cols-[6em_1fr_4em] items-center gap-2 text-sm">
           <a class="link link-hover link-primary tabular-nums" href={`/timeline/${y}/`}>{y === "undetermined" ? "未定" : y}{y === thisYear && "（今年）"}</a>
-          <progress class:list={["progress h-2.5", y > thisYear ? "progress-info opacity-50" : "progress-primary"]} value={Math.max(n, max / 200)} max={max} aria-label={`${y === "undetermined" ? "施行日未定" : `${y}年`}の改正 ${n} 件`}></progress>
-          <span class="text-right text-xs tabular-nums text-base-content/60">{n.toLocaleString()}</span>
+          <progress class:list={["progress h-2.5", y > thisYear ? "progress-info opacity-50" : "progress-primary"]} value={Math.max(n, max / 200)} max={max} aria-hidden="true"></progress>
+          <span class="text-right text-xs tabular-nums text-base-content/60">{n.toLocaleString()}<span class="sr-only"> 件</span></span>
         </div>
       ))}
     </div>

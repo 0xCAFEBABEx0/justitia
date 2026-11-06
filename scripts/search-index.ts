@@ -62,7 +62,11 @@ interface Law {
 function lawOf(id: string, page: string): Law | null {
   // The markers are data attributes on the law page (src/pages/laws/[id].astro), not its classes.
   const start = /<article[^>]*\sdata-law-text[\s>]/.exec(page)?.index ?? -1;
-  if (start < 0) return null;
+  if (start < 0) {
+    // A law page built before the markers were added: index nothing rather than part of the site.
+    if (page.includes('<article class="law-text"')) throw new Error(`${id}: law page from an older build; rebuild the site first`);
+    return null;
+  }
   const article = page.slice(start, page.indexOf("</article>", start));
   if (!article.includes('<section class="blk')) return null;
   const title = text(/<h1[^>]*data-page-title[^>]*>([\s\S]*?)<\/h1>/.exec(page)?.[1].replace(/<span class="badge[\s\S]*?<\/span>/g, "") ?? "");
