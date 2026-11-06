@@ -9,6 +9,7 @@ import { blocksAt } from "../../scripts/extract/history.ts";
 import type { LawDetail, LawHistory, LawRevision } from "../../scripts/extract/types.ts";
 import { renderBlocks, renderBlockText } from "../lib/render.ts";
 import { blockHtml, esc, jpDate, NOTE, VIEW_KEY, viewToggleHtml, type View } from "./amendment.ts";
+import { DISCLAIMER_NOTE_HTML } from "../lib/disclaimer.ts";
 import { SITE_NAME } from "../lib/site-name.ts";
 import { dataUrl } from "./data-url.ts";
 
@@ -156,7 +157,7 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
     root.className = from >= 0 && view === "inline" ? "inline-view" : "";
     root.innerHTML = `<div class="breadcrumbs py-0 text-sm text-base-content/70"><ul><li><a href="/laws/${esc(id)}/">${esc(law.title)}</a></li></ul></div>
       <h1 class="mb-4 text-2xl leading-snug font-bold sm:text-3xl">${esc(title)}</h1>
-      ${controls}${body}`;
+      ${DISCLAIMER_NOTE_HTML}${controls}${body}`;
 
     root.querySelector<HTMLSelectElement>("[data-at]")!.addEventListener("change", (e) => {
       at = Number((e.target as HTMLSelectElement).value);

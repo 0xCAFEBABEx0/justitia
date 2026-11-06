@@ -3,12 +3,13 @@ import Base from "../layouts/Base.astro";
 import PageHeader from "../components/PageHeader.astro";
 import { jpDate, jstDate, meta } from "../lib/data.ts";
 import { SITE_NAME, SOURCE_REPO } from "../lib/site.ts";
+import { EGOV_URL } from "../lib/disclaimer.ts";
 
 const m = meta();
 ---
 <Base
   title="このサイトについて"
-  description={`${SITE_NAME} は、日本の法令の条文と改正の履歴を見るための非公式のサイトです。見られるもの、注意、データの出どころ。`}
+  description={`${SITE_NAME} は、日本の法令の条文と改正の履歴を見るための非公式のサイトです。免責事項、見られるもの、注意、データの出どころ。`}
   nav="about"
   narrow
 >
@@ -18,6 +19,21 @@ const m = meta();
     {SITE_NAME} は、日本の法令の条文と改正の履歴を見るためのサイトです。法令を Git で管理している
     <a class="link link-primary" href={SOURCE_REPO}>houritsu</a> リポジトリから毎日生成しています。houritsu では、1つの改正法令の施行が1つのコミットになっています。
   </p>
+  <section id="disclaimer" class="mt-6 scroll-mt-20 rounded-box border border-warning/40 bg-warning/5 p-4 sm:p-5">
+    <h2 class="mb-2 text-lg font-bold">免責事項</h2>
+    <ul class="list-disc space-y-1 pl-6">
+      <li>本サイトは非公式のサイトです。e-Gov 法令検索をはじめ、国や公的機関とは関係ありません。</li>
+      <li>
+        条文、改正履歴、新旧対照は、houritsu のデータからプログラムで自動的に生成しています。変換の誤りやプログラムの不具合により、条文の表示が崩れたり、誤った差分や古い内容が表示されたりする可能性があります。
+      </li>
+      <li>管理者は、本サイトの内容の正確性、完全性、最新性を保証しません。</li>
+      <li>
+        法令の正式な内容は <a class="link link-primary" href={EGOV_URL}>e-Gov 法令検索</a> や官報で確認してください。法的な判断が必要なときは、公式の情報に基づき、必要に応じて弁護士などの専門家に相談してください。
+      </li>
+      <li><b>本サイトの利用により生じた損害について、管理者は一切の責任を負いません。</b></li>
+      <li>本サイトの内容は、予告なく変更、または公開を停止することがあります。</li>
+    </ul>
+  </section>
   <h2 class="mt-6 mb-2 text-lg font-bold">見られるもの</h2>
   <ul class="list-disc space-y-1 pl-6">
     <li><b>条文</b>：現行の条文と目次。条ごとにリンクできます。</li>
@@ -30,7 +46,6 @@ const m = meta();
   </ul>
   <h2 class="mt-6 mb-2 text-lg font-bold">注意</h2>
   <ul class="list-disc space-y-1 pl-6">
-    <li>このサイトは非公式です。正式な法令の内容は <a class="link link-primary" href="https://laws.e-gov.go.jp/">e-Gov 法令検索</a> で確認してください。</li>
     <li>
       改正履歴は e-Gov の改正データがそろう 2015 年ごろからです。法令の最初の履歴は、制定ではなく
       houritsu に「収録開始」した時点であることが多く、それ以前の改正は含まれません。
