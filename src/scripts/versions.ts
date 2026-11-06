@@ -78,15 +78,17 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
     return;
   }
   const revs = law.revisions;
+  // The last revision in force; a law with only upcoming revisions has none.
   let lastInForce = -1;
   revs.forEach((r, i) => {
     if (r.branch === "main") lastInForce = i;
   });
-  if (lastInForce < 0) lastInForce = 0;
 
-  let at = resolve(revs, params.get("at"), lastInForce);
+  let at = resolve(revs, params.get("at"), Math.max(lastInForce, 0));
   let from = params.has("from") ? resolve(revs, params.get("from"), -1) : -1;
-  const asked = params.get("at");
+  // The date shown in the date input: the one asked for, until another revision is chosen.
+  const asked = params.get("at") ?? "";
+  let date = ISO.test(asked) && from < 0 ? asked : "";
   let view: View = "side";
   try {
     if (localStorage.getItem(VIEW_KEY) === "inline") view = "inline";
@@ -108,7 +110,7 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
 
     const controls = `<div class="versions-controls">
       <label>表示する時点 <select data-at>${options(revs, at)}</select></label>
-      <label>日付で選ぶ <input type="date" data-date value="${ISO.test(asked ?? "") && from < 0 ? asked : ""}" /></label>
+      <label>日付で選ぶ <input type="date" data-date value="${date}" /></label>
       <label>比べる時点 <select data-from>${options(revs, from, "比べない（条文を表示）")}</select></label>
     </div>`;
 
@@ -126,7 +128,11 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
           <button type="button" data-view="inline" aria-pressed="${view === "inline"}">インライン</button>
         </div>` +
         (diff.changes.length
-          ? diff.changes.map((b) => blockHtml(b, id, view)).join("")
+          ? diff.changes
+              .map((b) =>
+                blockHtml(b, id, view, (key) => `/versions/?law=${id}&at=${encodeURIComponent(revs[at].amendment)}#${encodeURIComponent(key)}`),
+              )
+              .join("")
           : `<p class="note">条文の違いはありません。</p>`);
     } else if (revs[at].kind === "repealed") {
       body = `<p class="note">この時点で廃止されています。</p>`;
@@ -153,10 +159,12 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
 
     root.querySelector<HTMLSelectElement>("[data-at]")!.addEventListener("change", (e) => {
       at = Number((e.target as HTMLSelectElement).value);
+      date = "";
       render();
     });
     root.querySelector<HTMLSelectElement>("[data-from]")!.addEventListener("change", (e) => {
       from = Number((e.target as HTMLSelectElement).value);
+      date = "";
       render();
     });
     root.querySelector<HTMLInputElement>("[data-date]")!.addEventListener("change", (e) => {
@@ -164,9 +172,8 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
       if (!ISO.test(v)) return;
       at = resolve(revs, v, at);
       from = -1;
+      date = v;
       render();
-      const input = root.querySelector<HTMLInputElement>("[data-date]");
-      if (input) input.value = v;
     });
     root.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((btn) =>
       btn.addEventListener("click", () => {

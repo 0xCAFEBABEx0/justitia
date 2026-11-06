@@ -80,9 +80,14 @@ function headingHtml(h: string): string {
   return plain(h);
 }
 
-export function blockHtml(b: BlockChange, lawId: string, view: View): string {
+/**
+ * One changed block. "条文へ" links to the block in the current law text, or to `articleUrl(key)`
+ * when given (the version page links to the revision being compared instead).
+ */
+export function blockHtml(b: BlockChange, lawId: string, view: View, articleUrl?: (key: string) => string): string {
   const ctx = b.context.length ? `<span class="ctx">${b.context.map(headingHtml).join(" › ")}</span>` : "";
-  const link = b.op !== "deleted" ? ` <a class="note" href="/laws/${lawId}/#${encodeURIComponent(b.key)}">条文へ</a>` : "";
+  const href = articleUrl ? articleUrl(b.key) : `/laws/${lawId}/#${encodeURIComponent(b.key)}`;
+  const link = b.op !== "deleted" ? ` <a class="note" href="${esc(href)}">条文へ</a>` : "";
   const heading = b.oldHeading
     ? `<del>${headingHtml(b.oldHeading)}</del> → <b>${headingHtml(b.heading)}</b>`
     : `<b>${headingHtml(b.heading) || "（前文）"}</b>`;

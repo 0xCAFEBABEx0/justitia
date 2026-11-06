@@ -43,6 +43,11 @@ export async function initFulltext(root: HTMLElement): Promise<void> {
   const form = root.querySelector("form")!;
   const input = form.querySelector("input")!;
   const out = root.querySelector<HTMLElement>("[data-results]")!;
+  // Status messages go to a live region that stays in the page, so screen readers announce them.
+  const status = root.querySelector<HTMLElement>("[data-status]")!;
+  const say = (html: string) => {
+    status.innerHTML = html;
+  };
   let seq = 0;
 
   const run = async (q: string) => {
@@ -52,26 +57,27 @@ export async function initFulltext(root: HTMLElement): Promise<void> {
     else url.searchParams.delete("q");
     history.replaceState(null, "", url);
     document.title = q ? `「${q}」の全文検索 | justitia` : "全文検索 | justitia";
+    out.innerHTML = "";
     if (!q) {
-      out.innerHTML = "";
+      say("");
       return;
     }
-    out.innerHTML = `<p class="loading">検索しています…</p>`;
-    let pf: Pagefind;
+    say("検索しています…");
+    let results: Awaited<ReturnType<Pagefind["search"]>>["results"];
     try {
-      pf = await loadPagefind(base);
+      results = (await (await loadPagefind(base)).search(q)).results;
     } catch {
-      out.innerHTML = `<p class="note">検索の索引を読み込めませんでした。</p>`;
-      loading = null;
+      loading = null; // the next search tries loading the index again
+      if (mine === seq) say("検索の索引を読み込めませんでした。");
       return;
     }
-    const { results } = await pf.search(q);
     if (mine !== seq) return;
     if (!results.length) {
-      out.innerHTML = `<p class="note">「${esc(q)}」を含む条文は見つかりませんでした。</p>`;
+      say(`「${esc(q)}」を含む条文は見つかりませんでした。`);
       return;
     }
-    out.innerHTML = `<p class="note">${results.length.toLocaleString()} 件の条が見つかりました。</p><ol class="ft-results"></ol>`;
+    say(`${results.length.toLocaleString()} 件の条が見つかりました。`);
+    out.innerHTML = `<ol class="ft-results"></ol>`;
     const list = out.querySelector("ol")!;
     let shown = 0;
     const more = document.createElement("button");
@@ -79,7 +85,16 @@ export async function initFulltext(root: HTMLElement): Promise<void> {
     more.className = "more";
     const showMore = async () => {
       more.disabled = true;
-      const page = await Promise.all(results.slice(shown, shown + PAGE).map((r) => r.data()));
+      let page: ResultData[];
+      try {
+        page = await Promise.all(results.slice(shown, shown + PAGE).map((r) => r.data()));
+      } catch {
+        if (mine !== seq) return;
+        more.disabled = false;
+        more.hidden = false;
+        more.textContent = "読み込めませんでした。もう一度試す";
+        return;
+      }
       if (mine !== seq) return;
       for (const d of page) {
         list.insertAdjacentHTML(
