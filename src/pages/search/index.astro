@@ -1,16 +1,16 @@
 ---
 import Base from "../../layouts/Base.astro";
+import PageHeader from "../../components/PageHeader.astro";
 import { DATA_BASE } from "../../lib/site.ts";
 ---
 <Base title="全文検索" description="現行の法令の条文から語句を探し、見つかった条へ移動できます。" nav="search">
-  <h1 class="page-title">全文検索</h1>
-  <p class="subtitle">現行の法令の条文から、語句を含む条を探します。スペースで区切ると、すべての語を含む条を探します。</p>
+  <PageHeader title="全文検索">現行の法令の条文から、語句を含む条を探します。スペースで区切ると、すべての語を含む条を探します。</PageHeader>
   <div id="fulltext" data-base={DATA_BASE}>
-    <form class="fulltext-form" role="search">
-      <input type="search" name="q" placeholder="例：正当防衛、相続 放棄" aria-label="条文から検索" autocomplete="off" />
-      <button type="submit">検索</button>
+    <form class="join mb-3 w-full max-w-2xl" role="search">
+      <input class="input join-item w-full" type="search" name="q" placeholder="例：正当防衛、相続 放棄" aria-label="条文から検索" autocomplete="off" />
+      <button class="btn btn-primary join-item" type="submit">検索</button>
     </form>
-    <p class="note" data-status role="status" aria-live="polite"></p>
+    <p class="mb-3 min-h-6 text-sm text-base-content/70" data-status role="status" aria-live="polite"></p>
     <div data-results></div>
   </div>
   <noscript>検索するには JavaScript を有効にしてください。</noscript>

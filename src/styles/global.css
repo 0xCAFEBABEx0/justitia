@@ -1,0 +1,253 @@
+/*
+ * Site styles: Tailwind CSS v4 + daisyUI 5. Pages use daisyUI components and Tailwind
+ * utilities; this file only holds the theme and what neither has (law text, diffs, graph).
+ *
+ * One font for the whole site: Noto Sans JP, 400 and 700, served from our own domain
+ * (imported in src/layouts/Base.astro).
+ */
+@import "tailwindcss";
+@plugin "daisyui" {
+  themes: light --default, dark --prefersdark;
+}
+
+@plugin "daisyui/theme" {
+  name: "light";
+  default: true;
+  color-scheme: light;
+  --color-base-100: #ffffff;
+  --color-base-200: #f7f6f2;
+  --color-base-300: #e3e1db;
+  --color-base-content: #1d1d1f;
+  --color-primary: #1f4e8c;
+  --color-primary-content: #ffffff;
+  --color-secondary: #5b6b82;
+  --color-secondary-content: #ffffff;
+  --color-accent: #a86a00;
+  --color-accent-content: #ffffff;
+  --color-neutral: #2b2d31;
+  --color-neutral-content: #f2f1ee;
+  --color-info: #2f6fb5;
+  --color-info-content: #ffffff;
+  --color-success: #1d7a35;
+  --color-success-content: #ffffff;
+  --color-warning: #a86a00;
+  --color-warning-content: #ffffff;
+  --color-error: #b3261e;
+  --color-error-content: #ffffff;
+  --radius-selector: 1rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.75rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@plugin "daisyui/theme" {
+  name: "dark";
+  prefersdark: true;
+  color-scheme: dark;
+  --color-base-100: #1c1d20;
+  --color-base-200: #141517;
+  --color-base-300: #33353a;
+  --color-base-content: #e8e6e1;
+  --color-primary: #8db4ef;
+  --color-primary-content: #10213a;
+  --color-secondary: #a3b1c6;
+  --color-secondary-content: #141517;
+  --color-accent: #e3b454;
+  --color-accent-content: #2a1d00;
+  --color-neutral: #2b2d31;
+  --color-neutral-content: #e8e6e1;
+  --color-info: #8db4ef;
+  --color-info-content: #10213a;
+  --color-success: #9be0ad;
+  --color-success-content: #0f2a17;
+  --color-warning: #e3b454;
+  --color-warning-content: #2a1d00;
+  --color-error: #f2aaa3;
+  --color-error-content: #3a1210;
+  --radius-selector: 1rem;
+  --radius-field: 0.5rem;
+  --radius-box: 0.75rem;
+  --size-selector: 0.25rem;
+  --size-field: 0.25rem;
+  --border: 1px;
+  --depth: 0;
+  --noise: 0;
+}
+
+@theme {
+  /* The one site font. Every family Tailwind and daisyUI use points at it. */
+  --font-sans: "Noto Sans JP", system-ui, sans-serif;
+  --font-serif: var(--font-sans);
+  --font-mono: var(--font-sans);
+  /* Diff colors (新旧対照): text that was added or deleted. */
+  --color-add: #135c25;
+  --color-add-bg: #e3f4e6;
+  --color-del: #8f1d14;
+  --color-del-bg: #fbe5e3;
+  --color-hit: #fff1a8;
+}
+
+/* The diff colors for the dark theme (also the theme daisyUI uses when the OS prefers dark). */
+@layer base {
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --color-add: #9be0ad;
+      --color-add-bg: #173822;
+      --color-del: #f2aaa3;
+      --color-del-bg: #45201d;
+      --color-hit: #5b4a00;
+    }
+  }
+  [data-theme="dark"] {
+    --color-add: #9be0ad;
+    --color-add-bg: #173822;
+    --color-del: #f2aaa3;
+    --color-del-bg: #45201d;
+    --color-hit: #5b4a00;
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-padding-top: 4.5rem; /* below the sticky header */
+  }
+  body {
+    @apply bg-base-200 font-sans leading-relaxed;
+  }
+  mark {
+    background: var(--color-hit);
+    color: inherit;
+    padding: 0 1px;
+    border-radius: 2px;
+  }
+}
+
+/*
+ * The page background is base-200 and boxes are base-100, so a card's border uses base-300
+ * (daisyUI draws it in base-200, the page color).
+ */
+@utility card-border {
+  border-color: var(--color-base-300);
+}
+
+/*
+ * daisyUI's join raises a focused or hovered item above its neighbours with relative selectors
+ * inside @scope, which Tailwind's CSS optimizer drops (saadeghi/daisyui#4851,
+ * tailwindlabs/tailwindcss#20668). The same rules, written without @scope:
+ */
+@layer components {
+  .join > :where(:focus, :has(:focus)) { z-index: 2; }
+  @media (hover: hover) {
+    .join > :where(.btn:hover, :has(.btn:hover)) { z-index: 1; }
+  }
+}
+
+/* ---- Law text (law pages and the text at a revision) ---- */
+@layer components {
+  .law-text {
+    font-size: 1rem;
+    line-height: 1.95;
+    overflow-wrap: anywhere;
+  }
+  .law-text .h {
+    @apply font-bold leading-snug;
+    margin: 1.8em 0 0.5em;
+  }
+  .law-text h2.h { @apply text-xl; }
+  .law-text h3.h { @apply text-lg; }
+  .law-text h4.h,
+  .law-text h5.h,
+  .law-text h6.h { @apply text-base; }
+  .law-text .art .h {
+    @apply text-base;
+    margin: 1.4em 0 0.25em;
+  }
+  .law-text .h .anchor { color: inherit; }
+  .law-text .h .anchor:hover { @apply text-primary underline; }
+  .law-text p { margin: 0 0 0.35em; }
+  .law-text ul,
+  .law-text ol { padding-left: 1em; margin: 0 0 0.35em; }
+  .law-text table {
+    @apply my-3 block max-w-full overflow-x-auto text-sm;
+    border-collapse: collapse;
+  }
+  .law-text td,
+  .law-text th {
+    @apply border border-base-300 px-2 py-1 align-top;
+  }
+  .law-text .blk {
+    @apply rounded-box;
+    scroll-margin-top: 4.5rem;
+  }
+  .law-text .blk:target {
+    @apply bg-primary/10;
+    box-shadow: 0 0 0 0.5rem color-mix(in oklab, var(--color-primary) 10%, transparent);
+  }
+
+  /* ---- Diffs (amendment page and the comparison of two revisions) ---- */
+  .cmp {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .cmp > div { @apply min-w-0 px-4 py-3; }
+  .cmp > div + div { @apply border-l border-base-300; }
+  @media (width < 40rem) {
+    .cmp { grid-template-columns: 1fr; }
+    .cmp > div + div { @apply border-l-0 border-t; }
+  }
+  .txt {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    line-height: 1.9;
+  }
+  .txt ins,
+  .txt del {
+    text-decoration: none;
+    border-radius: 2px;
+    padding: 0 1px;
+  }
+  .txt ins { background: var(--color-add-bg); color: var(--color-add); }
+  .txt del { background: var(--color-del-bg); color: var(--color-del); }
+  .inline-view .txt del { text-decoration: line-through; }
+  .hunks {
+    @apply overflow-x-auto text-xs tabular-nums;
+  }
+  .hunks .hl {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    @apply px-4;
+  }
+  .hunks .hl.a { background: var(--color-add-bg); color: var(--color-add); }
+  .hunks .hl.d { background: var(--color-del-bg); color: var(--color-del); }
+  .hunks .hh { @apply bg-base-200 px-4 py-0.5 text-base-content/60; }
+
+  /* ---- Graph page (drawn by src/scripts/graph.ts) ---- */
+  .g-wrap { @apply relative overflow-x-auto rounded-box border border-base-300 bg-base-100; }
+  .g-svg { position: absolute; left: 4px; top: 0; }
+  .g-svg .g-link { stroke: var(--color-base-content); stroke-width: 1.5; opacity: 0.35; }
+  .g-svg .g-today { stroke: var(--color-primary); stroke-width: 1; stroke-dasharray: 2 3; }
+  .g-svg .g-node-hollow { fill: var(--color-base-100); stroke-width: 2.5; }
+  .g-rows { margin-left: var(--g-left); }
+  .g-row {
+    @apply h-[52px] overflow-hidden border-b border-base-300 pt-1.5 pr-3 pl-1 whitespace-nowrap;
+  }
+  .g-row:last-child { border-bottom: 0; }
+  .g-row:hover { @apply bg-primary/5; }
+  .g-row .g-line1,
+  .g-row .g-line2 { overflow: hidden; text-overflow: ellipsis; }
+  .g-row .g-line1 { @apply text-sm leading-[22px]; }
+  .g-row .g-line2 { @apply text-xs leading-[18px] text-base-content/60; }
+  .g-row .g-date { @apply mr-2.5 text-xs tabular-nums text-base-content/60; }
+  .g-row.upcoming .g-line1 a { font-style: italic; }
+  .g-dots { display: inline-flex; gap: 2px; margin-right: 6px; vertical-align: -1px; }
+  .g-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; flex: none; }
+  .g-today-row { @apply flex items-center bg-primary/10 text-xs text-primary; }
+  @media (width < 40rem) {
+    .g-row .g-date { display: block; margin: 0; line-height: 16px; }
+    .g-row .g-line1 { line-height: 18px; }
+    .g-row .g-line2 { display: none; }
+  }
+}

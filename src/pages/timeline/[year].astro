@@ -1,6 +1,7 @@
 ---
 import Base from "../../layouts/Base.astro";
 import AmendmentList from "../../components/AmendmentList.astro";
+import PageHeader from "../../components/PageHeader.astro";
 import { timeline, timelineYears } from "../../lib/data.ts";
 
 export function getStaticPaths() {
@@ -18,14 +19,14 @@ const heading = year === "undetermined" ? "施行日が未定の改正" : `${lab
   description={`${heading} ${items.length.toLocaleString()} 件の一覧。改正ごとに、変わった条を新旧対照で見られます。`}
   nav="timeline"
 >
-  <div class="crumbs"><a href="/timeline/">改正の年表</a></div>
-  <h1 class="page-title">{heading}</h1>
-  <p class="subtitle">{items.length.toLocaleString()} 件。日付は施行日です。</p>
-  <nav class="year-nav">
+  <PageHeader title={heading} crumbs={[{ href: "/timeline/", label: "改正の年表" }]}>
+    {items.length.toLocaleString()} 件。日付は施行日です。
+  </PageHeader>
+  <nav class="mb-4 flex flex-wrap gap-1" aria-label="年">
     {years.filter((y) => y >= "2000").map((y) => (
-      <a href={`/timeline/${y}/`} aria-current={y === year ? "page" : undefined}>{y === "undetermined" ? "未定" : y}</a>
+      <a class:list={["btn btn-xs tabular-nums", y === year ? "btn-primary" : "btn-ghost"]} href={`/timeline/${y}/`} aria-current={y === year ? "page" : undefined}>{y === "undetermined" ? "未定" : y}</a>
     ))}
-    <a href="/timeline/">それ以前…</a>
+    <a class="btn btn-ghost btn-xs" href="/timeline/">それ以前…</a>
   </nav>
   <AmendmentList items={items} />
 </Base>

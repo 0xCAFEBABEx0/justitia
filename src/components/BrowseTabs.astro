@@ -7,11 +7,20 @@ interface Props {
 }
 const { mode, current } = Astro.props;
 const kanaRows = [...KANA_ROWS.map((r) => r.row), OTHER_ROW];
+const tab = (active: boolean) => ["tab", { "tab-active": active }];
 ---
-<div class="tabs" aria-label="五十音">
-  {kanaRows.map((r) => <a href={`/browse/kana/${r}/`} aria-current={mode === "kana" && current === r ? "page" : undefined}>{r}</a>)}
-</div>
-<div class="tabs" aria-label="種別">
-  {TYPE_ORDER.map((t) => <a href={`/browse/type/${t}/`} aria-current={mode === "type" && current === t ? "page" : undefined}>{TYPE_LABELS[t]}</a>)}
-  <a href="/browse/#category" aria-current={mode === "category" ? "page" : undefined}>分野別</a>
+<div class="mb-4 flex flex-col gap-2">
+  <nav class="tabs tabs-box tabs-sm w-fit max-w-full flex-wrap border border-base-300" aria-label="五十音">
+    {kanaRows.map((r) => {
+      const active = mode === "kana" && current === r;
+      return <a class:list={tab(active)} href={`/browse/kana/${r}/`} aria-current={active ? "page" : undefined}>{r}</a>;
+    })}
+  </nav>
+  <nav class="tabs tabs-box tabs-sm w-fit max-w-full flex-wrap border border-base-300" aria-label="種別">
+    {TYPE_ORDER.map((t) => {
+      const active = mode === "type" && current === t;
+      return <a class:list={tab(active)} href={`/browse/type/${t}/`} aria-current={active ? "page" : undefined}>{TYPE_LABELS[t]}</a>;
+    })}
+    <a class:list={tab(mode === "category")} href="/browse/#category" aria-current={mode === "category" ? "page" : undefined}>分野別</a>
+  </nav>
 </div>

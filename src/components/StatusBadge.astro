@@ -1,0 +1,10 @@
+---
+import { badgeClass, type BadgeKind } from "../lib/badges.ts";
+
+interface Props {
+  kind: BadgeKind;
+  label: string;
+}
+const { kind, label } = Astro.props;
+---
+<span class={`${badgeClass(kind)} ml-1.5`}>{label}</span>

@@ -60,12 +60,13 @@ interface Law {
 
 /** The law text of a built law page, or null when it has none (repealed, not yet in force). */
 function lawOf(id: string, page: string): Law | null {
-  const start = page.indexOf('<article class="law-text">');
+  // The markers are data attributes on the law page (src/pages/laws/[id].astro), not its classes.
+  const start = /<article[^>]*\sdata-law-text[\s>]/.exec(page)?.index ?? -1;
   if (start < 0) return null;
   const article = page.slice(start, page.indexOf("</article>", start));
   if (!article.includes('<section class="blk')) return null;
-  const title = text(/<h1 class="page-title">([\s\S]*?)<\/h1>/.exec(page)?.[1].replace(/<span class="badge[\s\S]*?<\/span>/g, "") ?? "");
-  const num = /<div class="law-meta">\s*<span>([^<]*)<\/span>/.exec(page)?.[1] ?? "";
+  const title = text(/<h1[^>]*data-page-title[^>]*>([\s\S]*?)<\/h1>/.exec(page)?.[1].replace(/<span class="badge[\s\S]*?<\/span>/g, "") ?? "");
+  const num = /<span data-law-num[^>]*>([^<]*)<\/span>/.exec(page)?.[1] ?? "";
   return { id, title, num, article };
 }
 

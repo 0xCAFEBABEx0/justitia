@@ -1,5 +1,7 @@
 ---
-import "../styles/site.css";
+import "@fontsource/noto-sans-jp/400.css";
+import "@fontsource/noto-sans-jp/700.css";
+import "../styles/global.css";
 import { SITE_NAME, SITE_TAGLINE, SOURCE_REPO } from "../lib/site.ts";
 
 interface Props {
@@ -15,6 +17,13 @@ interface Props {
   canonical?: boolean;
 }
 const { title, description, nav, narrow = false, canonical = true } = Astro.props;
+const NAV = [
+  { key: "laws", href: "/browse/", label: "法令一覧" },
+  { key: "timeline", href: "/timeline/", label: "改正の年表" },
+  { key: "graph", href: "/graph/", label: "改正のグラフ" },
+  { key: "search", href: "/search/", label: "全文検索" },
+  { key: "about", href: "/about/", label: "このサイトについて" },
+] as const;
 const fullTitle = title ? `${title} | ${SITE_NAME}` : `${SITE_NAME} — ${SITE_TAGLINE}`;
 const desc = description ?? "日本の法令の条文と、いつ・どこが・どう改正されたかを、改正ごとの新旧対照で見られるサイトです。";
 const url = canonical ? new URL(Astro.url.pathname, Astro.site).href : null;
@@ -48,32 +57,54 @@ const ogImage = new URL("/og-image.png", Astro.site).href;
     <meta name="twitter:card" content="summary_large_image" />
   </head>
   <body>
-    <header class="site-header">
-      <div class="wrap">
-        <a class="logo" href="/">Anisotro<span>pics</span></a>
-        <nav class="site-nav">
-          <a href="/browse/" aria-current={nav === "laws" ? "page" : undefined}>法令一覧</a>
-          <a href="/timeline/" aria-current={nav === "timeline" ? "page" : undefined}>改正の年表</a>
-          <a href="/graph/" aria-current={nav === "graph" ? "page" : undefined}>改正のグラフ</a>
-          <a href="/search/" aria-current={nav === "search" ? "page" : undefined}>全文検索</a>
-          <a href="/about/" aria-current={nav === "about" ? "page" : undefined}>このサイトについて</a>
+    <div class="drawer drawer-end">
+      <input id="site-menu" type="checkbox" class="drawer-toggle" />
+      <div class="drawer-content flex min-h-screen flex-col">
+        <header class="navbar sticky top-0 z-30 min-h-14 gap-2 border-b border-base-300 bg-base-100 px-4 py-0">
+          <div class="mx-auto flex w-full max-w-[1180px] items-center gap-2">
+            <a class="mr-2 shrink-0 text-lg font-bold tracking-wide" href="/">Anisotro<span class="text-primary">pics</span></a>
+            <nav class="hidden lg:block" aria-label="サイト">
+              <ul class="menu menu-horizontal menu-sm gap-1 px-0">
+                {NAV.map((n) => (
+                  <li><a class="aria-[current=page]:bg-primary/10 aria-[current=page]:font-bold aria-[current=page]:text-primary" href={n.href} aria-current={nav === n.key ? "page" : undefined}>{n.label}</a></li>
+                ))}
+              </ul>
+            </nav>
+            <div class="relative ml-auto w-full max-w-64 min-w-0" data-search>
+              <label class="input input-sm w-full">
+                <svg class="h-4 w-4 opacity-50" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+                <input type="search" placeholder="法令名で検索" aria-label="法令名で検索" autocomplete="off" />
+              </label>
+            </div>
+            <label for="site-menu" class="btn btn-square btn-ghost btn-sm lg:hidden" aria-label="メニューを開く">
+              <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </label>
+          </div>
+        </header>
+        <main class="grow py-6 pb-16">
+          <div class:list={["mx-auto px-4", narrow ? "max-w-[860px]" : "max-w-[1180px]"]}>
+            <slot />
+          </div>
+        </main>
+        <footer class="border-t border-base-300 bg-base-100 py-6 text-sm text-base-content/70">
+          <div class="mx-auto max-w-[1180px] px-4">
+            条文と改正履歴は <a class="link" href={SOURCE_REPO}>houritsu</a>（e-Gov 法令データを Git の履歴にしたもの）から生成しています。
+            正式な法令の内容は <a class="link" href="https://laws.e-gov.go.jp/">e-Gov 法令検索</a> で確認してください。
+          </div>
+        </footer>
+      </div>
+      <div class="drawer-side z-40">
+        <label for="site-menu" aria-label="メニューを閉じる" class="drawer-overlay"></label>
+        <nav class="min-h-full w-72 bg-base-100 p-4" aria-label="サイト">
+          <a class="mb-2 block px-3 text-lg font-bold" href="/">Anisotro<span class="text-primary">pics</span></a>
+          <ul class="menu w-full">
+            {NAV.map((n) => (
+              <li><a class="aria-[current=page]:bg-primary/10 aria-[current=page]:font-bold aria-[current=page]:text-primary" href={n.href} aria-current={nav === n.key ? "page" : undefined}>{n.label}</a></li>
+            ))}
+          </ul>
         </nav>
-        <div class="header-search search" data-search>
-          <input type="search" placeholder="法令名で検索" aria-label="法令名で検索" autocomplete="off" />
-        </div>
       </div>
-    </header>
-    <main>
-      <div class:list={["wrap", { narrow }]}>
-        <slot />
-      </div>
-    </main>
-    <footer class="site-footer">
-      <div class="wrap">
-        条文と改正履歴は <a href={SOURCE_REPO}>houritsu</a>（e-Gov 法令データを Git の履歴にしたもの）から生成しています。
-        正式な法令の内容は <a href="https://laws.e-gov.go.jp/">e-Gov 法令検索</a> で確認してください。
-      </div>
-    </footer>
+    </div>
     <script>
       import { initSearch } from "../scripts/search.ts";
       document.querySelectorAll<HTMLElement>("[data-search]").forEach((el) => initSearch(el));

@@ -11,6 +11,8 @@ import {
 } from "../../lib/data.ts";
 import { renderLawFile, renderInline } from "../../lib/lawtext.ts";
 import { SOURCE_REPO } from "../../lib/site.ts";
+import PageHeader from "../../components/PageHeader.astro";
+import StatusBadge from "../../components/StatusBadge.astro";
 
 export function getStaticPaths() {
   return pageLaws().map((l) => ({ params: { id: l.id } }));
@@ -36,75 +38,88 @@ const description =
 const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => r.id)].join(",")}`;
 ---
 <Base title={pageTitle} description={description}>
-  <div class="crumbs">
-    <a href="/browse/">法令一覧</a> / <a href={`/browse/type/${law.dir}/`}>{typeLabel(law.dir)}</a>
-    {law.category && <> / <a href={`/browse/category/${law.category}/`}>{law.category}</a></>}
-  </div>
-  <h1 class="page-title">
-    {law.title}
-    {law.status !== "in_force" && <span class:list={["badge", law.status === "repealed" ? "repealed" : "upcoming"]}>{STATUS_LABELS[law.status]}</span>}
-  </h1>
-  <div class="law-meta">
-    <span>{law.num}</span>
-    {law.abbrev && <span>略称：{law.abbrev}</span>}
-    {latest && latest.kind === "amended" && <span>最終改正：{jpDate(latest.enforced)} 施行（{latest.amendmentLawNum}）</span>}
-    {source && <a href={source}>e-Gov 法令検索</a>}
-    {revisions.length > 0 && <a href={`/versions/?law=${law.id}`}>過去・将来の条文と比較</a>}
-    <a href={graphUrl}>改正のグラフ</a>
-    <a href={`${SOURCE_REPO}/commits/main/${law.path}`}>Git の履歴</a>
+  <PageHeader
+    title={law.title}
+    crumbs={[
+      { href: "/browse/", label: "法令一覧" },
+      { href: `/browse/type/${law.dir}/`, label: typeLabel(law.dir) },
+      ...(law.category ? [{ href: `/browse/category/${law.category}/`, label: law.category }] : []),
+    ]}
+  >
+    {law.status !== "in_force" && <StatusBadge slot="badge" kind={law.status === "repealed" ? "repealed" : "upcoming"} label={STATUS_LABELS[law.status]} />}
+    <div class="flex flex-wrap gap-x-4 gap-y-1">
+      <span data-law-num>{law.num}</span>
+      {law.abbrev && <span>略称：{law.abbrev}</span>}
+      {latest && latest.kind === "amended" && <span>最終改正：{jpDate(latest.enforced)} 施行（{latest.amendmentLawNum}）</span>}
+    </div>
+  </PageHeader>
+  <div class="-mt-2 mb-6 flex flex-wrap gap-2">
+    {revisions.length > 0 && <a class="btn btn-sm btn-primary" href={`/versions/?law=${law.id}`}>過去・将来の条文と比較</a>}
+    <a class="btn btn-soft btn-sm btn-primary" href={graphUrl}>改正のグラフ</a>
+    {source && <a class="btn btn-soft btn-sm btn-primary" href={source}>e-Gov 法令検索</a>}
+    <a class="btn btn-soft btn-sm btn-primary" href={`${SOURCE_REPO}/commits/main/${law.path}`}>Git の履歴</a>
   </div>
 
-  <div class="law-layout">
-    <article class="law-text">
+  <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <article class="law-text min-w-0" data-law-text>
       {rendered ? (
         <Fragment set:html={rendered.html} />
       ) : law.status === "repealed" ? (
-        <p class="note">この法令は廃止されています。廃止までの改正履歴を右に表示しています。</p>
+        <p class="text-base-content/70">この法令は廃止されています。廃止までの改正履歴を右に表示しています。</p>
       ) : (
-        <p class="note">この法令はまだ施行されていません。施行予定の改正を右に表示しています。</p>
+        <p class="text-base-content/70">この法令はまだ施行されていません。施行予定の改正を右に表示しています。</p>
       )}
     </article>
 
-    <aside class="law-side">
-      <section class="card">
-        <h2>改正履歴（{revisions.length} 件）</h2>
-        <ol class="history">
-          {revisions.map((r) => (
-            <li class:list={{ upcoming: r.branch === "upcoming" }}>
-              <div class="date">
-                {r.enforced ? jpDate(r.enforced) : "施行日未定"}
-                {r.branch === "upcoming" ? <span class="badge upcoming">施行予定</span> : <span class:list={["badge", r.kind]}>{KIND_LABELS[r.kind]}</span>}
-              </div>
-              <div class="what">
-                <a href={amendmentUrl(r.amendment) + anchor}>{r.amendmentTitle}</a>
-                <span class="note">（{r.amendmentLawNum}）</span>
-              </div>
-              {r.kind !== "repealed" && (
-                <div class="rev-links"><a href={`/versions/?law=${law.id}&at=${r.amendment}`}>この時点の条文</a></div>
-              )}
-              {r.titleChange && <div class="changed">題名を「{r.titleChange.from}」から変更</div>}
-              {r.changedCount > 0 && (
-                <div class="changed">
-                  {r.changed.slice(0, 6).map((c, i) => <>{i > 0 && "・"}<span set:html={renderInline(c.heading)} /></>)}
-                  {r.changedCount > 6 && <>ほか {r.changedCount - 6} 件</>}
+    <aside class="flex flex-col gap-4 text-sm lg:sticky lg:top-[4.5rem] lg:max-h-[calc(100vh-5.5rem)] lg:overflow-auto">
+      <section class="card card-border bg-base-100">
+        <div class="card-body p-4">
+          <h2 class="card-title text-base">改正履歴（{revisions.length} 件）</h2>
+          <ul class="timeline timeline-vertical timeline-compact timeline-snap-icon [&>li]:[--timeline-col-start:0]">
+            {revisions.map((r, i) => (
+              <li>
+                {i > 0 && <hr />}
+                <div class="timeline-middle">
+                  <span class:list={["mt-1.5 block h-2.5 w-2.5 rounded-full border-2", r.branch === "upcoming" ? "border-dashed border-primary bg-base-100" : "border-primary bg-primary"]}></span>
                 </div>
-              )}
-              {r.kind === "amended" && (
-                <div class="lines"><span class="plus">+{r.additions}</span> <span class="minus">−{r.deletions}</span></div>
-              )}
-            </li>
-          ))}
-        </ol>
+                <div class="timeline-end mb-4 ml-1 min-w-0">
+                  <div class="font-bold">
+                    {r.enforced ? jpDate(r.enforced) : "施行日未定"}
+                    {r.branch === "upcoming" ? <StatusBadge kind="upcoming" label="施行予定" /> : <StatusBadge kind={r.kind} label={KIND_LABELS[r.kind]} />}
+                  </div>
+                  <div>
+                    <a class="link link-hover link-primary" href={amendmentUrl(r.amendment) + anchor}>{r.amendmentTitle}</a>
+                    <span class="text-xs text-base-content/60">（{r.amendmentLawNum}）</span>
+                  </div>
+                  {r.titleChange && <div class="text-xs text-base-content/60">題名を「{r.titleChange.from}」から変更</div>}
+                  {r.changedCount > 0 && (
+                    <div class="text-xs text-base-content/60">
+                      {r.changed.slice(0, 6).map((c, i) => <>{i > 0 && "・"}<span set:html={renderInline(c.heading)} /></>)}
+                      {r.changedCount > 6 && <>ほか {r.changedCount - 6} 件</>}
+                    </div>
+                  )}
+                  <div class="mt-0.5 flex flex-wrap gap-x-3 text-xs">
+                    {r.kind === "amended" && <span class="tabular-nums"><span class="text-add">+{r.additions}</span> <span class="text-del">−{r.deletions}</span></span>}
+                    {r.kind !== "repealed" && <a class="link link-hover link-primary" href={`/versions/?law=${law.id}&at=${r.amendment}`}>この時点の条文</a>}
+                  </div>
+                </div>
+                {i < revisions.length - 1 && <hr />}
+              </li>
+            ))}
+          </ul>
+        </div>
       </section>
 
       {rendered && rendered.toc.length > 0 && (
-        <details class="card" open={rendered.toc.length <= 60} style="margin-top:16px">
-          <summary><b>目次</b>（条文 {rendered.articleCount.toLocaleString()} 条）</summary>
-          <ul class="toc">
-            {rendered.toc.map((t) => (
-              <li class={`l${t.level}`}><a href={`#${encodeURIComponent(t.id)}`} set:html={t.html} /></li>
-            ))}
-          </ul>
+        <details class="collapse-arrow collapse border border-base-300 bg-base-100" open={rendered.toc.length <= 60}>
+          <summary class="collapse-title font-bold">目次<span class="ml-1 font-normal text-base-content/60">（条文 {rendered.articleCount.toLocaleString()} 条）</span></summary>
+          <div class="collapse-content px-2">
+            <ul class="menu menu-sm w-full p-0">
+              {rendered.toc.map((t) => (
+                <li class={["", "", "", "pl-4", "pl-8", "pl-12", "pl-12"][t.level] ?? ""}><a href={`#${encodeURIComponent(t.id)}`} set:html={t.html} /></li>
+              ))}
+            </ul>
+          </div>
         </details>
       )}
     </aside>
