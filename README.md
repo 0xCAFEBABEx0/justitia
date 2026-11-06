@@ -162,8 +162,11 @@ liability for damages from its use, in three places:
 
 ## Publishing
 
-`.github/workflows/publish.yml` publishes the site every day at 06:30 JST, on every push to `main` (except
-changes to Markdown files and repository settings), and when run by hand (Actions → Publish → Run workflow).
+`.github/workflows/publish.yml` publishes the site every day at 05:17 JST and again at 08:47 JST, on every push
+to `main` (except changes to Markdown files and repository settings), and when run by hand (Actions → Publish →
+Run workflow). houritsu is pushed once a day at about 04:10 JST (04:27 JST on Sundays, when its builder fetches
+everything from e-Gov), so the first run picks up the day's commits; the second one covers a scheduled run that
+GitHub dropped or a late push to houritsu, and takes about 2 minutes when there is nothing new.
 It rebuilds only what changed:
 
 1. fetch houritsu, then extract the data (as in [Data extraction](#data-extraction)), unless the data is in the
