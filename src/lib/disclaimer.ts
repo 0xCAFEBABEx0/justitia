@@ -1,8 +1,10 @@
 // The disclaimer shown under the heading of the pages with law text and diffs: law pages (built
 // by Astro) and the amendment and versions pages (rendered in the browser), so it is one HTML
-// string both can use.
+// string both can use. The full disclaimer is the "免責事項" section of the about page
+// (#disclaimer); the footer of every page carries a shorter form (src/layouts/Base.astro).
 
-const EGOV_URL = "https://laws.e-gov.go.jp/";
+export const DISCLAIMER_URL = "/about/#disclaimer";
+export const EGOV_URL = "https://laws.e-gov.go.jp/";
 
 /** A short note that the text and diffs are generated and can be wrong, and that no liability is accepted. */
 export const DISCLAIMER_NOTE_HTML = `<div role="note" class="alert alert-warning alert-soft mb-4 items-start gap-3 py-2.5 text-base-content" data-disclaimer>
