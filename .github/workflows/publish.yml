@@ -39,6 +39,35 @@ jobs:
 
       - uses: actions/checkout@v4
 
+      # Ubuntu's rclone (1.60) gets "501 NotImplemented" from R2 on some uploads; use a current release.
+      # (Not RCLONE_VERSION: rclone reads every RCLONE_* variable as a flag, and that one is --version.)
+      - name: Install rclone
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/rclone.zip" "https://downloads.rclone.org/v${RELEASE}/rclone-v${RELEASE}-linux-amd64.zip"
+          unzip -q -j "$RUNNER_TEMP/rclone.zip" "*/rclone" -d "$RUNNER_TEMP/rclone"
+          sudo install "$RUNNER_TEMP/rclone/rclone" /usr/local/bin/rclone
+          rclone version
+        env:
+          RELEASE: 1.68.2
+
+      # Fail in seconds, not after the 30-minute build, when a key is wrong or R2 rejects rclone's requests.
+      - name: Check R2 and the Cloudflare API token
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+        run: |
+          scripts/upload-data.sh --check
+          # An account API token is verified under the account, a user API token under /user.
+          for url in "https://api.cloudflare.com/client/v4/accounts/$CLOUDFLARE_ACCOUNT_ID/tokens/verify" \
+            "https://api.cloudflare.com/client/v4/user/tokens/verify"; do
+            if curl -fsS -H "Authorization: Bearer $CLOUDFLARE_API_TOKEN" "$url" 2>/dev/null | grep -Eq '"status": ?"active"'; then
+              echo "CLOUDFLARE_API_TOKEN is active"; exit 0
+            fi
+          done
+          echo "::error::CLOUDFLARE_API_TOKEN is not an active API token for this account (see README, Publishing)"
+          exit 1
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -60,17 +89,6 @@ jobs:
 
       - name: Build the search index (about 17 minutes)
         run: npm run search-index
-
-      # Ubuntu's rclone (1.60) gets "501 NotImplemented" from R2 on some uploads; use a current release.
-      # (Not RCLONE_VERSION: rclone reads every RCLONE_* variable as a flag, and that one is --version.)
-      - name: Install rclone
-        run: |
-          curl -fsSL -o "$RUNNER_TEMP/rclone.zip" "https://downloads.rclone.org/v${RELEASE}/rclone-v${RELEASE}-linux-amd64.zip"
-          unzip -q -j "$RUNNER_TEMP/rclone.zip" "*/rclone" -d "$RUNNER_TEMP/rclone"
-          sudo install "$RUNNER_TEMP/rclone/rclone" /usr/local/bin/rclone
-          rclone version
-        env:
-          RELEASE: 1.68.2
 
       - name: Upload data to R2
         run: npm run upload-data

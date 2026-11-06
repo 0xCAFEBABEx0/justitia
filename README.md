@@ -150,9 +150,10 @@ In the Cloudflare account that has the `anisotro.pics` zone:
    response it got first; a transform rule adds the header to every response, cached or not. All of the data is
    public.
 5. **API token for Wrangler** (Manage account → Account API tokens → Create token): use the *Edit Cloudflare
-   Workers* template, limited to this account and the `anisotro.pics` zone. The first deploy creates the
-   `anisotro.pics` custom domain for the Worker, which fails if the apex already has a DNS record pointing
-   elsewhere.
+   Workers* template, limited to this account and the `anisotro.pics` zone. It needs to be allowed to create a
+   Worker (the first deploy creates `justitia`) and *Workers Routes: Edit* on the zone. The first deploy also
+   creates the `anisotro.pics` custom domain; run from CI, Wrangler replaces an existing `A`, `AAAA` or `CNAME`
+   record on the apex with the Worker's record (other record types, such as `MX`, are not touched).
 6. **R2 API token** (R2 → Manage API tokens → Create account API token): *Object Read & Write*, limited to the
    `justitia-data-prod` bucket. It gives an access key ID and a secret access key.
 
@@ -165,7 +166,9 @@ In the GitHub repository (Settings → Secrets and variables → Actions), add t
 | `R2_ACCESS_KEY_ID` | The access key ID from step 6 |
 | `R2_SECRET_ACCESS_KEY` | The secret access key from step 6 |
 
-Then run the workflow by hand once. The first upload is about 79,000 files and 3.5 GB, within R2's free tier
+Then run the workflow by hand once. Its first step after the checkout writes, reads back and deletes one small
+object in the bucket (`scripts/upload-data.sh --check`) and verifies the API token, so a wrong secret fails the run
+in about a minute instead of after the build. The first upload is about 79,000 files and 3.5 GB, within R2's free tier
 (10 GB stored, 1 million writes a month); later runs upload only what changed. GitHub turns off scheduled workflows
 in a public repository after 60 days without activity; turn the workflow back on under Actions if that happens.
 
