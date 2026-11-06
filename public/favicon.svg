@@ -1,10 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <!-- Scales whose pans are the site's colors for deleted (old) and added (new) text.
+  <!-- Three lines of a diff: unchanged, deleted and added, in the site's diff colors.
        favicon.ico, apple-touch-icon.png (corners left square: iOS rounds them) and og-image.png are
        rendered from this drawing. -->
   <rect width="32" height="32" rx="7" fill="#1f4e8c"/>
-  <path d="M16 5.5v19.5M10 25.5h12M7.5 10h17" stroke="#fff" stroke-width="2.2" fill="none" stroke-linecap="round"/>
-  <path d="M7.5 10l-3.5 8.5h7zM24.5 10l-3.5 8.5h7z" stroke="#fff" stroke-width="1.6" stroke-linejoin="round" fill="none"/>
-  <path d="M4 18.5h7a3.5 3.5 0 0 1-7 0z" fill="#f2aaa3"/>
-  <path d="M21 18.5h7a3.5 3.5 0 0 1-7 0z" fill="#9be0ad"/>
+  <rect x="6" y="7" width="20" height="4" rx="2" fill="#fff" opacity=".6"/>
+  <rect x="6" y="14" width="14" height="4" rx="2" fill="#f2aaa3"/>
+  <rect x="6" y="21" width="20" height="4" rx="2" fill="#9be0ad"/>
 </svg>
