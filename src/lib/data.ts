@@ -39,9 +39,14 @@ export function meta(): Meta {
   return readJson<Meta>("meta.json");
 }
 
-/** Changes with every extraction; the pages put it on their data URLs (see src/scripts/data-url.ts). */
+/**
+ * Changes only when a file the pages fetch changes; the pages put it on their data URLs (see
+ * src/scripts/data-url.ts and scripts/extract/data-version.ts). Output from before it existed falls
+ * back to the generation time.
+ */
 export function dataVersion(): string {
-  return meta().generatedAt.replace(/[^0-9]/g, "");
+  const m = meta();
+  return m.dataVersion ?? m.generatedAt.replace(/[^0-9]/g, "");
 }
 
 let yearsCache: string[] | null = null;

@@ -34,7 +34,7 @@ The types are in `scripts/extract/types.ts`.
 
 | File | Contents |
 | --- | --- |
-| `meta.json` | Generation time, the houritsu commits used, counts |
+| `meta.json` | Generation time, data version (a hash of `amendments/`, `laws/` and `history/`), the houritsu commits used, counts |
 | `laws.json` | All laws (in force, repealed, and not yet in force), in kana order |
 | `laws/<law ID>.json` | Per-law details, amendment history (oldest first, upcoming amendments last), and the laws most often amended together with it |
 | `amendments/<key>.json` | Per-amendment (one houritsu commit) details, with an article-level diff for each law it changed |
@@ -127,9 +127,10 @@ hand (Actions → Publish → Run workflow). It takes about 40 minutes on a GitH
    only the files that changed.
 
 The data goes first, so a new page never links to data that is not there yet. Data files are uploaded with
-`Cache-Control: public, max-age=3600`. The pages fetch `amendments/`, `laws/` and `history/` files with the build's
-data version in the query string (`?v=`, from `generatedAt` in `meta.json`), which is part of the cache key, so a
-new build never gets files cached from an older one, and a page never mixes the two. Pagefind's
+`Cache-Control: public, max-age=3600`. The pages fetch `amendments/`, `laws/` and `history/` files with the data
+version in the query string (`?v=`, `dataVersion` in `meta.json`), which is part of the cache key. The data version is
+a hash of those files, so a build that changes any of them gets new URLs (a page never mixes files from two builds),
+and a build that changes none, such as a day without new commits in houritsu, keeps the cached copies. Pagefind's
 `pagefind-entry.json` and our `pagefind/shards.json` are always fetched with a `?ts=` query, which skips the cache,
 so the search page picks up a new index right away. The bucket also holds `_publish/pagefind-unused.txt`, the
 upload script's list of Pagefind files to delete on the next run.

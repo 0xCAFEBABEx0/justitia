@@ -55,10 +55,14 @@ if $check; then
 fi
 
 # The data domain's cache keeps files for up to an hour (see README, "Publishing"). The pages ask
-# for amendments/, laws/ and history/ files with the build's data version in the query string, so
-# a page never mixes files from two builds; files that are gone can be deleted right away.
+# for amendments/, laws/ and history/ files with the data version in the query string (a hash of
+# those files, so it changes only when one of them does), so a page never mixes files from two
+# builds; files that are gone can be deleted right away.
 upload=(--checksum --fast-list --transfers 32 --checkers 32
-  --header-upload "Cache-Control: public, max-age=3600" --stats 60s --stats-one-line)
+  --header-upload "Cache-Control: public, max-age=3600"
+  # Print the counts (files checked, uploaded, deleted) every minute and at the end. Stats are
+  # logged at INFO by default, which the default NOTICE level hides.
+  --stats 60s --stats-log-level NOTICE)
 for dir in amendments laws history; do
   echo "upload-data: $dir/"
   rclone sync "$data/$dir" "r2:$bucket/$dir" "${upload[@]}"

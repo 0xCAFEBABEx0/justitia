@@ -37,7 +37,7 @@ jobs:
           done
           exit $missing
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Ubuntu's rclone (1.60) gets "501 NotImplemented" from R2 on some uploads; use a current release.
       # (Not RCLONE_VERSION: rclone reads every RCLONE_* variable as a flag, and that one is --version.)
@@ -68,7 +68,7 @@ jobs:
           echo "::error::CLOUDFLARE_API_TOKEN is not an active API token for this account (see README, Publishing)"
           exit 1
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
