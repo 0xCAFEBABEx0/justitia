@@ -96,16 +96,23 @@ fi
 
 $upload_pagefind || exit 0
 
-# pagefind/ goes last. shards.json, which lists the shards to load and records what the index was
-# built from (the workflow skips the indexing when that has not changed), is uploaded after all the
-# other files, so it never points to an index that is only partly uploaded.
+# pagefind/ goes last. shards.json, which lists the shards to load, is uploaded after all the
+# other files, so it never points to shards that are not uploaded yet.
 # A search page that is already open keeps using the index it loaded and fetches that index's
 # (content-hashed) chunks as it goes, so the files a new index no longer uses are deleted one run
 # later, not right away. _publish/pagefind-unused.txt lists the files that the previous run found
 # unused.
+# _publish/pagefind-input.txt holds the input hash of the published index (the workflow skips the
+# indexing when it is unchanged). Like data-version.txt, it says "incomplete" during the upload, so
+# an upload that fails halfway gets the index rebuilt and uploaded again on the next run.
 echo "upload-data: pagefind/"
+node -p 'require(process.argv[1]).input' "$(cd "$data" && pwd)/pagefind/shards.json" | grep -Ex '[0-9a-f]{16}' >"$work/pagefind-input.txt" ||
+  { echo "upload-data: $data/pagefind/shards.json has no input hash" >&2; exit 1; }
+echo incomplete >"$work/incomplete.txt"
+rclone copyto "$work/incomplete.txt" "r2:$bucket/_publish/pagefind-input.txt" --header-upload "Cache-Control: no-store"
 rclone copy "$data/pagefind" "r2:$bucket/pagefind" --exclude /shards.json "${upload[@]}"
 rclone copyto "$data/pagefind/shards.json" "r2:$bucket/pagefind/shards.json" "${upload[@]}"
+rclone copyto "$work/pagefind-input.txt" "r2:$bucket/_publish/pagefind-input.txt" --header-upload "Cache-Control: no-store"
 export LC_ALL=C
 (cd "$data/pagefind" && find . -type f | sed 's|^\./||' | sort) >"$work/local"
 rclone lsf -R --files-only --fast-list "r2:$bucket/pagefind" | sort >"$work/remote"

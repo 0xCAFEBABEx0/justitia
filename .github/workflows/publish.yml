@@ -143,7 +143,7 @@ jobs:
           if [[ "$REBUILD" == true ]]; then
             npm run search-index
           else
-            npm run search-index -- --skip-if-same "$PUBLIC_DATA_BASE/pagefind/shards.json"
+            npm run search-index -- --skip-if-same "$PUBLIC_DATA_BASE/_publish/pagefind-input.txt"
           fi
         env:
           REBUILD: ${{ inputs.rebuild == true }}

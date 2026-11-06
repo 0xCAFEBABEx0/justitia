@@ -3,9 +3,10 @@
 //   node scripts/search-index.ts [--dist dist] [--out <JUSTITIA_DATA>/pagefind] [--skip-if-same <url>]
 //
 // shards.json also records a hash of everything the index is built from (the indexed parts of the
-// law pages, this script and the Pagefind version). With --skip-if-same, the published shards.json
-// is fetched from <url> first; when its hash matches, nothing is built or written, so a change
-// that leaves the law text and its markup alone (most changes to the site) skips the indexing.
+// law pages, this script and the Pagefind version); scripts/upload-data.sh publishes it, once the
+// whole index is uploaded, as _publish/pagefind-input.txt. With --skip-if-same, that file is fetched
+// from <url> first; when it holds the same hash, nothing is built or written, so a change that
+// leaves the law text and its markup alone (most changes to the site) skips the indexing.
 //
 // Indexing all law text at once takes more memory than a CI runner has (over 13 GB), so the laws
 // are split into shards of about SHARD_BYTES of law HTML (about 5 GB of memory and one minute
@@ -117,13 +118,14 @@ async function main(): Promise<void> {
 
   if (opts["skip-if-same"]) {
     const published = await fetch(`${opts["skip-if-same"]}?ts=${Date.now()}`)
-      .then((r) => (r.ok ? (r.json() as Promise<{ input?: string }>) : null))
+      .then((r) => (r.ok ? r.text() : null))
+      .then((t) => t?.trim() || null)
       .catch(() => null);
-    if (published?.input === inputHash) {
+    if (published === inputHash) {
       console.log(`search index: unchanged (${inputHash}), not rebuilt`);
       return;
     }
-    console.log(`search index: ${published?.input ?? "no published index"} -> ${inputHash}, rebuilding`);
+    console.log(`search index: ${published ?? "no published index"} -> ${inputHash}, rebuilding`);
   }
   await rm(out, { recursive: true, force: true });
   await mkdir(out, { recursive: true });
