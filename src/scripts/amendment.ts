@@ -5,6 +5,7 @@
 
 import type { Amendment, BlockChange, FileChange, Hunk, Segment } from "../../scripts/extract/types.ts";
 import { badgeClass } from "../lib/badges.ts";
+import { DISCLAIMER_NOTE_HTML } from "../lib/disclaimer.ts";
 import { SITE_NAME } from "../lib/site-name.ts";
 import { dataUrl } from "./data-url.ts";
 
@@ -173,6 +174,7 @@ function headHtml(a: Amendment): string {
     <div class="breadcrumbs py-0 text-sm text-base-content/70"><ul><li><a href="/timeline/">改正の年表</a></li><li><a href="/timeline/${a.enforced?.slice(0, 4) ?? "undetermined"}/">${a.enforced?.slice(0, 4) ?? "施行日未定"}</a></li></ul></div>
     <h1 class="text-2xl leading-snug font-bold sm:text-3xl">${esc(a.title)}${a.branch === "upcoming" ? ` <span class="${badgeClass("upcoming")}">施行予定</span>` : ""}</h1>
     <dl class="my-4 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-0.5 text-sm">${facts.map(([k, v]) => `<dt class="text-base-content/60">${k}</dt><dd>${v}</dd>`).join("")}</dl>
+    ${DISCLAIMER_NOTE_HTML}
     ${toc}
   </div>`;
 }

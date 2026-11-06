@@ -11,6 +11,7 @@ import {
 } from "../../lib/data.ts";
 import { renderLawFile, renderInline } from "../../lib/lawtext.ts";
 import { SOURCE_REPO } from "../../lib/site.ts";
+import { DISCLAIMER_NOTE_HTML } from "../../lib/disclaimer.ts";
 import PageHeader from "../../components/PageHeader.astro";
 import StatusBadge from "../../components/StatusBadge.astro";
 
@@ -53,12 +54,13 @@ const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => 
       {latest && latest.kind === "amended" && <span>最終改正：{jpDate(latest.enforced)} 施行（{latest.amendmentLawNum}）</span>}
     </div>
   </PageHeader>
-  <div class="-mt-2 mb-6 flex flex-wrap gap-2">
+  <div class="-mt-2 mb-4 flex flex-wrap gap-2">
     {revisions.length > 0 && <a class="btn btn-sm btn-primary" href={`/versions/?law=${law.id}`}>過去・将来の条文と比較</a>}
     <a class="btn btn-soft btn-sm btn-primary" href={graphUrl}>改正のグラフ</a>
     {source && <a class="btn btn-soft btn-sm btn-primary" href={source}>e-Gov 法令検索</a>}
     <a class="btn btn-soft btn-sm btn-primary" href={`${SOURCE_REPO}/commits/main/${law.path}`}>Git の履歴</a>
   </div>
+  <Fragment set:html={DISCLAIMER_NOTE_HTML} />
 
   <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
     <article class="law-text min-w-0" data-law-text>
