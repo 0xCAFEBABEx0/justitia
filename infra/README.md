@@ -66,9 +66,11 @@ every credential comes from 1Password through `envs/prod/1password.env`, which h
 | 1Password item (vault Development) | Fields | Used as |
 | --- | --- | --- |
 | `hcp-terraform` (ID `snuoe5g63q73gugkpj3z256i4q`) | `credential`, `organization` | `TF_TOKEN_app_terraform_io`, `TF_CLOUD_ORGANIZATION` |
-| `cloudflare-terraform-anisotropics` | `credential`, `account-id` | `TF_VAR_cloudflare_api_token`, `TF_VAR_cloudflare_account_id` |
+| `cloudflare-terraform` | `credential`, `account-id` | `TF_VAR_cloudflare_api_token`, `TF_VAR_cloudflare_account_id` |
 
-The Cloudflare token for Terraform is an account API token limited to this account and the `anisotro.pics` zone, with:
+Both items are shared with the `chronos` repository's Terraform. Its `account-id` must be the account that has the
+`anisotro.pics` zone (otherwise the zone lookup in `envs/prod/main.tf` finds nothing and the plan stops). The
+Cloudflare token needs, on top of what `chronos` uses, the `anisotro.pics` zone and these permissions:
 
 - Account: **Workers R2 Storage: Edit** (bucket, `r2.dev` setting) and **Workers Scripts: Edit** (Workers Custom
   Domains).
@@ -97,7 +99,8 @@ Everything except the bucket's `r2.dev` setting already exists, made in the dash
 `envs/prod/imports.tf` imports it into the state on the first apply instead of creating it, and looks up the IDs that
 are not names (zone, entrypoint rulesets, the Workers Custom Domain) itself.
 
-1. Create the 1Password item `cloudflare-terraform-anisotropics` with the token above and the account ID.
+1. Add the `anisotro.pics` zone and the permissions above to the token in the 1Password item `cloudflare-terraform`
+   (Manage account → Account API tokens, or My Profile → API Tokens for a user token).
 2. `terraform init` (creates the `justitia-prod` workspace), then `terraform plan`. The plan must show the six imports,
    **1 to add** (`cloudflare_r2_managed_domain.data`: the provider cannot import it, and creating it only writes
    `enabled = false`, the current value), **0 to destroy** and no replacement. If it wants to replace a ruleset, its
