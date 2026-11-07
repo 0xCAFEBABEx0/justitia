@@ -109,7 +109,8 @@ or `*.auto.tfvars` here: it would override the `TF_VAR_*` values without a warni
    curl -s -D - -o /dev/null https://data.anisotro.pics/pagefind/shards.json         # twice
    ```
 
-   The second request for `shards.json` should show `cf-cache-status: HIT` and `access-control-allow-origin: *`.
+   The second request for `shards.json` should show `HTTP/2 200`, `cf-cache-status: HIT` and
+   `access-control-allow-origin: *` (an error response can be cached too, so check the status as well).
    (The files under `_publish/` are uploaded with `Cache-Control: no-store` and never come from the cache.)
 
 The existing resources were imported into the state on 2026-11-07 (pull request #21, with import blocks that were
