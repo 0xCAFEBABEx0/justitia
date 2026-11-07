@@ -39,7 +39,9 @@ function rebuildTag(close: string, name: string, attrs: string): string | null {
     const v = m[2] ?? m[3] ?? m[4] ?? "";
     if ((key === "colspan" || key === "rowspan") && /^\d{1,3}$/.test(v)) out += ` ${key}="${v}"`;
     else if (key === "href" && tag === "a" && /^https?:\/\/[^\s]*$/.test(v)) {
-      out += ` href="${escapeHtml(v)}" rel="noopener" target="_blank"`;
+      // Tailwind's preflight makes a bare <a> look like the text around it; daisyUI's link
+      // class gives it the color and underline of the other links in running text.
+      out += ` class="link link-primary" href="${escapeHtml(v)}" rel="noopener" target="_blank"`;
     }
   }
   return `<${tag}${out}>`;

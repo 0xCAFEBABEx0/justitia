@@ -7,7 +7,7 @@ test("sanitize keeps allowed markup and rebuilds attributes", () => {
   assert.equal(sanitize('<td colspan="2" style="x">a</td>'), '<td colspan="2">a</td>');
   assert.equal(
     sanitize('<a href="https://example.jp/" onclick="x()">l</a>'),
-    '<a href="https://example.jp/" rel="noopener" target="_blank">l</a>',
+    '<a class="link link-primary" href="https://example.jp/" rel="noopener" target="_blank">l</a>',
   );
   assert.equal(sanitize('<a href="javascript:alert(1)">l</a>'), "<a>l</a>");
 });
