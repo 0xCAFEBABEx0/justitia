@@ -7,6 +7,7 @@ import type { Amendment, BlockChange, FileChange, Hunk, Segment } from "../../sc
 import { badgeClass } from "../lib/badges.ts";
 import { isStaged } from "../lib/new-laws.ts";
 import { DISCLAIMER_NOTE_HTML } from "../lib/disclaimer.ts";
+import { linkPieces, type Piece } from "../lib/links.ts";
 import { SITE_NAME } from "../lib/site-name.ts";
 import { dataUrl } from "./data-url.ts";
 
@@ -73,17 +74,36 @@ function tidy(html: string): string {
   return html.replace(/(^|\n)((?:<(?:ins|del)>)?)- /g, "$1$2").replace(/\n\n/g, "\n");
 }
 
+/** A URL in the text, opened in a new tab like the links on the law pages. */
+function linkOpen(href: string): string {
+  return `<a class="link link-primary" href="${esc(href)}" rel="noopener" target="_blank">`;
+}
+
+/**
+ * Diff pieces to HTML: changed text in <ins>/<del>, and each URL in one <a> around its pieces,
+ * so a URL that the amendment changed in the middle is still one link with the change marked.
+ */
+function piecesHtml(pieces: Piece[], text: (s: string) => string = plain): string {
+  let out = "";
+  let open: Piece["link"] = null;
+  for (const p of pieces) {
+    if (p.link !== open) {
+      if (open) out += "</a>";
+      if (p.link) out += linkOpen(p.link.href);
+      open = p.link;
+    }
+    const t = text(p.text);
+    out += p.op === 0 ? t : p.op === 1 ? `<ins>${t}</ins>` : `<del>${t}</del>`;
+  }
+  return open ? out + "</a>" : out;
+}
+
 function sideHtml(segs: Segment[], keep: -1 | 1): string {
-  return tidy(segs
-    .filter(([op]) => op === 0 || op === keep)
-    .map(([op, t]) => (op === 0 ? plain(t) : keep === 1 ? `<ins>${plain(t)}</ins>` : `<del>${plain(t)}</del>`))
-    .join(""));
+  return tidy(piecesHtml(linkPieces(segs, keep)));
 }
 
 function inlineHtml(segs: Segment[]): string {
-  return tidy(
-    segs.map(([op, t]) => (op === 0 ? plain(t) : op === 1 ? `<ins>${plain(t)}</ins>` : `<del>${plain(t)}</del>`)).join(""),
-  );
+  return tidy(piecesHtml(linkPieces(segs, 0)));
 }
 
 function hunksHtml(hunks: Hunk[]): string {
@@ -94,7 +114,7 @@ function hunksHtml(hunks: Hunk[]): string {
         h.lines
           .map((l) => {
             const cls = l[0] === "+" ? "a" : l[0] === "-" ? "d" : "";
-            return `<div class="hl ${cls}">${esc(l)}</div>`;
+            return `<div class="hl ${cls}">${piecesHtml(linkPieces([[0, l]], 1), esc)}</div>`;
           })
           .join(""),
     )
@@ -118,9 +138,9 @@ export function blockHtml(b: BlockChange, lawId: string, view: View, articleUrl?
     : `<b>${headingHtml(b.heading) || "（前文）"}</b>`;
   let body: string;
   if (b.op === "added") {
-    body = `<div class="px-4 py-3"><div class="txt">${tidy(`<ins>${plain(b.new ?? "")}</ins>`)}</div></div>`;
+    body = `<div class="px-4 py-3"><div class="txt">${tidy(piecesHtml(linkPieces([[1, b.new ?? ""]], 1)))}</div></div>`;
   } else if (b.op === "deleted") {
-    body = `<div class="px-4 py-3"><div class="txt">${tidy(`<del>${plain(b.old ?? "")}</del>`)}</div></div>`;
+    body = `<div class="px-4 py-3"><div class="txt">${tidy(piecesHtml(linkPieces([[-1, b.old ?? ""]], -1)))}</div></div>`;
   } else if (b.hunks) {
     body = `<p class="${NOTE} px-4 py-2">大きな表などのため、行ごとの差分で表示しています。</p>${hunksHtml(b.hunks)}`;
   } else if (b.segments) {
