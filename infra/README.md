@@ -15,7 +15,7 @@ the site and the data on them.
 | R2 bucket `justitia-data-prod` (existence, location hint) | Terraform |
 | The bucket's `r2.dev` URL (off) | Terraform |
 | Workers Custom Domain `anisotro.pics` → Worker `justitia` | Terraform |
-| Cache rule `justitia-data-cache` (zone entrypoint for Cache Rules) | Terraform |
+| Cache rules `justitia-data-cache` and `data: versioned files 1 day` (zone entrypoint for Cache Rules) | Terraform |
 | Response header rule `justitia-data-cors` (zone entrypoint for Response Header Transform Rules) | Terraform |
 | Zone setting Browser Cache TTL (4 hours) | Terraform |
 | Bot Fight Mode (on) | Terraform |

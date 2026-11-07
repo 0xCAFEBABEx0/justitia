@@ -45,11 +45,15 @@ resource "cloudflare_workers_custom_domain" "site" {
 }
 
 # Cache Rules (Caching > Cache Rules): the zone's entrypoint ruleset for the
-# http_request_cache_settings phase. Without the rule Cloudflare caches only some
-# file extensions and none of the JSON; with it every response from data_domain
-# is cached for as long as its Cache-Control allows (the upload sets
-# `public, max-age=3600`). The search page and the data files put a version in
-# the query string, so a new build gets new cache keys.
+# http_request_cache_settings phase, with the rules in the dashboard's order. The
+# ruleset owns the whole phase: a rule missing here is deleted on apply.
+# 1. Without it Cloudflare caches only some file extensions and none of the JSON;
+#    with it every response from data_domain that has a Cache-Control header is
+#    cached for as long as that allows (the upload sets `public, max-age=3600`),
+#    and one without is not cached (bypass_by_default).
+# 2. amendments/, laws/ and history/ files are fetched with the data version in
+#    the query string (?v=), so a new build gets new cache keys and the edge can
+#    keep each one for a day, longer than the Cache-Control in R2.
 # Entrypoint rulesets created in the dashboard are named "default"; the name
 # cannot change without replacing the ruleset (and dropping the rule meanwhile),
 # so if the first plan wants to replace it, set the name it shows instead.
@@ -58,18 +62,33 @@ resource "cloudflare_ruleset" "cache" {
   name    = "default"
   kind    = "zone"
   phase   = "http_request_cache_settings"
-  rules = [{
-    description = "justitia-data-cache"
-    expression  = "(http.host eq \"${var.data_domain}\")"
-    action      = "set_cache_settings"
-    enabled     = true
-    action_parameters = {
-      cache = true
-      edge_ttl = {
-        mode = "respect_origin"
+  rules = [
+    {
+      description = "justitia-data-cache"
+      expression  = "(http.host eq \"${var.data_domain}\")"
+      action      = "set_cache_settings"
+      enabled     = true
+      action_parameters = {
+        cache = true
+        edge_ttl = {
+          mode = "bypass_by_default"
+        }
       }
-    }
-  }]
+    },
+    {
+      description = "data: versioned files 1 day"
+      expression  = "(http.host eq \"${var.data_domain}\" and (starts_with(http.request.uri.path, \"/amendments/\") or starts_with(http.request.uri.path, \"/laws/\") or starts_with(http.request.uri.path, \"/history/\")))"
+      action      = "set_cache_settings"
+      enabled     = true
+      action_parameters = {
+        cache = true
+        edge_ttl = {
+          mode    = "override_origin"
+          default = 86400
+        }
+      }
+    },
+  ]
 }
 
 # Response Header Transform Rules (Rules > Transform Rules): the zone's
