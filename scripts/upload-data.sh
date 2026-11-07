@@ -86,24 +86,34 @@ if $check; then
   # A Brotli-compressed object, as the data files are stored, fetched through the data domain the way
   # browsers do (with br), the way a client without br does (gzip only), and without compression.
   # no-store keeps the responses out of the cache. Any other answer stops the run before the build.
+  # The key ends in .txt although the content is JSON: the zone's Bot Fight Mode answers requests from
+  # the runner (a bot) with a challenge (403, cf-mitigated: challenge) except for static resources, which
+  # it recognises by extension, and .txt is one of them but .json is not (Cloudflare docs, Bots →
+  # Static resource protection). Browsers, which fetch the data files, are not challenged.
   printf '{"check":"%s","text":"%s"}\n' "$(date -u +%FT%TZ)" "$(printf '第一条　この法律は、%.0s' {1..40})" >"$work/check.json"
   node "$here/compress-data.ts" --file "$work/check.json" "$work/check.json.br"
-  rclone copyto "$work/check.json.br" "r2:$bucket/_publish/check-br.json" \
+  rclone copyto "$work/check.json.br" "r2:$bucket/_publish/check-br.txt" --header-upload "Content-Type: application/json" \
     --header-upload "Content-Encoding: br" --header-upload "Cache-Control: no-store"
   for accept in br gzip identity; do
-    curl -fsS --max-time 30 -H "Accept-Encoding: $accept" -D "$work/headers-$accept" -o "$work/body-$accept" \
-      "$public/_publish/check-br.json?ts=$(date +%s%N)"
+    curl -sS --max-time 30 -H "Accept-Encoding: $accept" -D "$work/headers-$accept" -o "$work/body-$accept" \
+      -w '%{http_code}' "$public/_publish/check-br.txt?ts=$(date +%s%N)" >"$work/status-$accept" || echo 000 >"$work/status-$accept"
   done
-  rclone deletefile "r2:$bucket/_publish/check-br.json"
+  # Also removes _publish/check-br.json, left behind by the first version of this check.
+  rclone delete "r2:$bucket/_publish" --include "/check-br.*"
   failed=0
   for accept in br gzip identity; do
-    got=$(tr -d '\r' <"$work/headers-$accept" | awk -F': *' 'tolower($1) == "content-encoding" { e = tolower($2) } END { print e }')
-    case "$accept/$got" in
+    status=$(cat "$work/status-$accept")
+    got=$(tr -d '\r' <"$work/headers-$accept" 2>/dev/null | awk -F': *' 'tolower($1) == "content-encoding" { e = tolower($2) } END { print e }')
+    mitigated=$(tr -d '\r' <"$work/headers-$accept" 2>/dev/null | awk -F': *' 'tolower($1) == "cf-mitigated" { m = $2 } END { print m }')
+    [[ "$status" == 200 ]] && case "$accept/$got" in
       br/br) cmp -s "$work/body-$accept" "$work/check.json.br" ;;
       gzip/gzip) gzip -dc <"$work/body-$accept" | cmp -s - "$work/check.json" ;;
       gzip/ | identity/ | identity/identity) cmp -s "$work/body-$accept" "$work/check.json" ;;
       *) false ;;
-    esac || { echo "upload-data: $public answered Accept-Encoding: $accept with Content-Encoding: ${got:-none} and different content" >&2; failed=1; }
+    esac || {
+      echo "upload-data: $public answered Accept-Encoding: $accept with HTTP $status${mitigated:+ (cf-mitigated: $mitigated)}, Content-Encoding: ${got:-none}, not the expected content" >&2
+      failed=1
+    }
   done
   ((failed == 0)) || exit 1
   echo "upload-data: $public serves Brotli-compressed objects as br, and decompressed to clients without br"
