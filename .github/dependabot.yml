@@ -47,3 +47,25 @@ updates:
           - "*"
     commit-message:
       prefix: "ci"
+
+  # The Cloudflare provider in infra/terraform (the prod root and the module).
+  # .terraform.lock.hcl is not committed, so a PR only moves the version
+  # constraint and no CI job runs Terraform: after merging, the owner runs
+  # `terraform init -upgrade` and `plan` (infra/README.md) before any apply.
+  - package-ecosystem: terraform
+    directories:
+      - /infra/terraform/envs/prod
+      - /infra/terraform/modules/cloudflare_site
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Tokyo
+    cooldown:
+      default-days: 7
+    groups:
+      terraform:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "infra"

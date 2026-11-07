@@ -1,6 +1,9 @@
 // Cloudflare Workers static assets: the built site (dist/) served at https://anisotro.pics.
 // There is no Worker script, so every request is a static asset request (free and unlimited).
 // The data the pages fetch in the browser lives in R2 (see scripts/upload-data.sh).
+// Wrangler deploys the Worker; Terraform (infra/terraform) owns the anisotro.pics custom domain, the R2 bucket and
+// the zone's rules (see infra/README.md). There is no `routes` key: `wrangler deploy` then leaves the custom domain
+// alone, whereas with one it would replace the Worker's custom domains with the listed ones.
 {
   "name": "justitia",
   "compatibility_date": "2026-10-20",
@@ -9,7 +12,20 @@
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "404-page"
   },
-  "routes": [{ "pattern": "anisotro.pics", "custom_domain": true }],
+  // Reachable only through anisotro.pics: a workers.dev address would serve the same pages outside the zone's
+  // settings. Kept here because `wrangler deploy` turns a workers.dev address back on unless this file says false.
   "workers_dev": false,
-  "preview_urls": false
+  "preview_urls": false,
+  // Workers Logs and Traces, viewed in the dashboard (Workers & Pages → justitia → Observability). Wrangler applies
+  // this on every deploy, so it is kept here and not in Terraform (infra/terraform). The docs describe a log per Worker
+  // invocation, and a request that a static asset answers runs no Worker script, so this Worker may log little.
+  // Cost: on the Workers Free plan Cloudflare stops ingesting for the day when the account reaches the daily
+  // allowance (200,000 log events a day; from 2026-12-01 0.5 GB a day of logs and traces together) and never bills,
+  // so every request is sampled (head_sampling_rate 1).
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+    "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": true, "persist": true },
+    "traces": { "enabled": true, "head_sampling_rate": 1, "persist": true }
+  }
 }
