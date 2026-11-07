@@ -1,0 +1,92 @@
+---
+import Base from "../../layouts/Base.astro";
+import NewLawList from "../../components/NewLawList.astro";
+import PageHeader from "../../components/PageHeader.astro";
+import { buildDate, newLaws, TYPE_LABELS } from "../../lib/data.ts";
+import { isUpcomingNewLaw, newLawYear } from "../../lib/new-laws.ts";
+
+const today = buildDate();
+const all = newLaws();
+// Soonest first; undetermined dates last.
+const upcoming = all
+  .filter((l) => isUpcomingNewLaw(l, today))
+  .sort((a, b) => (a.enforced ?? "9999").localeCompare(b.enforced ?? "9999"));
+const recent = all.filter((l) => l.branch === "main" && l.enforced && l.enforced <= today).slice(0, 30);
+
+// Counts by year and by type. 憲法 and 勅令 are too few to get their own column.
+const COLUMNS = [
+  { label: TYPE_LABELS.act, dirs: ["act", "constitution"] },
+  { label: TYPE_LABELS["cabinet-order"], dirs: ["cabinet-order", "imperial-order"] },
+  { label: TYPE_LABELS["ministerial-ordinance"], dirs: ["ministerial-ordinance"] },
+  { label: TYPE_LABELS.rule, dirs: ["rule"] },
+];
+const byYear = new Map<string, number[]>();
+for (const l of all) {
+  const y = newLawYear(l);
+  const row = byYear.get(y) ?? byYear.set(y, [0, 0, 0, 0, 0]).get(y)!;
+  const c = COLUMNS.findIndex((col) => col.dirs.includes(l.dir));
+  if (c >= 0) row[c]++;
+  row[4]++;
+}
+const years = [...byYear.keys()].sort((a, b) => (a === "undetermined" ? -1 : b === "undetermined" ? 1 : b.localeCompare(a)));
+const recentYears = years.filter((y) => y === "undetermined" || y >= "2000");
+const olderYears = years.filter((y) => y !== "undetermined" && y < "2000");
+const thisYear = today.slice(0, 4);
+---
+<Base
+  title="新しく制定された法令"
+  description="新しく制定・施行された法令（新法）の一覧。公布済みで施行前の新しい法令と、年ごとの新しい法令の一覧も見られます。"
+  nav="new"
+>
+  <PageHeader title="新しく制定された法令">
+    改正ではなく、新しく制定された法律・政令・府省令などの一覧です。日付は施行日で、一部ずつ施行される法令は最初に施行された日に載せています。
+  </PageHeader>
+
+  <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <section>
+      <h2 class="text-xl font-bold">最近施行された新しい法令</h2>
+      <NewLawList items={recent} />
+      <p class="mt-4"><a class="link link-primary" href={`/new/${thisYear}/`}>{thisYear}年の新しい法令をすべて見る →</a></p>
+    </section>
+    <aside class="flex flex-col gap-4">
+      <section class="card card-border bg-base-100">
+        <div class="card-body p-5">
+          <h2 class="card-title text-base">これから施行される新しい法令</h2>
+          {upcoming.length > 0 ? <NewLawList items={upcoming} groupByDate={false} bare /> : <p class="text-sm text-base-content/70">ありません。</p>}
+          <p class="text-xs text-base-content/65">公布済みで施行前の法令です（{upcoming.length.toLocaleString()} 件）。</p>
+        </div>
+      </section>
+      <section class="card card-border bg-base-100">
+        <div class="card-body p-5">
+          <h2 class="card-title text-base">年ごとの新しい法令</h2>
+          <div class="overflow-x-auto">
+            <table class="table table-xs tabular-nums">
+              <thead>
+                <tr class="text-base-content/65"><th scope="col">施行年</th>{COLUMNS.map((c) => <th scope="col" class="text-right">{c.label}</th>)}<th scope="col" class="text-right">計</th></tr>
+              </thead>
+              <tbody>
+                {recentYears.map((y) => (
+                  <tr>
+                    <th scope="row"><a class="link link-primary inline-block py-1" href={`/new/${y}/`}>{y === "undetermined" ? "未定" : y}</a></th>
+                    {byYear.get(y)!.map((n, i) => <td class:list={["text-right", { "font-bold": i === 4, "text-base-content/65": n === 0 }]}>{n}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {olderYears.length > 0 && (
+            <details class="text-sm">
+              <summary class="cursor-pointer py-1 text-base-content/70">2000年より前</summary>
+              <p class="mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                {olderYears.map((y) => <a class="link link-primary inline-block py-0.5 tabular-nums" href={`/new/${y}/`}>{y}<span class="text-xs text-base-content/65">（{byYear.get(y)![4]}）</span></a>)}
+              </p>
+            </details>
+          )}
+          <p class="text-xs text-base-content/65">
+            houritsu に収録されている法令だけを数えています。e-Gov のデータがそろう前に廃止された法令は含まれないため、古い年ほど少なく見えます。
+          </p>
+        </div>
+      </section>
+    </aside>
+  </div>
+</Base>

@@ -8,7 +8,7 @@ import { DISCLAIMER_URL, EGOV_URL } from "../lib/disclaimer.ts";
 interface Props {
   title?: string;
   description?: string;
-  nav?: "laws" | "timeline" | "graph" | "search" | "about";
+  nav?: "laws" | "new" | "timeline" | "graph" | "search" | "about";
   narrow?: boolean;
   /**
    * Whether this URL (without its query string) is the page's address. False for pages whose
@@ -20,6 +20,7 @@ interface Props {
 const { title, description, nav, narrow = false, canonical = true } = Astro.props;
 const NAV = [
   { key: "laws", href: "/browse/", label: "法令一覧" },
+  { key: "new", href: "/new/", label: "新しい法令" },
   { key: "timeline", href: "/timeline/", label: "改正の年表" },
   { key: "graph", href: "/graph/", label: "改正のグラフ" },
   { key: "search", href: "/search/", label: "全文検索" },

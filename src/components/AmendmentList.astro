@@ -1,6 +1,7 @@
 ---
 import { amendmentUrl, jpDate, KIND_LABELS, lawUrl, type AmendmentSummary } from "../lib/data.ts";
 import StatusBadge from "./StatusBadge.astro";
+import { amendmentLawIdOf, isStaged } from "../lib/new-laws.ts";
 
 interface Props {
   items: AmendmentSummary[];
@@ -12,6 +13,16 @@ interface Props {
 }
 const { items, groupByDate = true, bare = false, headingLevel = 3 } = Astro.props;
 const DateHeading = `h${headingLevel}` as const;
+// How the amending law relates to the laws it changes: it enacts one of them (a new law), or it is
+// a later part of a new law coming into force (段階施行).
+const role = (a: AmendmentSummary) => {
+  const self = amendmentLawIdOf(a.key);
+  return {
+    enacts: a.laws.some((l) => l.kind === "enacted"),
+    staged: a.laws.some((l) => isStaged(l.kind, l.id, self)),
+    self,
+  };
+};
 const groups: [string, AmendmentSummary[]][] = [];
 for (const a of items) {
   const d = a.enforced ?? "";
@@ -29,11 +40,13 @@ for (const a of items) {
           <div class="list-col-grow">
             {!groupByDate && <div class="text-xs font-bold text-base-content/70">{jpDate(a.enforced)}</div>}
             <a class="link link-hover font-bold text-primary" href={amendmentUrl(a.key)}>{a.title}</a>
+            {role(a).enacts && <StatusBadge kind="enacted" label="新規制定" />}
+            {role(a).staged && <StatusBadge kind="staged" label="段階施行" />}
             {a.branch === "upcoming" && <StatusBadge kind="upcoming" label="施行予定" />}
             <div class="mt-1.5 text-xs text-base-content/65">
               {a.amendmentLawNum}・
               {a.laws.slice(0, 4).map((l, i) => (
-                <>{i > 0 && "、"}<a class="link link-hover" href={lawUrl(l.id)}>{l.title}</a>{l.kind !== "amended" && `（${KIND_LABELS[l.kind]}）`}</>
+                <>{i > 0 && "、"}<a class="link link-hover" href={lawUrl(l.id)}>{l.title}</a>{l.kind !== "amended" ? `（${KIND_LABELS[l.kind]}）` : isStaged(l.kind, l.id, role(a).self) && "（段階施行）"}</>
               ))}
               {a.laws.length > 4 && <>ほか {a.laws.length - 4} 法令</>}
               {a.additions + a.deletions > 0 && <> <span class="text-add">+{a.additions}</span> <span class="text-del">−{a.deletions}</span></>}

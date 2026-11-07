@@ -12,6 +12,7 @@ import { blockHtml, esc, jpDate, NOTE, VIEW_KEY, viewToggleHtml, type View } fro
 import { DISCLAIMER_NOTE_HTML } from "../lib/disclaimer.ts";
 import { SITE_NAME } from "../lib/site-name.ts";
 import { dataUrl } from "./data-url.ts";
+import { isStaged } from "../lib/new-laws.ts";
 
 const ISO = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -25,9 +26,18 @@ function toBlocks(h: LawHistory, r: number): Block[] {
   });
 }
 
-function revLabel(r: LawRevision): string {
+function revLabel(r: LawRevision, lawId: string): string {
   const date = r.enforced ? jpDate(r.enforced) : "施行日未定";
-  const kind = r.kind === "repealed" ? "廃止" : r.kind === "enacted" ? "制定" : r.kind === "coverage_start" ? "収録開始" : "改正";
+  const kind =
+    r.kind === "repealed"
+      ? "廃止"
+      : r.kind === "enacted"
+        ? "制定"
+        : r.kind === "coverage_start"
+          ? "収録開始"
+          : isStaged(r.kind, lawId, r.amendmentLawId)
+            ? "段階施行"
+            : "改正";
   return `${date} ${kind}${r.branch === "upcoming" ? "（施行予定）" : ""}：${r.amendmentTitle}`;
 }
 
@@ -46,11 +56,11 @@ function resolve(revs: LawRevision[], value: string | null, fallback: number): n
   return fallback;
 }
 
-function options(revs: LawRevision[], selected: number, none?: string): string {
+function options(revs: LawRevision[], lawId: string, selected: number, none?: string): string {
   const opts = revs
     .map((r, i) => ({ r, i }))
     .reverse()
-    .map(({ r, i }) => `<option value="${i}" ${i === selected ? "selected" : ""}>${esc(revLabel(r))}</option>`);
+    .map(({ r, i }) => `<option value="${i}" ${i === selected ? "selected" : ""}>${esc(revLabel(r, lawId))}</option>`);
   if (none !== undefined) opts.unshift(`<option value="-1" ${selected < 0 ? "selected" : ""}>${esc(none)}</option>`);
   return opts.join("");
 }
@@ -114,9 +124,9 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
     const field = (label: string, control: string) =>
       `<label class="fieldset min-w-0 py-0"><span class="fieldset-legend pt-0 pb-1 text-xs font-normal text-base-content/70">${label}</span>${control}</label>`;
     const controls = `<div class="card card-border mb-4 bg-base-100"><div class="card-body grid gap-3 p-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)]">
-      ${field("表示する時点", `<select class="select select-sm w-full" data-at>${options(revs, at)}</select>`)}
+      ${field("表示する時点", `<select class="select select-sm w-full" data-at>${options(revs, id, at)}</select>`)}
       ${field("日付で選ぶ", `<input class="input input-sm w-full" type="date" data-date value="${date}" />`)}
-      ${field("比べる時点", `<select class="select select-sm w-full" data-from>${options(revs, from, "比べない（条文を表示）")}</select>`)}
+      ${field("比べる時点", `<select class="select select-sm w-full" data-from>${options(revs, id, from, "比べない（条文を表示）")}</select>`)}
     </div></div>`;
 
     let body: string;
@@ -126,7 +136,7 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
       const diff = diffBlocks(toBlocks(hist, from), blocks);
       const older = Math.min(from, at) === from;
       body =
-        `<p class="${NOTE}">${esc(revLabel(revs[from]))} の時点から ${esc(revLabel(revs[at]))} の時点までに変わった箇所です${older ? "" : "（新しい時点から古い時点への変化として表示しています）"}。` +
+        `<p class="${NOTE}">${esc(revLabel(revs[from], id))} の時点から ${esc(revLabel(revs[at], id))} の時点までに変わった箇所です${older ? "" : "（新しい時点から古い時点への変化として表示しています）"}。` +
         ` <span class="tabular-nums"><span class="text-add">+${diff.additions}</span> <span class="text-del">−${diff.deletions}</span></span>・変更 ${diff.changes.length} か所</p>` +
         viewToggleHtml(view) +
         (diff.changes.length
@@ -149,7 +159,7 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
           : r.branch === "upcoming"
             ? "まだ施行されていない改正を反映した条文です。"
             : "過去の条文です。現在の条文とは異なります。";
-      body = `<p class="${NOTE} mb-4">${esc(revLabel(r))} の後の条文。${notice}
+      body = `<p class="${NOTE} mb-4">${esc(revLabel(r, id))} の後の条文。${notice}
           <a class="link link-primary" href="/amendment/?k=${encodeURIComponent(r.amendment)}#law-${esc(id)}">この改正の新旧対照</a></p>
         <article class="law-text">${preamble}${rendered.html}</article>`;
     }

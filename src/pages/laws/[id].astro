@@ -12,6 +12,7 @@ import {
 import { renderLawFile, renderInline } from "../../lib/lawtext.ts";
 import { SOURCE_REPO } from "../../lib/site.ts";
 import { DISCLAIMER_NOTE_HTML } from "../../lib/disclaimer.ts";
+import { isStaged } from "../../lib/new-laws.ts";
 import PageHeader from "../../components/PageHeader.astro";
 import StatusBadge from "../../components/StatusBadge.astro";
 
@@ -24,7 +25,10 @@ const law = loadLaw(id);
 const rendered = law.status === "repealed" ? null : renderLawFile(law.path);
 const source = typeof law.frontmatter.source === "string" ? law.frontmatter.source : null;
 const revisions = [...law.revisions].reverse(); // newest first
-const latest = law.revisions.filter((r) => r.branch === "main").at(-1);
+// The latest change in force by another law: a later part of the law itself coming into force
+// (段階施行) is not an amendment.
+const latest = law.revisions.filter((r) => r.branch === "main" && !isStaged(r.kind, law.id, r.amendmentLawId)).at(-1);
+const enacted = law.revisions.find((r) => r.kind === "enacted");
 const anchor = `#law-${law.id}`;
 const amendments = law.revisionCount - 1; // the first revision is the enactment or the start of coverage
 const named = `${law.title}（${law.num}${law.abbrev ? `、略称：${law.abbrev}` : ""}）`;
@@ -34,7 +38,7 @@ const description =
     ? `${named}は廃止された法令です。廃止までの改正の履歴と新旧対照を見られます。`
     : law.status === "upcoming_only"
       ? `${named}は公布済みで、まだ施行されていない法令です。施行後の条文を見られます。`
-      : `${named}の現行の条文と、${amendments > 0 ? `改正 ${amendments} 件の履歴・新旧対照${law.lastAmended ? `（最終改正：${jpDate(law.lastAmended)}施行）` : ""}` : "改正の履歴"}${law.upcomingCount > 0 ? `。未施行の改正 ${law.upcomingCount} 件も見られます` : ""}。`;
+      : `${named}の現行の条文と、${amendments > 0 ? `改正 ${amendments} 件の履歴・新旧対照${latest?.kind === "amended" && latest.enforced ? `（最終改正：${jpDate(latest.enforced)}施行）` : ""}` : "改正の履歴"}${law.upcomingCount > 0 ? `。未施行の改正 ${law.upcomingCount} 件も見られます` : ""}。`;
 // The law and the laws most often amended together with it.
 const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => r.id)].join(",")}`;
 ---
@@ -51,6 +55,7 @@ const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => 
     <div class="flex flex-wrap gap-x-4 gap-y-1">
       <span data-law-num>{law.num}</span>
       {law.abbrev && <span>略称：{law.abbrev}</span>}
+      {enacted && <span>制定：{enacted.enforced ? `${jpDate(enacted.enforced)} 施行` : "施行日未定"}{enacted.branch === "upcoming" && "（予定）"}</span>}
       {latest && latest.kind === "amended" && <span>最終改正：{jpDate(latest.enforced)} 施行（{latest.amendmentLawNum}）</span>}
     </div>
   </PageHeader>
@@ -87,7 +92,7 @@ const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => 
                 <div class="timeline-end mb-4 ml-1 min-w-0">
                   <div class="font-bold">
                     {r.enforced ? jpDate(r.enforced) : "施行日未定"}
-                    {r.branch === "upcoming" ? <StatusBadge kind="upcoming" label="施行予定" /> : <StatusBadge kind={r.kind} label={KIND_LABELS[r.kind]} />}
+                    {r.branch === "upcoming" ? <StatusBadge kind="upcoming" label="施行予定" /> : isStaged(r.kind, law.id, r.amendmentLawId) ? <StatusBadge kind="staged" label="段階施行" /> : <StatusBadge kind={r.kind} label={KIND_LABELS[r.kind]} />}
                   </div>
                   <div>
                     <a class="link link-primary" href={amendmentUrl(r.amendment) + anchor}>{r.amendmentTitle}</a>
