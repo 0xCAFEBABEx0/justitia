@@ -184,8 +184,10 @@ It rebuilds only what changed:
    `_publish/pagefind-input.txt` once the whole index is uploaded (`incomplete` while it uploads);
 3. `npm run upload-data` (`scripts/upload-data.sh`): sync to the R2 bucket with rclone only the parts that were
    rebuilt: `data` (`amendments/`, `laws/`, `history/`) and `pagefind`. Only files whose content changed are
-   uploaded, and files that are gone are deleted (Pagefind files one run later, so a search page that was open
-   during the upload keeps working). The cache is saved after this step, so a run that fails earlier saves nothing;
+   uploaded, and files that are gone are deleted. Pagefind files are deleted only after they have been unused for
+   7 days, so a search page that has been open since before an upload keeps working for a week; a full index is
+   about 260 MiB, so that keeps under 2 GB of old files even if every file changed every day. The cache is saved
+   after this step, so a run that fails earlier saves nothing;
 4. `npm run deploy`: deploy `dist/` to Workers static assets with Wrangler (`wrangler.jsonc`). Wrangler uploads
    only the files that changed.
 
@@ -203,8 +205,8 @@ free): it fetches `pagefind/shards.json` with `?ts=` set to the current 5-minute
 5 minutes, and gives Pagefind the index's input hash from `shards.json` as `metaCacheTag`, so each shard's
 `pagefind-entry.json` is fetched as `?ts=<input hash>` and cached until the index changes (by default Pagefind adds
 the current time, which skips the cache on every page load). The bucket also holds `_publish/data-version.txt` and
-`_publish/pagefind-input.txt` (see above), and `_publish/pagefind-unused.txt`, the upload script's list of Pagefind
-files to delete on the next run.
+`_publish/pagefind-input.txt` (see above), and `_publish/pagefind-unused.txt`, the upload script's list of the
+Pagefind files that the current index does not use, each with the time it was first found unused.
 
 The home page and the graph take today's date from the build (in Japan time), not from the data, so the daily
 publish moves amendments from upcoming to enforced even on days that reuse the cached data.
