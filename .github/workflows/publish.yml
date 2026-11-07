@@ -113,7 +113,7 @@ jobs:
       # package here when scripts/extract/ starts importing it.
       - name: Restore the extracted data
         id: data
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             data/meta.json
@@ -180,7 +180,7 @@ jobs:
       # Saved only once the data is in R2, so a run that fails before the upload leaves no cache entry.
       - name: Save the extracted data
         if: steps.data.outputs.cache-hit != 'true'
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: |
             data/meta.json
