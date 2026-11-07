@@ -162,8 +162,11 @@ liability for damages from its use, in three places:
 
 ## Publishing
 
-`.github/workflows/publish.yml` publishes the site every day at 06:30 JST, on every push to `main` (except
-changes to Markdown files and repository settings), and when run by hand (Actions → Publish → Run workflow).
+`.github/workflows/publish.yml` publishes the site every day at 05:17 JST and again at 08:47 JST, on every push
+to `main` (except changes to Markdown files and repository settings), and when run by hand (Actions → Publish →
+Run workflow). houritsu is pushed once a day at about 04:10 JST (04:27 JST on Sundays, when its builder fetches
+everything from e-Gov), so the first run picks up the day's commits; the second one covers a scheduled run that
+GitHub dropped or a late push to houritsu, and takes about 2 minutes when there is nothing new.
 It rebuilds only what changed:
 
 1. fetch houritsu, then extract the data (as in [Data extraction](#data-extraction)), unless the data is in the
@@ -181,8 +184,10 @@ It rebuilds only what changed:
    `_publish/pagefind-input.txt` once the whole index is uploaded (`incomplete` while it uploads);
 3. `npm run upload-data` (`scripts/upload-data.sh`): sync to the R2 bucket with rclone only the parts that were
    rebuilt: `data` (`amendments/`, `laws/`, `history/`) and `pagefind`. Only files whose content changed are
-   uploaded, and files that are gone are deleted (Pagefind files one run later, so a search page that was open
-   during the upload keeps working). The cache is saved after this step, so a run that fails earlier saves nothing;
+   uploaded, and files that are gone are deleted. Pagefind files are deleted only after they have been unused for
+   7 days, so a search page that has been open since before an upload keeps working for a week; a full index is
+   about 260 MiB, so that keeps under 2 GB of old files even if every file changed every day. The cache is saved
+   after this step, so a run that fails earlier saves nothing;
 4. `npm run deploy`: deploy `dist/` to Workers static assets with Wrangler (`wrangler.jsonc`). Wrangler uploads
    only the files that changed.
 
@@ -200,8 +205,8 @@ free): it fetches `pagefind/shards.json` with `?ts=` set to the current 5-minute
 5 minutes, and gives Pagefind the index's input hash from `shards.json` as `metaCacheTag`, so each shard's
 `pagefind-entry.json` is fetched as `?ts=<input hash>` and cached until the index changes (by default Pagefind adds
 the current time, which skips the cache on every page load). The bucket also holds `_publish/data-version.txt` and
-`_publish/pagefind-input.txt` (see above), and `_publish/pagefind-unused.txt`, the upload script's list of Pagefind
-files to delete on the next run.
+`_publish/pagefind-input.txt` (see above), and `_publish/pagefind-unused.txt`, the upload script's list of the
+Pagefind files that the current index does not use, each with the time it was first found unused.
 
 The home page and the graph take today's date from the build (in Japan time), not from the data, so the daily
 publish moves amendments from upcoming to enforced even on days that reuse the cached data.
