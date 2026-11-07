@@ -22,6 +22,7 @@
     "url": "https://github.com/0xCAFEBABEx0/justitia/issues"
   },
   "homepage": "https://github.com/0xCAFEBABEx0/justitia#readme",
+  "license": "AGPL-3.0-only",
   "dependencies": {
     "@astrojs/sitemap": "^3.7.4",
     "@fontsource/noto-sans-jp": "^5.3.1",

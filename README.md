@@ -261,3 +261,28 @@ To publish from your own machine instead, set the same four values as environmen
 later, and Node.js 22.23.4 or later),
 then run `npm run upload-data` and `npm run deploy` after building.
 
+
+## License
+
+Copyright (C) 2026 0xCAFEBABEx0
+
+The code in this repository is free software under the [GNU Affero General Public License v3.0](LICENSE)
+(`AGPL-3.0-only`). If you run a modified version of it as a public website, the AGPL asks you to offer your users
+its source code; the site links to this repository from its footer and about page for that reason.
+
+The data the site shows is not covered by that license:
+
+- **Law texts and amendment history** come from [houritsu](https://github.com/Kohei-Wada/houritsu) by Kohei-Wada,
+  under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). houritsu is built from
+  [e-Gov 法令検索](https://laws.e-gov.go.jp/) data under the
+  [Public Data License 1.0 (PDL1.0)](https://www.digital.go.jp/resources/open_data/public_data_license_v1.0).
+  The statute text itself is not copyrighted (Copyright Act of Japan, Article 13).
+- **The generated data** (the JSON published at `data.anisotro.pics` and the pages built from it) is houritsu's data
+  changed by this project: converted to JSON, split by law and amendment, with article-level diffs and a search index
+  added. It is provided under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Credit houritsu and
+  e-Gov 法令検索 as above when you reuse it.
+- **Noto Sans JP**, bundled through `@fontsource/noto-sans-jp`, is under the
+  [SIL Open Font License 1.1](https://openfontlicense.org/).
+
+No warranty: the data is generated automatically and may be wrong or out of date. Check e-Gov 法令検索 or the 官報
+before relying on it.
