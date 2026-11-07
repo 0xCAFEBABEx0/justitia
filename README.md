@@ -163,7 +163,7 @@ liability for damages from its use, in three places:
 ## Publishing
 
 `.github/workflows/publish.yml` publishes the site every day at 05:17 JST and again at 08:47 JST, on every push
-to `main` (except changes to Markdown files and repository settings), and when run by hand (Actions → Publish →
+to `main` (except changes to Markdown files, repository settings and `infra/`), and when run by hand (Actions → Publish →
 Run workflow). houritsu is pushed once a day at about 04:10 JST (04:27 JST on Sundays, when its builder fetches
 everything from e-Gov), so the first run picks up the day's commits; the second one covers a scheduled run that
 GitHub dropped or a late push to houritsu, and takes about 2 minutes when there is nothing new.
@@ -225,25 +225,18 @@ publish moves amendments from upcoming to enforced even on days that reuse the c
 
 ### One-time setup
 
-In the Cloudflare account that has the `anisotro.pics` zone:
+The Cloudflare resources (the R2 bucket `justitia-data-prod`, the `anisotro.pics` custom domain of the Worker, the
+zone's cache and response header rules, Browser Cache TTL and Bot Fight Mode) are managed with Terraform under
+[`infra/`](infra/README.md), which also says how they are set up. The Worker itself, with its Workers Logs and Traces
+settings, is deployed by Wrangler from `wrangler.jsonc`. Three things are still set up in the dashboard:
 
-1. **R2 bucket**: create `justitia-data-prod` with the location hint *Asia-Pacific*, close to most readers.
-2. **Custom domain**: in the bucket's settings, connect `data.anisotro.pics`. Keep the `r2.dev` URL disabled.
-3. **Cache rule** (Caching → Cache Rules): when the hostname equals `data.anisotro.pics`, make the request
-   *eligible for cache*, with the edge TTL taken from the `Cache-Control` header. Without it, Cloudflare caches only
-   some file types, and none of the JSON.
-4. **CORS header** (Rules → Transform Rules → Response Header): when the hostname equals `data.anisotro.pics`, set
-   the static header `Access-Control-Allow-Origin: *`. The pages on `anisotro.pics` read this cross-origin data
-   (including `pagefind.js`, which is loaded as a module). A transform rule is used instead of the bucket's CORS
-   policy because R2 adds CORS headers only to requests that send an `Origin` header, and the cache keeps whichever
-   response it got first; a transform rule adds the header to every response, cached or not. All of the data is
-   public.
-5. **API token for Wrangler** (Manage account → Account API tokens → Create token): use the *Edit Cloudflare
+1. **Custom domain of the bucket**: in the bucket's settings, connect `data.anisotro.pics` (the Terraform provider
+   cannot import an existing one; see [`infra/README.md`](infra/README.md)).
+2. **API token for Wrangler** (Manage account → Account API tokens → Create token): use the *Edit Cloudflare
    Workers* template, limited to this account and the `anisotro.pics` zone. It needs to be allowed to create a
-   Worker (the first deploy creates `justitia`) and *Workers Routes: Edit* on the zone. The first deploy also
-   creates the `anisotro.pics` custom domain; run from CI, Wrangler replaces an existing `A`, `AAAA` or `CNAME`
-   record on the apex with the Worker's record (other record types, such as `MX`, are not touched).
-6. **R2 API token** (R2 → Manage API tokens → Create account API token): *Object Read & Write*, limited to the
+   Worker (the first deploy creates `justitia`). `wrangler.jsonc` has no `routes`, so the deploy does not touch the
+   Worker's custom domain, which Terraform attaches.
+3. **R2 API token** (R2 → Manage API tokens → Create account API token): *Object Read & Write*, limited to the
    `justitia-data-prod` bucket. It gives an access key ID and a secret access key.
 
 In the GitHub repository (Settings → Secrets and variables → Actions), add these repository secrets:
@@ -251,9 +244,9 @@ In the GitHub repository (Settings → Secrets and variables → Actions), add t
 | Secret | Value |
 | --- | --- |
 | `CLOUDFLARE_ACCOUNT_ID` | The Cloudflare account ID |
-| `CLOUDFLARE_API_TOKEN` | The token from step 5 |
-| `R2_ACCESS_KEY_ID` | The access key ID from step 6 |
-| `R2_SECRET_ACCESS_KEY` | The secret access key from step 6 |
+| `CLOUDFLARE_API_TOKEN` | The token from step 2 |
+| `R2_ACCESS_KEY_ID` | The access key ID from step 3 |
+| `R2_SECRET_ACCESS_KEY` | The secret access key from step 3 |
 
 Then run the workflow by hand once. Its first step after the checkout writes, reads back and deletes one small
 object in the bucket (`scripts/upload-data.sh --check`) and verifies the API token, so a wrong secret fails the run

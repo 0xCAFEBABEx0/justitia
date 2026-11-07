@@ -3,3 +3,11 @@ node_modules/
 /data/
 /dist/
 /.astro/
+
+# Terraform (infra/terraform): state lives in HCP Terraform, credentials in 1Password.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfplan
+.terraform.lock.hcl
