@@ -23,8 +23,8 @@ export interface Piece {
 
 // ASCII URL characters only: law text puts full-width brackets and Japanese right after a URL.
 // Quotes, brackets and parentheses end a URL too, so `<a href="…">` and `[…](…)` in the markdown
-// give just the URL.
-const URL_RE = /https?:\/\/[A-Za-z0-9\-._~:/?#@!$&*+,;=%]+/g;
+// give just the URL. `&` is part of a URL except where it starts an escaped `<`, `>` or quote.
+const URL_RE = /https?:\/\/(?:[A-Za-z0-9\-._~:/?#@!$*+,;=%]|&(?!(?:lt|gt|quot|#39|apos);))+/g;
 const TRAILING = /[.,;:!?]+$/;
 
 /** The http(s) URLs in `text`, in order. */
@@ -83,9 +83,14 @@ export function linkPieces(segs: Segment[], side: -1 | 0 | 1): Piece[] {
     } else if (side === 1 || op !== -1) {
       if (op !== -1) cut(op, text, newPos, newLinks, newFrom, out);
     } else {
+      // Deleted text in the middle of a new URL, where the old URL began before it (the two
+      // share a start), is part of the new link. Other deleted text keeps its old URL or none.
       const inside = newLinks.find((l) => l.start < newPos && newPos < l.end);
-      if (inside) out.push({ op, text, link: inside });
-      else cut(op, text, oldPos, oldLinks, oldFrom, out);
+      const start = out.length;
+      cut(op, text, oldPos, oldLinks, oldFrom, out);
+      if (inside) {
+        for (const p of out.slice(start)) if (p.link && p.link.start < oldPos) p.link = inside;
+      }
     }
     if (op !== -1) newPos += text.length;
     if (op !== 1) oldPos += text.length;

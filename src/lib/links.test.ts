@@ -13,6 +13,7 @@ test("findUrls stops at markup, brackets and Japanese text", () => {
   assert.deepEqual(urls('<a href="https://example.jp/a.jpg">a.jpg</a>'), ["https://example.jp/a.jpg"]);
   assert.deepEqual(urls("（https://www.example.go.jp/）を参照。"), ["https://www.example.go.jp/"]);
   assert.deepEqual(urls("see https://example.jp/a."), ["https://example.jp/a"]);
+  assert.deepEqual(urls("https://example.jp/a&lt;br&gt;"), ["https://example.jp/a"]);
   assert.deepEqual(urls("javascript:alert(1) ftp://example.jp/ https:// http://"), []);
 });
 
@@ -63,6 +64,18 @@ test("linkPieces in the inline view puts deleted text inside the new URL", () =>
     [0, "a ", null],
     [-1, "https://old.jp/", "https://old.jp/"],
     [1, "b", null],
+  ]);
+});
+
+test("linkPieces in the inline view keeps deleted prose and other URLs out of the new URL", () => {
+  // Old: "https://a.jp/x 参照 https://b.jp/ y", new: "https://a.jp/xy".
+  const ps = linkPieces([[0, "https://a.jp/x"], [-1, " 参照 https://b.jp/ "], [0, "y"]], 0);
+  assert.deepEqual(flat(ps), [
+    [0, "https://a.jp/x", "https://a.jp/xy"],
+    [-1, " 参照 ", null],
+    [-1, "https://b.jp/", "https://b.jp/"],
+    [-1, " ", null],
+    [0, "y", "https://a.jp/xy"],
   ]);
 });
 
