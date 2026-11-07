@@ -7,15 +7,30 @@
 # PART is "data" (amendments/, laws/ and history/) or "pagefind"; without one, both are uploaded.
 # The workflow uploads only the parts it rebuilt.
 # With --check, it only writes, reads back and deletes one small object (_publish/check.txt), so that a
-# wrong key or an rclone problem shows up in seconds, before the build (the workflow runs this first).
-# Needs rclone (the workflow uses 1.68.2) and Node.js. Only files whose content changed are uploaded (rclone compares MD5
+# wrong key or an rclone problem shows up in seconds, before the build (the workflow runs this first),
+# and checks that the data domain serves a Brotli-compressed object correctly (see below).
+# Needs rclone (the workflow uses 1.68.2), curl and Node.js 22.23.4, 24.22.1, 26.12.1 or later (see
+# scripts/compress-data.ts). Only files whose content changed are uploaded (rclone compares MD5
 # checksums with R2's ETags), and files that are no longer in the output are deleted from the bucket
 # (pagefind/ files once they have been unused for a week; see below).
-# Optional: JUSTITIA_DATA (default ./data), R2_BUCKET (default justitia-data-prod).
+#
+# amendments/, laws/ and history/ are stored Brotli-compressed (scripts/compress-data.ts, over 10 times
+# smaller), with `Content-Encoding: br`. Cloudflare passes such a response on as it is to a client that
+# accepts br and decompresses it for one that does not (Cloudflare docs, Cache → ETag headers), and the
+# browser decompresses it before the page reads it. Not `Cache-Control: no-transform`: that would stop
+# Cloudflare from decompressing it for a client that does not accept br.
+# Optional: JUSTITIA_DATA (default ./data), R2_BUCKET (default justitia-data-prod),
+# PUBLIC_DATA_BASE (default https://data.anisotro.pics, the public URL of the bucket, for --check).
 set -euo pipefail
 
 data="${JUSTITIA_DATA:-data}"
 bucket="${R2_BUCKET:-justitia-data-prod}"
+public="${PUBLIC_DATA_BASE:-https://data.anisotro.pics}"
+public="${public%/}"
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Written after the data version in _publish/data-version.txt. The workflow reuses its cached data only when
+# R2 holds that version stored this way, so a change of encoding uploads everything again.
+encoding=br
 : "${CLOUDFLARE_ACCOUNT_ID:?set CLOUDFLARE_ACCOUNT_ID}"
 : "${R2_ACCESS_KEY_ID:?set R2_ACCESS_KEY_ID}"
 : "${R2_SECRET_ACCESS_KEY:?set R2_SECRET_ACCESS_KEY}"
@@ -67,6 +82,31 @@ if $check; then
     { echo "upload-data: _publish/check.txt read back differently" >&2; exit 1; }
   rclone deletefile "r2:$bucket/_publish/check.txt"
   echo "upload-data: R2 bucket $bucket is writable"
+
+  # A Brotli-compressed object, as the data files are stored, fetched through the data domain the way
+  # browsers do (with br), the way a client without br does (gzip only), and without compression.
+  # no-store keeps the responses out of the cache. Any other answer stops the run before the build.
+  printf '{"check":"%s","text":"%s"}\n' "$(date -u +%FT%TZ)" "$(printf '第一条　この法律は、%.0s' {1..40})" >"$work/check.json"
+  node "$here/compress-data.ts" --file "$work/check.json" "$work/check.json.br"
+  rclone copyto "$work/check.json.br" "r2:$bucket/_publish/check-br.json" \
+    --header-upload "Content-Encoding: br" --header-upload "Cache-Control: no-store"
+  for accept in br gzip identity; do
+    curl -fsS --max-time 30 -H "Accept-Encoding: $accept" -D "$work/headers-$accept" -o "$work/body-$accept" \
+      "$public/_publish/check-br.json?ts=$(date +%s%N)"
+  done
+  rclone deletefile "r2:$bucket/_publish/check-br.json"
+  failed=0
+  for accept in br gzip identity; do
+    got=$(tr -d '\r' <"$work/headers-$accept" | awk -F': *' 'tolower($1) == "content-encoding" { e = tolower($2) } END { print e }')
+    case "$accept/$got" in
+      br/br) cmp -s "$work/body-$accept" "$work/check.json.br" ;;
+      gzip/gzip) gzip -dc <"$work/body-$accept" | cmp -s - "$work/check.json" ;;
+      gzip/ | identity/ | identity/identity) cmp -s "$work/body-$accept" "$work/check.json" ;;
+      *) false ;;
+    esac || { echo "upload-data: $public answered Accept-Encoding: $accept with Content-Encoding: ${got:-none} and different content" >&2; failed=1; }
+  done
+  ((failed == 0)) || exit 1
+  echo "upload-data: $public serves Brotli-compressed objects as br, and decompressed to clients without br"
   exit 0
 fi
 
@@ -79,17 +119,19 @@ upload=(--checksum --fast-list --transfers 32 --checkers 32
   # Print the counts (files checked, uploaded, deleted) every minute and at the end. Stats are
   # logged at INFO by default, which the default NOTICE level hides.
   --stats 60s --stats-log-level NOTICE)
-# _publish/data-version.txt records which data R2 holds; the workflow uses its cached data only when
-# that matches. It says "incomplete" while the data is being synced, so an upload that fails halfway
+# _publish/data-version.txt records which data R2 holds ("<data version> br"); the workflow uses its cached
+# data only when that matches. It says "incomplete" while the data is being synced, so an upload that fails halfway
 # makes the next run extract and upload again.
 if $upload_data; then
-  node -p 'require(process.argv[1]).dataVersion' "$(cd "$data" && pwd)/meta.json" | grep -Ex '[0-9a-f]{16}' >"$work/data-version.txt" ||
+  version=$(node -p 'require(process.argv[1]).dataVersion' "$(cd "$data" && pwd)/meta.json" | grep -Ex '[0-9a-f]{16}') ||
     { echo "upload-data: $data/meta.json has no dataVersion" >&2; exit 1; }
+  echo "$version $encoding" >"$work/data-version.txt"
+  node "$here/compress-data.ts" "$data" "$work/$encoding"
   echo incomplete >"$work/incomplete.txt"
   rclone copyto "$work/incomplete.txt" "r2:$bucket/_publish/data-version.txt" --header-upload "Cache-Control: no-store"
   for dir in amendments laws history; do
     echo "upload-data: $dir/"
-    rclone sync "$data/$dir" "r2:$bucket/$dir" "${upload[@]}"
+    rclone sync "$work/$encoding/$dir" "r2:$bucket/$dir" "${upload[@]}" --header-upload "Content-Encoding: $encoding"
   done
   rclone copyto "$work/data-version.txt" "r2:$bucket/_publish/data-version.txt" --header-upload "Cache-Control: no-store"
 fi
