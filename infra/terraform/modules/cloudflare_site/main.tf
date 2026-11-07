@@ -2,9 +2,8 @@
 # Wrangler deploys the Worker itself (code, static assets, observability) from
 # wrangler.jsonc, and scripts/upload-data.sh fills the bucket. See infra/README.md.
 #
-# Everything here already existed when Terraform took it over: envs/prod/imports.tf
-# imports it, so the first plan must show no resource to create (except the
-# r2.dev setting below) and none to destroy or replace.
+# Everything here except the r2.dev setting existed before Terraform managed it
+# and was imported into the state on 2026-11-07.
 
 # The data the pages fetch in the browser (amendments/, laws/, history/, pagefind/
 # and _publish/), served at data_domain. Deleting the bucket deletes all of it.
@@ -21,7 +20,7 @@ resource "cloudflare_r2_bucket" "data" {
 # The bucket's r2.dev URL stays off: r2.dev is rate limited and not cached, and
 # all reads should go through data_domain and the zone's cache.
 # The provider cannot import this resource; creating it only sets the value
-# (PUT), so the first apply "creates" it without changing anything.
+# (PUT), so the first apply created it without changing anything.
 resource "cloudflare_r2_managed_domain" "data" {
   account_id  = var.cloudflare_account_id
   bucket_name = cloudflare_r2_bucket.data.name
@@ -55,8 +54,7 @@ resource "cloudflare_workers_custom_domain" "site" {
 #    the query string (?v=), so a new build gets new cache keys and the edge can
 #    keep each one for a day, longer than the Cache-Control in R2.
 # Entrypoint rulesets created in the dashboard are named "default"; the name
-# cannot change without replacing the ruleset (and dropping the rule meanwhile),
-# so if the first plan wants to replace it, set the name it shows instead.
+# cannot change without replacing the ruleset (and dropping its rules meanwhile).
 resource "cloudflare_ruleset" "cache" {
   zone_id = var.cloudflare_zone_id
   name    = "default"
