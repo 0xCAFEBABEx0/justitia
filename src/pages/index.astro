@@ -1,8 +1,10 @@
 ---
 import Base from "../layouts/Base.astro";
 import AmendmentList from "../components/AmendmentList.astro";
+import NewLawList from "../components/NewLawList.astro";
 import BrowseTabs from "../components/BrowseTabs.astro";
-import { buildDate, jpDate, jstDate, meta, timeline, timelineYears, type AmendmentSummary } from "../lib/data.ts";
+import { buildDate, jpDate, jstDate, meta, newLaws, timeline, timelineYears, type AmendmentSummary } from "../lib/data.ts";
+import { isUpcomingNewLaw } from "../lib/new-laws.ts";
 import { SITE_TAGLINE } from "../lib/site.ts";
 
 const m = meta();
@@ -22,6 +24,14 @@ const upcoming = pool(thisYear, thisYear + 2)
   .filter((a) => a.branch === "upcoming" && a.enforced && a.enforced > today)
   .sort((a, b) => a.enforced!.localeCompare(b.enforced!))
   .slice(0, 10);
+// Newly enacted laws: the latest in force, and the next ones to come into force.
+const allNew = newLaws();
+const recentNew = allNew.filter((l) => l.branch === "main" && l.enforced && l.enforced <= today).slice(0, 6);
+const upcomingNew = allNew
+  .filter((l) => isUpcomingNewLaw(l, today) && l.enforced)
+  .sort((a, b) => a.enforced!.localeCompare(b.enforced!))
+  .slice(0, 5);
+const newThisYear = allNew.filter((l) => l.branch === "main" && l.enforced?.startsWith(today.slice(0, 4)) && l.enforced <= today).length;
 ---
 <Base
   description={`日本の法令 ${m.counts.lawsInForce.toLocaleString()} 件の条文と、${m.counts.amendments.toLocaleString()} 件の改正を新旧対照で。いつ・どこが・どう変わったかを、改正ごとの差分・年表・グラフで見られます。`}
@@ -43,12 +53,28 @@ const upcoming = pool(thisYear, thisYear + 2)
   <BrowseTabs mode="none" />
 
   <div class="mt-6 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
-    <section>
-      <h2 class="text-xl font-bold">最近施行された改正</h2>
-      <AmendmentList items={recent} />
-      <p class="mt-4"><a class="link link-primary" href={`/timeline/${today.slice(0, 4)}/`}>{today.slice(0, 4)}年の改正をすべて見る →</a></p>
-    </section>
+    <div class="flex flex-col gap-8">
+      <section>
+        <h2 class="text-xl font-bold">新しく施行された法令</h2>
+        <NewLawList items={recentNew} groupByDate={false} />
+        <p class="mt-4"><a class="link link-primary" href="/new/">新しく制定された法令をすべて見る →</a></p>
+      </section>
+      <section>
+        <h2 class="text-xl font-bold">最近施行された改正</h2>
+        <AmendmentList items={recent} />
+        <p class="mt-4"><a class="link link-primary" href={`/timeline/${today.slice(0, 4)}/`}>{today.slice(0, 4)}年の改正をすべて見る →</a></p>
+      </section>
+    </div>
     <aside class="flex flex-col gap-4">
+      {upcomingNew.length > 0 && (
+        <section class="card card-border bg-base-100">
+          <div class="card-body p-5">
+            <h2 class="card-title text-base">これから施行される新しい法令</h2>
+            <NewLawList items={upcomingNew} groupByDate={false} bare />
+            <p class="text-xs text-base-content/65"><a class="link" href="/new/">公布済みで施行前の新しい法令をすべて見る</a></p>
+          </div>
+        </section>
+      )}
       <section class="card card-border bg-base-100">
         <div class="card-body p-5">
           <h2 class="card-title text-base">これから施行される改正</h2>
@@ -60,6 +86,7 @@ const upcoming = pool(thisYear, thisYear + 2)
         <div class="stats stats-vertical">
           <div class="stat py-3"><div class="stat-title text-base-content/65">現行の法令</div><div class="stat-value text-2xl">{m.counts.lawsInForce.toLocaleString()}</div></div>
           <div class="stat py-3"><div class="stat-title text-base-content/65">廃止された法令</div><div class="stat-value text-2xl">{m.counts.lawsRepealed.toLocaleString()}</div></div>
+          <div class="stat py-3"><div class="stat-title text-base-content/65">{today.slice(0, 4)}年に施行の新しい法令</div><div class="stat-value text-2xl">{newThisYear.toLocaleString()}</div></div>
           <div class="stat py-3"><div class="stat-title text-base-content/65">改正</div><div class="stat-value text-2xl">{m.counts.amendments.toLocaleString()}</div><div class="stat-desc text-base-content/65">データ更新：{jpDate(jstDate(m.generatedAt))}</div></div>
         </div>
       </section>

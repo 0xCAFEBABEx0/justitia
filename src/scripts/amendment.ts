@@ -5,6 +5,7 @@
 
 import type { Amendment, BlockChange, FileChange, Hunk, Segment } from "../../scripts/extract/types.ts";
 import { badgeClass } from "../lib/badges.ts";
+import { isStaged } from "../lib/new-laws.ts";
 import { DISCLAIMER_NOTE_HTML } from "../lib/disclaimer.ts";
 import { SITE_NAME } from "../lib/site-name.ts";
 import { dataUrl } from "./data-url.ts";
@@ -15,6 +16,12 @@ const KIND: Record<FileChange["kind"], string> = {
   amended: "改正",
   repealed: "廃止",
 };
+/** The badge for how an amendment changes a law: a later part of a new law coming into force reads 段階施行, not 改正. */
+function kindBadge(f: FileChange, amendmentLawId: string): string {
+  return isStaged(f.kind, f.lawId, amendmentLawId)
+    ? `<span class="${badgeClass("staged")}">段階施行</span>`
+    : `<span class="${badgeClass(f.kind)}">${KIND[f.kind]}</span>`;
+}
 const OP: Record<BlockChange["op"], string> = { added: "新設", deleted: "削除", modified: "改正" };
 const OP_BADGE: Record<BlockChange["op"], string> = {
   added: "badge badge-sm badge-success",
@@ -128,15 +135,18 @@ export function blockHtml(b: BlockChange, lawId: string, view: View, articleUrl?
   return `<section class="card card-border my-3 overflow-hidden bg-base-100"><header class="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-base-300 px-4 py-2 text-sm"><span class="${OP_BADGE[b.op]}">${OP[b.op]}</span>${heading}${link}${ctx}</header>${body}</section>`;
 }
 
-function fileHtml(f: FileChange, view: View, amendmentKey?: string): string {
+function fileHtml(f: FileChange, view: View, a: Amendment): string {
+  const amendmentKey = a.key;
+  const staged = isStaged(f.kind, f.lawId, a.amendmentLawId);
   const stats =
     f.kind === "amended" ? ` <span class="tabular-nums"><span class="text-add">+${f.additions}</span> <span class="text-del">−${f.deletions}</span></span>` : "";
   const title = f.titleChange ? `<div class="${NOTE}">題名：<del>${esc(f.titleChange.from)}</del> → ${esc(f.titleChange.to)}</div>` : "";
   let body = "";
   if (f.kind === "amended") {
-    body = f.blocks?.length
+    body = (staged ? `<p class="${NOTE}">この法令自身の規定のうち、この日に施行された部分です（段階施行）。</p>` : "") +
+      (f.blocks?.length
       ? f.blocks.map((b) => blockHtml(b, f.lawId, view)).join("")
-      : `<p class="${NOTE}">条文の変更はありません（e-Gov のデータ上の改訂のみ）。</p>`;
+      : `<p class="${NOTE}">条文の変更はありません（e-Gov のデータ上の改訂のみ）。</p>`);
   } else if (f.kind === "repealed") {
     body = `<p class="${NOTE}">この改正で廃止されました。</p>`;
   } else {
@@ -144,10 +154,10 @@ function fileHtml(f: FileChange, view: View, amendmentKey?: string): string {
   }
   const versions =
     f.kind !== "repealed" && amendmentKey
-      ? `・<a class="link link-primary" href="/versions/?law=${f.lawId}&at=${encodeURIComponent(amendmentKey)}">改正後の条文</a>`
+      ? `・<a class="link link-primary" href="/versions/?law=${f.lawId}&at=${encodeURIComponent(amendmentKey)}">${staged ? "施行後" : "改正後"}の条文</a>`
       : "";
   return `<section class="mt-8 scroll-mt-[4.5rem]" id="law-${esc(f.lawId)}">
-    <h2 class="text-xl font-bold"><a class="link link-hover" href="/laws/${f.lawId}/">${esc(f.title)}</a> <span class="${badgeClass(f.kind)}">${KIND[f.kind]}</span></h2>
+    <h2 class="text-xl font-bold"><a class="link link-hover" href="/laws/${f.lawId}/">${esc(f.title)}</a> ${kindBadge(f, a.amendmentLawId)}</h2>
     <div class="mt-0.5 mb-3 text-sm text-base-content/65">${esc(f.lawNum)}${stats}${f.blocks ? `・変更 ${f.blocks.length} か所` : ""}${versions}</div>
     ${title}${body}
   </section>`;
@@ -167,7 +177,7 @@ function headHtml(a: Amendment): string {
   const toc =
     a.files.length > 1
       ? `<details class="collapse-arrow collapse mb-2 border border-base-300 bg-base-100" ${a.files.length <= 20 ? "open" : ""}><summary class="collapse-title font-bold">変更された法令</summary><ul class="collapse-content menu menu-sm w-full pt-0">${a.files
-          .map((f) => `<li><a href="#law-${esc(f.lawId)}">${esc(f.title)} <span class="${badgeClass(f.kind)}">${KIND[f.kind]}</span></a></li>`)
+          .map((f) => `<li><a href="#law-${esc(f.lawId)}">${esc(f.title)} ${kindBadge(f, a.amendmentLawId)}</a></li>`)
           .join("")}</ul></details>`
       : "";
   return `<div>
@@ -207,7 +217,7 @@ export async function renderAmendmentPage(root: HTMLElement): Promise<void> {
   const render = () => {
     const toggle = hasDiffs ? viewToggleHtml(view) : "";
     root.className = view === "inline" ? "inline-view" : "";
-    root.innerHTML = headHtml(a) + toggle + a.files.map((f) => fileHtml(f, view, a.key)).join("");
+    root.innerHTML = headHtml(a) + toggle + a.files.map((f) => fileHtml(f, view, a)).join("");
     root.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((btn) =>
       btn.addEventListener("click", () => {
         view = btn.dataset.view as View;

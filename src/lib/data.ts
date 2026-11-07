@@ -7,9 +7,10 @@ import type {
   LawSummary,
   Meta,
 } from "../../scripts/extract/types.ts";
+import { collectNewLaws, type NewLaw } from "./new-laws.ts";
 import { DATA_DIR } from "./site.ts";
 
-export type { AmendmentSummary, FileChangeKind, LawDetail, LawSummary, Meta };
+export type { AmendmentSummary, FileChangeKind, LawDetail, LawSummary, Meta, NewLaw };
 
 function readJson<T>(...parts: string[]): T {
   return JSON.parse(readFileSync(join(DATA_DIR, ...parts), "utf8")) as T;
@@ -73,6 +74,16 @@ export function timelineYears(): string[] {
 
 export function timeline(year: string): AmendmentSummary[] {
   return readJson<AmendmentSummary[]>("timeline", `${year}.json`);
+}
+
+let newLawsCache: NewLaw[] | null = null;
+/** Every newly enacted law (see src/lib/new-laws.ts), newest first. */
+export function newLaws(): NewLaw[] {
+  return (newLawsCache ??= collectNewLaws(
+    timelineYears().flatMap((y) => timeline(y)),
+    new Map(laws().map((l) => [l.id, l])),
+    TYPE_ORDER,
+  ));
 }
 
 // Labels ------------------------------------------------------------------------------

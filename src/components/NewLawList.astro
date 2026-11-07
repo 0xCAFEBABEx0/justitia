@@ -1,0 +1,47 @@
+---
+// A list of newly enacted laws (src/lib/new-laws.ts), by enforcement date. Each item carries its
+// type in data-type, for the type filter of the /new/<year>/ pages.
+import { amendmentUrl, jpDate, lawUrl, typeLabel, type NewLaw } from "../lib/data.ts";
+import StatusBadge from "./StatusBadge.astro";
+
+interface Props {
+  items: NewLaw[];
+  groupByDate?: boolean;
+  /** Draw the list without its own border and background (inside a card). */
+  bare?: boolean;
+  /** Level of the date headings: one below the heading the list sits under. */
+  headingLevel?: 2 | 3;
+}
+const { items, groupByDate = true, bare = false, headingLevel = 3 } = Astro.props;
+const DateHeading = `h${headingLevel}` as const;
+// Without date headings, the whole list is one group (one box).
+const groups: [string, NewLaw[]][] = groupByDate ? [] : [["", items]];
+for (const l of groupByDate ? items : []) {
+  const d = l.enforced ?? "";
+  const last = groups.at(-1);
+  if (groupByDate && last && last[0] === d) last[1].push(l);
+  else groups.push([d, [l]]);
+}
+---
+{groups.map(([date, list]) => (
+  <section data-new-law-group>
+    {groupByDate && <DateHeading class="mt-5 mb-1.5 text-sm font-bold text-base-content/70">{date ? `${jpDate(date)} 施行` : "施行日未定"}</DateHeading>}
+    <ul class:list={["list", { "rounded-box border border-base-300 bg-base-100": !bare }]}>
+      {list.map((l) => (
+        <li class:list={["list-row", bare ? "px-0 py-2.5" : "py-3"]} data-type={l.dir}>
+          <div class="list-col-grow">
+            {!groupByDate && <div class="text-xs font-bold text-base-content/70">{l.enforced ? `${jpDate(l.enforced)} 施行` : "施行日未定"}</div>}
+            <a class="link link-hover font-bold text-primary" href={lawUrl(l.id)}>{l.title}</a>
+            {l.branch === "upcoming" && <StatusBadge kind="upcoming" label="施行予定" />}
+            {l.status === "repealed" && <StatusBadge kind="repealed" label="廃止" />}
+            <div class="mt-1.5 text-xs text-base-content/65">
+              {typeLabel(l.dir)}・{l.num}
+              {l.promulgated && <>・{jpDate(l.promulgated)} 公布</>}
+              {l.alsoChanges > 0 && <>・<a class="link" href={amendmentUrl(l.amendment)}>あわせて {l.alsoChanges} 法令を改正</a></>}
+            </div>
+          </div>
+        </li>
+      ))}
+    </ul>
+  </section>
+))}

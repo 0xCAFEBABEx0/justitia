@@ -104,10 +104,11 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 
 | URL | Contents |
 | --- | --- |
-| `/` | Search, recent amendments, upcoming amendments |
+| `/` | Search, newly enacted laws (recent and upcoming), recent amendments, upcoming amendments |
 | `/browse/`, `/browse/kana/<row>/`, `/browse/type/<type>/`, `/browse/category/<category>/` | Law lists |
 | `/laws/<law ID>/` | Law text (an anchor per heading), table of contents, amendment history |
 | `/amendment/?k=<amendment key>` | Old and new text of the articles an amendment changed (side by side, or inline) |
+| `/new/`, `/new/<year>/` | Newly enacted laws (a law whose file first appears in houritsu through the law itself), by year of entry into force, with a type filter. Later parts of a new law coming into force are labeled 段階施行, not 改正, across the site |
 | `/timeline/`, `/timeline/<year>/` | Amendments by year of entry into force |
 | `/versions/?law=<law ID>&at=<amendment key or YYYY-MM-DD>[&from=<…>]` | The law's text at any revision, past or upcoming; with `from`, what changed between two revisions (like `git diff from..at`) |
 | `/search/?q=<words>` | Full-text search over the current law text, with links to the matching articles |
