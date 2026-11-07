@@ -104,13 +104,29 @@ are not names (zone, entrypoint rulesets, the Workers Custom Domain) itself.
 2. `terraform init` (creates the `justitia-prod` workspace), then `terraform plan`. The plan must show the six imports,
    **1 to add** (`cloudflare_r2_managed_domain.data`: the provider cannot import it, and creating it only writes
    `enabled = false`, the current value), **0 to destroy** and no replacement. If it wants to replace a ruleset, its
-   name differs from `default`: set the name the plan shows. If it wants to change a rule or a setting in place,
-   compare with the dashboard and change the configuration to match what is live, unless the change is wanted.
+   name differs from `default`: set the name the plan shows. Each `cloudflare_ruleset` owns its whole phase: an
+   apply removes any rule in that phase that the configuration does not list. So before the first plan, open
+   Caching → Cache Rules and Rules → Transform Rules → Response Header in the dashboard, and add every other rule
+   there to `rules` in `modules/cloudflare_site/main.tf` (in the dashboard's order); the plan must then show no rule
+   removed. If it wants to change a rule or a setting in place, change the configuration to match what is live,
+   unless the change is wanted.
 3. Apply only when the plan is as above, then delete `envs/prod/imports.tf` in a follow-up change (the imports are
    done, and its lookups would fail if one of those resources were ever replaced).
 4. After the apply, check that nothing moved: `curl -sI https://anisotro.pics/` (200), and
    `curl -sI https://data.anisotro.pics/_publish/data-version.txt` twice (`access-control-allow-origin: *`,
    `cf-cache-status: HIT` on the second).
+
+## Setting up a new account
+
+The configuration expects the resources to exist (the production setup was made before it). To build the setup
+from nothing, for example in another account:
+
+1. Delete `envs/prod/imports.tf` (there is nothing to import, and its lookups would fail).
+2. `terraform apply -target=module.site.cloudflare_r2_bucket.data`, then connect the bucket's custom domain
+   (`data.anisotro.pics`) in the dashboard, which Terraform does not manage.
+3. Set up the Publish workflow's tokens and secrets ([One-time setup](../README.md#one-time-setup)) and run it once:
+   it uploads the data and creates the Worker, which the Workers Custom Domain needs.
+4. `terraform apply` for the rest (custom domain, rules, zone settings).
 
 ## Observability
 
