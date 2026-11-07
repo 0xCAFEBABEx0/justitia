@@ -44,7 +44,6 @@ infra/terraform/
 │  ├─ variables.tf
 │  ├─ outputs.tf
 │  ├─ backend.tf       state in HCP Terraform, workspace justitia-prod
-│  ├─ imports.tf       one-time imports of the existing resources (delete after the first apply)
 │  └─ 1password.env    op:// references for the credentials; run Terraform under `op run`
 └─ modules/cloudflare_site/
    ├─ main.tf          the resources
@@ -93,40 +92,39 @@ or `*.auto.tfvars` here: it would override the `TF_VAR_*` values without a warni
 `terraform init -backend=false && terraform validate` still checks the configuration. No CI job runs Terraform, and
 `.terraform.lock.hcl` is not committed (as in `chronos`).
 
-## First apply (taking over the existing resources)
+## Making a change
 
-Everything except the bucket's `r2.dev` setting already exists, made in the dashboard or by Wrangler.
-`envs/prod/imports.tf` imports it into the state on the first apply instead of creating it, and looks up the IDs that
-are not names (zone, entrypoint rulesets, the Workers Custom Domain) itself.
+1. Change the configuration in a pull request, and run `terraform plan` on its branch. The plan should show only
+   what the change is meant to do, with nothing to destroy or replace that is not meant to go.
+2. Each `cloudflare_ruleset` owns its whole phase: an apply removes any rule in that phase that the configuration
+   does not list. Add or change Cache Rules and Response Header Transform Rules in `modules/cloudflare_site/main.tf`,
+   not in the dashboard; a rule added in the dashboard is deleted by the next apply (the plan shows it).
+3. After the merge, apply from an up-to-date `main` once the plan shows the same thing, then run `terraform plan`
+   again: it should say `No changes.`
+4. Check that the site still answers. Use `GET` requests: a `HEAD` request (`curl -I`) shows
+   `cf-cache-status: DYNAMIC` on this zone even for a file that is cached.
 
-1. Add the `anisotro.pics` zone and the permissions above to the token in the 1Password item `cloudflare-terraform`
-   (Manage account → Account API tokens, or My Profile → API Tokens for a user token).
-2. `terraform init` (creates the `justitia-prod` workspace), then `terraform plan`. The plan must show the six imports,
-   **1 to add** (`cloudflare_r2_managed_domain.data`: the provider cannot import it, and creating it only writes
-   `enabled = false`, the current value), **0 to destroy** and no replacement. If it wants to replace a ruleset, its
-   name differs from `default`: set the name the plan shows. Each `cloudflare_ruleset` owns its whole phase: an
-   apply removes any rule in that phase that the configuration does not list. So before the first plan, open
-   Caching → Cache Rules and Rules → Transform Rules → Response Header in the dashboard, and add every other rule
-   there to `rules` in `modules/cloudflare_site/main.tf` (in the dashboard's order); the plan must then show no rule
-   removed. If it wants to change a rule or a setting in place, change the configuration to match what is live,
-   unless the change is wanted.
-3. Apply only when the plan is as above, then delete `envs/prod/imports.tf` in a follow-up change (the imports are
-   done, and its lookups would fail if one of those resources were ever replaced).
-4. After the apply, check that nothing moved: `curl -sI https://anisotro.pics/` (200), and
-   `curl -sI https://data.anisotro.pics/_publish/data-version.txt` twice (`access-control-allow-origin: *`,
-   `cf-cache-status: HIT` on the second).
+   ```bash
+   curl -s -o /dev/null -w '%{http_code}\n' https://anisotro.pics/                  # 200
+   curl -s -D - -o /dev/null https://data.anisotro.pics/pagefind/shards.json         # twice
+   ```
+
+   The second request for `shards.json` should show `cf-cache-status: HIT` and `access-control-allow-origin: *`.
+   (The files under `_publish/` are uploaded with `Cache-Control: no-store` and never come from the cache.)
+
+The existing resources were imported into the state on 2026-11-07 (pull request #21, with import blocks that were
+then removed): the plan showed 6 to import, 1 to add (the `r2.dev` setting, which the provider cannot import), 0 to
+change and 0 to destroy.
 
 ## Setting up a new account
 
-The configuration expects the resources to exist (the production setup was made before it). To build the setup
-from nothing, for example in another account:
+The production setup was made before this configuration. To build it from nothing, for example in another account:
 
-1. Delete `envs/prod/imports.tf` (there is nothing to import, and its lookups would fail).
-2. `terraform apply -target=module.site.cloudflare_r2_bucket.data`, then connect the bucket's custom domain
+1. `terraform apply -target=module.site.cloudflare_r2_bucket.data`, then connect the bucket's custom domain
    (`data.anisotro.pics`) in the dashboard, which Terraform does not manage.
-3. Set up the Publish workflow's tokens and secrets ([One-time setup](../README.md#one-time-setup)) and run it once:
+2. Set up the Publish workflow's tokens and secrets ([One-time setup](../README.md#one-time-setup)) and run it once:
    it uploads the data and creates the Worker, which the Workers Custom Domain needs.
-4. `terraform apply` for the rest (custom domain, rules, zone settings).
+3. `terraform apply` for the rest (custom domain, rules, zone settings).
 
 ## Observability
 
