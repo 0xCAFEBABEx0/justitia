@@ -2,7 +2,7 @@
 import "@fontsource/noto-sans-jp/400.css";
 import "@fontsource/noto-sans-jp/700.css";
 import "../styles/global.css";
-import { SITE_NAME, SITE_TAGLINE, SOURCE_REPO } from "../lib/site.ts";
+import { CODE_LICENSE_URL, CODE_REPO, DATA_LICENSE_URL, PDL_URL, SITE_NAME, SITE_TAGLINE, SOURCE_REPO } from "../lib/site.ts";
 import { DISCLAIMER_URL, EGOV_URL } from "../lib/disclaimer.ts";
 
 interface Props {
@@ -107,6 +107,9 @@ const ogImage = new URL("/og-image.png", Astro.site).href;
             </p>
             <p>
               本サイトは非公式のサイトで、内容の正確性を保証しません。本サイトの利用により生じた損害について、管理者は一切の責任を負いません。詳しくは<a class="link" href={DISCLAIMER_URL}>免責事項</a>をご覧ください。
+            </p>
+            <p>
+              出典：<a class="link" href={EGOV_URL}>e-Gov 法令検索</a>（<a class="link" href={PDL_URL}>PDL1.0</a>）。<a class="link" href={SOURCE_REPO}>houritsu</a>（<a class="link" href={DATA_LICENSE_URL}>CC BY 4.0</a>）のデータを加工して作成しています。本サイトのプログラムは <a class="link" href={CODE_LICENSE_URL}>AGPL-3.0</a> で公開しています（<a class="link" href={CODE_REPO}>ソースコード</a>）。詳しくは<a class="link" href="/about/#license">出典とライセンス</a>をご覧ください。
             </p>
           </div>
         </footer>

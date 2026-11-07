@@ -2,7 +2,7 @@
 import Base from "../layouts/Base.astro";
 import PageHeader from "../components/PageHeader.astro";
 import { jpDate, jstDate, meta } from "../lib/data.ts";
-import { SITE_NAME, SOURCE_REPO } from "../lib/site.ts";
+import { CODE_LICENSE_URL, CODE_REPO, DATA_LICENSE_URL, PDL_URL, SITE_NAME, SOURCE_REPO } from "../lib/site.ts";
 import { EGOV_URL } from "../lib/disclaimer.ts";
 
 const m = meta();
@@ -52,6 +52,24 @@ const m = meta();
       houritsu に「収録開始」した時点であることが多く、それ以前の改正は含まれません。
     </li>
     <li>新旧対照は、条文を見出し（編・章・節・条・附則など）ごとに比べたものです。官報に載る新旧対照表とは表し方が異なります。</li>
+  </ul>
+  <h2 id="license" class="mt-6 mb-2 scroll-mt-20 text-lg font-bold">出典とライセンス</h2>
+  <ul class="list-disc space-y-1 pl-6">
+    <li>
+      条文と改正履歴は、Kohei-Wada 氏の <a class="link link-primary" href={SOURCE_REPO}>houritsu</a> のデータを加工して作成しています。
+      houritsu は <a class="link link-primary" href={DATA_LICENSE_URL}>CC BY 4.0</a> で公開されています。
+    </li>
+    <li>
+      houritsu の元データの出典は <a class="link link-primary" href={EGOV_URL}>e-Gov 法令検索</a>
+      （<a class="link link-primary" href={PDL_URL}>公共データ利用規約（第1.0版）</a>）です。
+    </li>
+    <li>本サイトでは、houritsu のデータを法令ごと・改正ごとに分け、新旧対照と検索用の索引を加えて表示しています。</li>
+    <li>本サイトのデータも <a class="link link-primary" href={DATA_LICENSE_URL}>CC BY 4.0</a> で提供します。再利用するときは、houritsu と e-Gov 法令検索を出典として示してください。</li>
+    <li>法令の条文そのものには著作権がありません（著作権法第13条）。</li>
+    <li>
+      本サイトのプログラムは <a class="link link-primary" href={CODE_LICENSE_URL}>GNU AGPL v3.0</a> で公開しています。
+      ソースコードは <a class="link link-primary" href={CODE_REPO}>GitHub</a> にあります。
+    </li>
   </ul>
   <h2 class="mt-6 mb-2 text-lg font-bold">データ</h2>
   <p class="text-sm text-base-content/70">
