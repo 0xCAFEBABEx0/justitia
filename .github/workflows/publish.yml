@@ -69,7 +69,15 @@ jobs:
         env:
           RELEASE: 1.68.2
 
-      # Fail in seconds, not after the 30-minute build, when a key is wrong or R2 rejects rclone's requests.
+      # 22.23.4 or later: earlier 22.x releases have the Brotli decoder flaw CVE-2026-111497 (scripts/compress-data.ts
+      # refuses to run on them). Set up before the check, which compresses a test object.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      # Fail in seconds, not after the 30-minute build, when a key is wrong, R2 rejects rclone's requests or the data
+      # domain does not serve Brotli-compressed objects correctly.
       - name: Check R2 and the Cloudflare API token
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
@@ -86,11 +94,6 @@ jobs:
           done
           echo "::error::CLOUDFLARE_API_TOKEN is not an active API token for this account (see README, Publishing)"
           exit 1
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
 
       - run: npm ci
       - run: npm test
@@ -127,7 +130,9 @@ jobs:
         id: published
         if: steps.data.outputs.cache-hit == 'true' && inputs.rebuild != true
         run: |
-          cached=$(node -p 'require("./data/meta.json").dataVersion')
+          # The upload writes "<data version> br" (scripts/upload-data.sh): a cache entry from before the data was
+          # stored compressed is extracted and uploaded again.
+          cached="$(node -p 'require("./data/meta.json").dataVersion') br"
           published=$(curl -fsS "$PUBLIC_DATA_BASE/_publish/data-version.txt?ts=$(date +%s%N)" || echo none)
           if [[ "$published" == "$cached" ]]; then
             echo "R2 holds the cached data ($cached)"

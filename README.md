@@ -175,16 +175,17 @@ It rebuilds only what changed:
    `scripts/extract/cache-key.test.ts` checks that list against the imports), so a change to the site's
    dependencies does not extract again. The cache holds what the site build reads (`meta.json`,
    `laws.json`, `laws/`, `timeline/`). A change to the site alone, or a day without new commits in houritsu, uses
-   the cache, as long as R2 still holds the same data: the upload records the data version it uploaded in
-   `_publish/data-version.txt` (`incomplete` while it uploads), and a cached copy with another version (after an extractor change is reverted, for
-   example) is extracted and uploaded again;
+   the cache, as long as R2 still holds the same data: the upload records the data version it uploaded and how
+   it stored it in `_publish/data-version.txt` (`<data version> br`, `incomplete` while it uploads), and a cached
+   copy with another version (after an extractor change is reverted, for example) is extracted and uploaded again;
 2. build the site, then the search index (`npm run search-index -- --skip-if-same <published input hash>`),
    unless the published index was built from the same input: `shards.json` records a hash of the indexed parts
    of the law pages, the indexer and the Pagefind version, and the upload publishes it as
    `_publish/pagefind-input.txt` once the whole index is uploaded (`incomplete` while it uploads);
 3. `npm run upload-data` (`scripts/upload-data.sh`): sync to the R2 bucket with rclone only the parts that were
-   rebuilt: `data` (`amendments/`, `laws/`, `history/`) and `pagefind`. Only files whose content changed are
-   uploaded, and files that are gone are deleted. Pagefind files are deleted only after they have been unused for
+   rebuilt: `data` (`amendments/`, `laws/`, `history/`) and `pagefind`. The data files are stored
+   Brotli-compressed (see below). Only files whose content changed are uploaded, and files that are gone are
+   deleted. Pagefind files are deleted only after they have been unused for
    7 days, so a search page that has been open since before an upload keeps working for a week; a full index is
    about 260 MiB, so that keeps under 2 GB of old files even if every file changed every day. The cache is saved
    after this step, so a run that fails earlier saves nothing;
@@ -196,7 +197,18 @@ and, when the law text changed, about 10 for the search index. To rebuild everyt
 hand with *rebuild* checked.
 
 The data goes first, so a new page never links to data that is not there yet. Data files are uploaded with
-`Cache-Control: public, max-age=3600`. The pages fetch `amendments/`, `laws/` and `history/` files with the data
+`Cache-Control: public, max-age=3600`.
+
+The data files are stored Brotli-compressed, with `Content-Encoding: br`: `scripts/compress-data.ts` compresses
+them (quality 5, 16 MB window) into a temporary directory during the upload, so `data/` itself stays plain JSON.
+That makes the 2.7 GiB of JSON (1.6 GiB of it `history/`, whose files repeat each block's earlier versions, too far
+apart for gzip's 32 KB window) over 10 times smaller in R2, which has 10 GB of free storage. Cloudflare passes
+a Brotli response from R2 on as it is to a client that accepts `br` and decompresses it for one that does not
+(Cloudflare docs, *ETag headers*), and the browser decompresses it before the page reads it, so the pages need
+no change. The compression is deterministic, so unchanged files are not uploaded again. It needs Node.js 22.23.4,
+24.22.1, 26.12.1 or later, the releases with the fix for the Brotli decoder flaw CVE-2026-111497; the script
+refuses to run on earlier ones (`process.versions.brotli` does not show the fix, so it checks the Node.js
+version). The pages fetch `amendments/`, `laws/` and `history/` files with the data
 version in the query string (`?v=`, `dataVersion` in `meta.json`), which is part of the cache key. The data version is
 a hash of those files, so a build that changes any of them gets new URLs (a page never mixes files from two builds),
 and a build that changes none, such as a day without new commits in houritsu, keeps the cached copies. The search
@@ -245,10 +257,14 @@ In the GitHub repository (Settings → Secrets and variables → Actions), add t
 
 Then run the workflow by hand once. Its first step after the checkout writes, reads back and deletes one small
 object in the bucket (`scripts/upload-data.sh --check`) and verifies the API token, so a wrong secret fails the run
-in about a minute instead of after the build. The first upload is about 79,000 files and 3.5 GB, within R2's free tier
-(10 GB stored, 1 million writes a month); later runs upload only what changed. GitHub turns off scheduled workflows
+in about a minute instead of after the build. The check also uploads a Brotli-compressed object and fetches it
+through `data.anisotro.pics` with `Accept-Encoding: br`, `gzip` and `identity`, and stops the run if Cloudflare
+does not serve it as `br` to the first and decompressed to the others. The first upload is about 59,000 files and
+under 1 GB (the search index, about 260 MiB, is most of it), within R2's free tier (10 GB stored, 1 million writes a
+month); later runs upload only what changed. GitHub turns off scheduled workflows
 in a public repository after 60 days without activity; turn the workflow back on under Actions if that happens.
 
-To publish from your own machine instead, set the same four values as environment variables (and install rclone 1.68 or later),
+To publish from your own machine instead, set the same four values as environment variables (and install rclone 1.68 or
+later, and Node.js 22.23.4 or later),
 then run `npm run upload-data` and `npm run deploy` after building.
 
