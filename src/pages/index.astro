@@ -86,7 +86,7 @@ const newThisYear = allNew.filter((l) => l.branch === "main" && l.enforced?.star
         <div class="stats stats-vertical">
           <div class="stat py-3"><div class="stat-title text-base-content/65">現行の法令</div><div class="stat-value text-2xl">{m.counts.lawsInForce.toLocaleString()}</div></div>
           <div class="stat py-3"><div class="stat-title text-base-content/65">廃止された法令</div><div class="stat-value text-2xl">{m.counts.lawsRepealed.toLocaleString()}</div></div>
-          <div class="stat py-3"><div class="stat-title text-base-content/65">{today.slice(0, 4)}年に施行の新しい法令</div><div class="stat-value text-2xl">{newThisYear.toLocaleString()}</div></div>
+          <div class="stat py-3"><div class="stat-title text-base-content/65">{today.slice(0, 4)}年に施行された新しい法令</div><div class="stat-value text-2xl">{newThisYear.toLocaleString()}</div></div>
           <div class="stat py-3"><div class="stat-title text-base-content/65">改正</div><div class="stat-value text-2xl">{m.counts.amendments.toLocaleString()}</div><div class="stat-desc text-base-content/65">データ更新：{jpDate(jstDate(m.generatedAt))}</div></div>
         </div>
       </section>

@@ -3,7 +3,7 @@ import Base from "../../layouts/Base.astro";
 import NewLawList from "../../components/NewLawList.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import { buildDate, newLaws, TYPE_ORDER, typeLabel } from "../../lib/data.ts";
-import { newLawYear } from "../../lib/new-laws.ts";
+import { isUpcomingNewLaw, newLawYear } from "../../lib/new-laws.ts";
 
 export function getStaticPaths() {
   return [...new Set(newLaws().map(newLawYear))].map((year) => ({ params: { year } }));
@@ -13,20 +13,28 @@ const items = newLaws().filter((l) => newLawYear(l) === year);
 const years = [...new Set(newLaws().map(newLawYear))].sort((a, b) =>
   a === "undetermined" ? 1 : b === "undetermined" ? -1 : a.localeCompare(b),
 );
-const future = year === "undetermined" || year > buildDate().slice(0, 4);
-const heading = year === "undetermined" ? "施行日が未定の新しい法令" : `${year}年に${future ? "施行予定" : "施行"}の新しい法令`;
+const today = buildDate();
+const future = year === "undetermined" || year > today.slice(0, 4);
+// This year's page holds laws in force and laws still to come into force later in the year.
+const upcomingCount = items.filter((l) => isUpcomingNewLaw(l, today)).length;
+const mixed = !future && upcomingCount > 0;
+const heading =
+  year === "undetermined"
+    ? "施行日が未定の新しい法令"
+    : `${year}年に${future ? "施行予定" : mixed ? "施行・施行予定" : "施行"}の新しい法令`;
+const countText = `${items.length.toLocaleString()} 件${mixed ? `（うち施行予定 ${upcomingCount.toLocaleString()} 件）` : ""}`;
 const types = TYPE_ORDER.map((t) => ({ t, n: items.filter((l) => l.dir === t).length })).filter((x) => x.n > 0);
 ---
 <Base
   title={heading}
-  description={`${heading} ${items.length.toLocaleString()} 件の一覧（${types.map((x) => `${typeLabel(x.t)} ${x.n} 件`).join("、")}）。`}
+  description={`${heading} ${items.length.toLocaleString()} 件の一覧（${types.map((x) => `${typeLabel(x.t)} ${x.n} 件`).join("、")}）。${mixed ? `うち ${upcomingCount.toLocaleString()} 件は施行予定です。` : ""}`}
   nav="new"
 >
   <PageHeader title={heading} crumbs={[{ href: "/new/", label: "新しく制定された法令" }]}>
-    {items.length.toLocaleString()} 件。日付は施行日で、一部ずつ施行される法令は最初に施行された日に載せています。
+    {countText}。日付は施行日で、一部ずつ施行される法令は最初に施行された日に載せています。
   </PageHeader>
   <nav class="mb-4 flex flex-wrap gap-1" aria-label="年">
-    {years.filter((y) => y >= "2000").map((y) => (
+    {years.filter((y) => y >= "2000" || y === year).map((y) => (
       <a class:list={["btn btn-xs tabular-nums", y === year ? "btn-primary" : "btn-ghost"]} href={`/new/${y}/`} aria-current={y === year ? "page" : undefined}>{y === "undetermined" ? "未定" : y}</a>
     ))}
     <a class="btn btn-ghost btn-xs" href="/new/">それ以前…</a>
