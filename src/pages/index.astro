@@ -86,12 +86,14 @@ const newThisYear = allNew.filter((l) => l.branch === "main" && l.enforced?.star
         <section class="card card-border bg-base-100">
           <div class="card-body p-5">
             <h2 class="card-title text-base">最近廃止された法令</h2>
-            <ul class="flex flex-col gap-2.5 text-sm">
+            <ul class="list">
               {recentRepealed.map((l) => (
-                <li>
-                  <div class="text-xs font-bold text-base-content/70">{jpDate(l.enforced)} 廃止</div>
-                  <a class="link link-hover font-bold text-primary" href={lawUrl(l.id)}>{l.title}</a>
-                  <div class="text-xs text-base-content/65">{typeLabel(l.dir)}{l.newLaw && "・新しい法令の施行に伴う廃止"}</div>
+                <li class="list-row px-0 py-2.5">
+                  <div class="list-col-grow">
+                    <div class="text-xs font-bold text-base-content/70">{jpDate(l.enforced)} 廃止</div>
+                    <a class="link link-hover font-bold text-primary" href={lawUrl(l.id)}>{l.title}</a>
+                    <div class="mt-1 text-xs text-base-content/65">{typeLabel(l.dir)}{l.newLaw && "・新しい法令の施行に伴う廃止"}</div>
+                  </div>
                 </li>
               ))}
             </ul>

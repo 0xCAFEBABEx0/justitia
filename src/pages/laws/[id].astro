@@ -81,7 +81,7 @@ const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => 
       ) : law.status === "repealed" ? (
         <div class="card card-border bg-base-100">
           <div class="card-body gap-2 p-5">
-            <h2 class="card-title text-base">
+            <h2 class="card-title flex-wrap text-base">
               {repeal?.enforced ? `${jpDate(repeal.enforced)}に廃止されました` : "この法令は廃止されています"}
               {repeal && <span class="badge badge-ghost badge-sm whitespace-nowrap font-normal">{REPEAL_WAY_LABELS[repeal.way]}</span>}
             </h2>
