@@ -84,7 +84,7 @@ export function collectRepealedLaws(
         amendment: a.key,
         amendmentTitle: a.title,
         amendmentLawNum: a.amendmentLawNum,
-        way: newLaw ? "new_law" : /廃止/.test(a.title) ? "repeal_law" : "other",
+        way: newLaw ? "new_law" : isRepealLawTitle(a.title) ? "repeal_law" : "other",
         newLaw,
         alsoRepeals: repealed.length - 1,
       });
@@ -95,6 +95,20 @@ export function collectRepealedLaws(
       (y.enforced ?? "").localeCompare(x.enforced ?? "") ||
       typeRank(x.dir) - typeRank(y.dir) ||
       x.title.localeCompare(y.title, "ja"),
+  );
+}
+
+/**
+ * Whether the title of an amending law says it is made to repeal laws: it ends in 「〜を廃止する省令」,
+ * 「〜を廃止する等の法律」 or 「〜の廃止等に関する省令」 and the like. 廃止 elsewhere in a title is mostly in the
+ * name of another law, as in 「〜を廃止する法律の施行に伴う関係省令の整備に関する省令」. The 人事院 repeals its
+ * rules by adding them to the list in 人事院規則一―四（現行の法律、命令及び規則の廃止）, so an amendment of
+ * that rule is a repeal too.
+ */
+export function isRepealLawTitle(title: string): boolean {
+  return (
+    /(を廃止する(等の)?|の廃止等?に関する)(法律|[^、。（）]{0,5}(令|規則))$/.test(title) ||
+    title.startsWith("人事院規則一―四（現行の法律、命令及び規則の廃止）の一部を改正する")
   );
 }
 

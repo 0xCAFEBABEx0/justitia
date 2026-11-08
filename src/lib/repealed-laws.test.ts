@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { collectRepealedLaws, lastTextBeforeRepeal, repealYear } from "./repealed-laws.ts";
+import { collectRepealedLaws, isRepealLawTitle, lastTextBeforeRepeal, repealYear } from "./repealed-laws.ts";
 import type { AmendmentSummary, FileChangeKind, LawRevision, LawSummary } from "../../scripts/extract/types.ts";
 
 const amendment = (
@@ -34,12 +34,13 @@ test("collectRepealedLaws tells how each law was repealed, newest first, 法律 
     summary("M2", "ministerial-ordinance"),
   ]);
   const list = collectRepealedLaws(
+    // Not in the order of the result: older first, and 府省令 before 政令 before 法律 on one day.
     [
+      amendment("A1_20250401", "2025-04-01", [["M2", "repealed"], ["Y", "amended"]], { title: "〇〇法の一部を改正する法律" }),
+      // A government order made only to repeal two others.
+      amendment("R1_20261001", "2026-10-01", [["M1", "repealed"], ["CO1", "repealed"]], { title: "〇〇令等を廃止する政令" }),
       // A new law replaces the old one, and amends another law on the way.
       amendment("NEW_20261001", "2026-10-01", [["OLD", "repealed"], ["NEW", "enacted"], ["X", "amended"]]),
-      // A government order made only to repeal two others.
-      amendment("R1_20261001", "2026-10-01", [["CO1", "repealed"], ["M1", "repealed"]], { title: "〇〇令等を廃止する政令" }),
-      amendment("A1_20250401", "2025-04-01", [["M2", "repealed"], ["Y", "amended"]], { title: "〇〇法の一部を改正する法律" }),
     ],
     laws,
     ["act", "cabinet-order", "ministerial-ordinance"],
@@ -97,6 +98,31 @@ test("collectRepealedLaws keeps the last repeal of a law repealed twice", () => 
     } as Record<string, AmendmentSummary>;
     const list = collectRepealedLaws(order.map((k) => all[k]), laws);
     assert.deepEqual(list.map((l) => l.amendment), ["Y_20220101"]);
+  }
+});
+
+test("isRepealLawTitle is a law made to repeal laws, not one that names a repeal", () => {
+  for (const t of [
+    "〇〇法施行規則を廃止する省令",
+    "〇〇に関する省令等を廃止する省令",
+    "〇〇の措置を定める命令を廃止する命令",
+    "〇〇に関する内閣府令等を廃止する内閣府令",
+    "〇〇に関する規則を廃止する規則",
+    "〇〇に関する規則の廃止等に関する省令",
+    "〇〇法を廃止する法律",
+    "〇〇法を廃止する等の法律",
+    "人事院規則一―四（現行の法律、命令及び規則の廃止）の一部を改正する人事院規則",
+  ]) {
+    assert.equal(isRepealLawTitle(t), true, t);
+  }
+  for (const t of [
+    "農業機械化促進法を廃止する等の法律の施行に伴う農林水産省関係省令の整理に関する省令",
+    "主要農作物種子法を廃止する法律の施行に伴う関係省令の整備に関する省令",
+    "人事院規則一―二（〇〇の廃止）の一部を改正する人事院規則",
+    "〇〇の規定による廃止前の〇〇に関する省令の一部を改正する省令",
+    "〇〇法の一部を改正する法律",
+  ]) {
+    assert.equal(isRepealLawTitle(t), false, t);
   }
 });
 
