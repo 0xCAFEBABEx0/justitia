@@ -194,7 +194,8 @@ export function feedItems(amendments: AmendmentSummary[], today: string): FeedIt
 }
 
 /**
- * The most items a feed keeps (more only to finish a day). The site-wide feed has about 3,500 items
+ * How many items a feed keeps, plus the rest of the day the last of them falls on (so a feed can hold
+ * more). The site-wide feed has about 3,500 items
  * a year (3 MB); feed readers fetch every few hours and need only the latest, and the law feeds stay
  * well under it, so they keep their whole year.
  */

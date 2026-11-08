@@ -254,9 +254,9 @@ Calendar, Outlook or Apple Calendar to subscribe to, or open the file to import 
 
 An RSS feed has an item when an amendment is promulgated (公布) and another when it comes into force (施行), each
 dated that day (midnight JST), or one item (公布・施行) when both fall on the same day. Items from the past year
-(366 days) up to the day the file is written are kept, newest first, but at most 200 (`RSS_MAX_ITEMS`; the
-site-wide feed would have about 3,500, 3 MB), finishing the last day kept, so a day like 1 April is never cut;
-each links the amendment's page (for a law's
+(366 days) up to the day the file is written are kept, newest first, up to 200 (`RSS_MAX_ITEMS`; the
+site-wide feed would have about 3,500, 3 MB) plus the rest of the day the 200th item falls on, so a day like
+1 April is never cut and a feed can hold somewhat more than 200; each links the amendment's page (for a law's
 feed, that law's part of it) and carries the disclaimer. `lastBuildDate` is the newest item's day, not the time of
 writing, so a feed too is uploaded again only when its items change; `ttl` asks for a fetch every 12 hours. The
 upload stores the feeds like the calendars, as `application/rss+xml; charset=utf-8`. Every page links the
