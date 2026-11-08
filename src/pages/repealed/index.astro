@@ -96,6 +96,7 @@ const oldest = years.filter((y) => y !== "undetermined").at(-1);
 <script>
   // The type and way filters: show only the laws that match both, and hide dates and years left empty.
   for (const root of document.querySelectorAll<HTMLElement>("[data-repealed-laws]")) {
+    const yearLinks = [...document.querySelectorAll<HTMLAnchorElement>('a[href^="#y"]')].map((a) => [a, a.getAttribute("href")!] as const);
     const picked = (name: string) => root.querySelector<HTMLInputElement>(`[data-filter="${name}"] input:checked`)?.value ?? "";
     const apply = () => {
       const type = picked("type");
@@ -106,17 +107,16 @@ const oldest = years.filter((y) => y !== "undetermined").at(-1);
       for (const group of root.querySelectorAll<HTMLElement>("[data-law-group], [data-year]")) {
         group.hidden = !group.querySelector("li[data-type]:not([hidden])");
       }
-      // Links to a year the filters leave empty go nowhere: disable them.
-      for (const a of document.querySelectorAll<HTMLAnchorElement>('a[href^="#y"]')) {
-        const empty = !!document.getElementById(a.hash.slice(1))?.hidden;
-        a.classList.toggle("pointer-events-none", empty);
+      // Links to a year the filters leave empty go nowhere: disable them, taking their href away.
+      for (const [a, href] of yearLinks) {
+        const empty = !!document.getElementById(href.slice(1))?.hidden;
         a.classList.toggle("opacity-40", empty);
         if (empty) {
+          a.removeAttribute("href");
           a.setAttribute("aria-disabled", "true");
-          a.tabIndex = -1;
         } else {
+          a.setAttribute("href", href);
           a.removeAttribute("aria-disabled");
-          a.removeAttribute("tabindex");
         }
       }
       root.querySelector<HTMLElement>("[data-empty]")!.classList.toggle("hidden", !!root.querySelector("li[data-type]:not([hidden])"));
