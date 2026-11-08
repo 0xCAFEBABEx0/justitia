@@ -19,6 +19,8 @@ the site and the data on them.
 | Response header rule `justitia-data-cors` (zone entrypoint for Response Header Transform Rules) | Terraform |
 | Zone setting Browser Cache TTL (4 hours) | Terraform |
 | Bot Fight Mode (on) | Terraform |
+| Web Assets operation `GET data.anisotro.pics/feeds/{var1}` (the calendars) | Terraform |
+| Its managed label `cf-rss-feed`, which Bot Fight Mode lets through | Terraform, through the API on apply (see below) |
 | The bucket's custom domain `data.anisotro.pics` | Dashboard (cannot be imported, see below) |
 | Worker `justitia`: static assets, compatibility date, `workers_dev`/`preview_urls` off | Wrangler (`wrangler.jsonc`) |
 | Workers Logs and Traces of the Worker | Wrangler (`wrangler.jsonc`, `observability`) |
@@ -34,6 +36,18 @@ The bucket's custom domain stays in the dashboard because the provider's `cloudf
 imported (provider 5.28 documentation), and letting Terraform create it would replace the live domain. DNS records
 are not managed either: a Workers Custom Domain and an R2 custom domain each manage their own proxied record and
 certificate.
+
+The calendars under `https://data.anisotro.pics/feeds/` are fetched by calendar apps' servers, which Bot Fight Mode
+may challenge (`.ics` is not one of the static extensions it leaves alone). Bot Fight Mode does not block requests to
+a Web Assets operation with the managed label `cf-rss-feed`, so `feeds/` is an operation with that label. The
+provider (5.28, and its latest release as of 2026-11-08) can manage the operation (`cloudflare_api_shield_operation`)
+but has no resource for labels, so `terraform_data.feeds_rss_label` sets the label on apply with the API call
+*Replace operations attached to a managed label*, which makes this operation the only one with `cf-rss-feed`. The
+token comes from the `TF_VAR_cloudflare_api_token` that `op run` sets, so it is not in the configuration or the state.
+It runs when the resource is created and again when the operation is replaced. Terraform does not read the label
+back, so a label removed in the dashboard does not show in a plan; after an apply, check that the operation still
+has `cf-rss-feed` under Security → Web Assets → Operations, and set it again with
+`terraform apply -replace=module.site.terraform_data.feeds_rss_label`.
 
 ## Layout
 
@@ -74,7 +88,8 @@ Cloudflare token needs, on top of what `chronos` uses, the `anisotro.pics` zone 
 - Account: **Workers R2 Storage: Edit** (bucket, `r2.dev` setting) and **Workers Scripts: Edit** (Workers Custom
   Domains).
 - Zone `anisotro.pics`: **Zone: Read**, **Workers Routes: Edit**, **Cache Rules: Edit**, **Transform Rules: Edit**,
-  **Zone Settings: Edit** and **Bot Management: Edit**.
+  **Zone Settings: Edit**, **Bot Management: Edit** and **API Gateway: Edit** (Web Assets operations and their
+  labels; "Domain API Gateway" in the API documentation).
 
 It is not the Publish workflow's token, which only deploys the Worker.
 
@@ -112,6 +127,11 @@ or `*.auto.tfvars` here: it would override the `TF_VAR_*` values without a warni
    The second request for `shards.json` should show `HTTP/2 200`, `cf-cache-status: HIT` and
    `access-control-allow-origin: *` (an error response can be cached too, so check the status as well).
    (The files under `_publish/` are uploaded with `Cache-Control: no-store` and never come from the cache.)
+
+The Web Assets operation for the calendars, added in the dashboard on 2026-11-08, is imported by
+`envs/prod/imports.tf` (the operation ID is looked up, so nothing is copied from the dashboard): the plan shows 1 to
+import (the operation), 1 to add (`terraform_data.feeds_rss_label`, which sets the label the operation already has),
+0 to change and 0 to destroy. Delete `imports.tf` in a later change once it is applied.
 
 The existing resources were imported into the state on 2026-11-07 (pull request #21, with import blocks that were
 then removed): the plan showed 6 to import, 1 to add (the `r2.dev` setting, which the provider cannot import), 0 to
