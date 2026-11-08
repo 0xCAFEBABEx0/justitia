@@ -1,0 +1,71 @@
+---
+// The laws repealed in one year, with type and way filters. Laid out like /new/<year>/.
+import Base from "../../layouts/Base.astro";
+import PageHeader from "../../components/PageHeader.astro";
+import RepealedLawList from "../../components/RepealedLawList.astro";
+import { repealedLaws, TYPE_ORDER, typeLabel } from "../../lib/data.ts";
+import { REPEAL_WAYS, REPEAL_WAY_LABELS, repealYear } from "../../lib/repealed-laws.ts";
+
+export function getStaticPaths() {
+  return [...new Set(repealedLaws().map(repealYear))].map((year) => ({ params: { year } }));
+}
+const { year } = Astro.params;
+const items = repealedLaws().filter((l) => repealYear(l) === year);
+const years = [...new Set(repealedLaws().map(repealYear))].sort((a, b) =>
+  a === "undetermined" ? 1 : b === "undetermined" ? -1 : a.localeCompare(b),
+);
+const heading = year === "undetermined" ? "廃止日が未定の法令" : `${year}年に廃止された法令`;
+const types = TYPE_ORDER.map((t) => ({ t, n: items.filter((l) => l.dir === t).length })).filter((x) => x.n > 0);
+const ways = REPEAL_WAYS.map((w) => ({ w, n: items.filter((l) => l.way === w).length })).filter((x) => x.n > 0);
+---
+<Base
+  title={heading}
+  description={`${heading} ${items.length.toLocaleString()} 件の一覧（${types.map((x) => `${typeLabel(x.t)} ${x.n} 件`).join("、")}）。廃止した法令、後を継ぐ新しい法令と、廃止直前の条文を見られます。`}
+  nav="repealed"
+>
+  <PageHeader title={heading} crumbs={[{ href: "/repealed/", label: "廃止された法令" }]}>
+    {items.length.toLocaleString()} 件。日付は廃止の施行日です。
+  </PageHeader>
+  <nav class="mb-4 flex flex-wrap gap-1" aria-label="年">
+    {years.map((y) => (
+      <a class:list={["btn btn-xs tabular-nums", y === year ? "btn-primary" : "btn-ghost"]} href={`/repealed/${y}/`} aria-current={y === year ? "page" : undefined}>{y === "undetermined" ? "未定" : y}</a>
+    ))}
+  </nav>
+  <div data-repealed-laws>
+    {types.length > 1 && (
+      <fieldset class="mb-2 flex flex-wrap items-center gap-2" data-filter="type">
+        <legend class="sr-only">種別で絞り込む</legend>
+        <input class="btn btn-sm" type="radio" name="type" value="" aria-label={`すべて ${items.length}`} checked />
+        {types.map((x) => <input class="btn btn-sm" type="radio" name="type" value={x.t} aria-label={`${typeLabel(x.t)} ${x.n}`} />)}
+      </fieldset>
+    )}
+    {ways.length > 1 && (
+      <fieldset class="mb-2 flex flex-wrap items-center gap-2" data-filter="way">
+        <legend class="sr-only">廃止のされ方で絞り込む</legend>
+        <input class="btn btn-sm" type="radio" name="way" value="" aria-label={`すべての廃止 ${items.length}`} checked />
+        {ways.map((x) => <input class="btn btn-sm" type="radio" name="way" value={x.w} aria-label={`${REPEAL_WAY_LABELS[x.w]} ${x.n}`} />)}
+      </fieldset>
+    )}
+    <p class="mt-5 hidden text-sm text-base-content/70" data-empty>条件に合う法令はありません。</p>
+    <RepealedLawList items={items} headingLevel={2} />
+  </div>
+</Base>
+<script>
+  // The type and way filters: show only the laws that match both, and hide the dates left without one.
+  for (const root of document.querySelectorAll<HTMLElement>("[data-repealed-laws]")) {
+    const picked = (name: string) => root.querySelector<HTMLInputElement>(`[data-filter="${name}"] input:checked`)?.value ?? "";
+    const apply = () => {
+      const type = picked("type");
+      const way = picked("way");
+      for (const li of root.querySelectorAll<HTMLElement>("li[data-type]")) {
+        li.hidden = (!!type && li.dataset.type !== type) || (!!way && li.dataset.way !== way);
+      }
+      for (const group of root.querySelectorAll<HTMLElement>("[data-law-group]")) {
+        group.hidden = !group.querySelector("li[data-type]:not([hidden])");
+      }
+      root.querySelector<HTMLElement>("[data-empty]")!.classList.toggle("hidden", !!root.querySelector("li[data-type]:not([hidden])"));
+    };
+    for (const f of root.querySelectorAll("[data-filter]")) f.addEventListener("change", apply);
+    apply(); // the browser can restore a checked radio on back/forward
+  }
+</script>

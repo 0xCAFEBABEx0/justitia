@@ -109,7 +109,7 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | `/laws/<law ID>/` | Law text (an anchor per heading), table of contents, amendment history |
 | `/amendment/?k=<amendment key>` | Old and new text of the articles an amendment changed (side by side, or inline) |
 | `/new/`, `/new/<year>/` | Newly enacted laws (a law whose file first appears in houritsu through the law itself), by year of entry into force, with a type filter. Later parts of a new law coming into force are labeled 段階施行, not 改正, across the site |
-| `/repealed/` | Repealed laws (a law whose file is deleted from houritsu's main branch; houritsu records repeals from 2017 on), by date of repeal, with type and "how it was repealed" filters: by a new law coming into force, by a law made to repeal it, or by another amending law. Each links the text in force just before the repeal. Repealed law pages show the same details |
+| `/repealed/`, `/repealed/<year>/` | Repealed laws (a law whose file is deleted from houritsu's main branch; houritsu records repeals from 2017 on), by year and date of repeal, laid out like `/new/`, with type and "how it was repealed" filters: by a new law coming into force, by a law made to repeal it, or by another amending law. Each links the text in force just before the repeal. Repealed law pages show the same details |
 | `/timeline/`, `/timeline/<year>/` | Amendments by year of entry into force |
 | `/versions/?law=<law ID>&at=<amendment key or YYYY-MM-DD>[&from=<…>]` | The law's text at any revision, past or upcoming; with `from`, what changed between two revisions (like `git diff from..at`) |
 | `/search/?q=<words>` | Full-text search over the current law text, with links to the matching articles |
