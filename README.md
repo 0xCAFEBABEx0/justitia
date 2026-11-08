@@ -251,9 +251,8 @@ Calendar, Outlook or Apple Calendar to subscribe to, or open the file to import 
 Calendar apps such as Google Calendar and Outlook fetch subscriptions from their own servers, which Bot Fight Mode
 may challenge on a non-static extension such as `.ics` (see the `--check` note in `scripts/upload-data.sh`).
 Cloudflare documents one exception: Bot Fight Mode does not block requests to Web Assets operations labeled
-`cf-rss-feed` (Cloudflare docs, *Security → Web Assets → Label operations*). In the dashboard, under Security →
-Web Assets → Operations, add the operation `GET data.anisotro.pics/feeds/{var1}` and give it the managed label
-`cf-rss-feed`.
+`cf-rss-feed` (Cloudflare docs, *Security → Web Assets → Label operations*). Terraform keeps the operation
+`GET data.anisotro.pics/feeds/{var1}` with that label (see [`infra/README.md`](infra/README.md)).
 
 ### One-time setup
 

@@ -3,7 +3,8 @@
 # wrangler.jsonc, and scripts/upload-data.sh fills the bucket. See infra/README.md.
 #
 # Everything here except the r2.dev setting existed before Terraform managed it
-# and was imported into the state on 2026-11-07.
+# and was imported into the state on 2026-11-07; the feeds operation and its
+# label were added in the dashboard on 2026-11-08 and imported after that.
 
 # The data the pages fetch in the browser (amendments/, laws/, history/, pagefind/
 # and _publish/), served at data_domain. Deleting the bucket deletes all of it.
@@ -135,4 +136,43 @@ resource "cloudflare_zone_setting" "browser_cache_ttl" {
 resource "cloudflare_bot_management" "zone" {
   zone_id    = var.cloudflare_zone_id
   fight_mode = true
+}
+
+# The calendars (.ics) under data_domain/feeds/ (scripts/feeds.ts) are fetched by
+# calendar apps' servers, such as Google Calendar's, which Bot Fight Mode above may
+# challenge: .ics is not one of the static extensions it leaves alone. Bot Fight
+# Mode does not block requests to a Web Assets operation labeled cf-rss-feed
+# (Cloudflare docs, Security > Web Assets > Label operations), so the feeds are an
+# operation (Security > Web Assets > Operations) with that label. One path
+# parameter covers every file in feeds/.
+resource "cloudflare_api_shield_operation" "feeds" {
+  zone_id  = var.cloudflare_zone_id
+  method   = "GET"
+  host     = var.data_domain
+  endpoint = "/feeds/{var1}"
+}
+
+# The provider (5.28) has no resource for operation labels, so the label is set
+# through the API on apply: "Replace operations attached to a managed label"
+# (PUT .../api_gateway/labels/managed/cf-rss-feed/resources/operation) makes the
+# feeds operation the only one with cf-rss-feed. It runs again when the operation
+# is replaced. Terraform does not read the label back: a label removed in the
+# dashboard does not show in a plan (see infra/README.md for how to check, and
+# `terraform apply -replace` on this resource to set it again).
+# The token comes from the environment that `op run` sets up (1password.env), so
+# it is never part of the configuration or the state.
+resource "terraform_data" "feeds_rss_label" {
+  triggers_replace = [var.cloudflare_zone_id, cloudflare_api_shield_operation.feeds.operation_id]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      set -eu
+      curl -sS --fail-with-body -o /dev/null -X PUT \
+        "https://api.cloudflare.com/client/v4/zones/${var.cloudflare_zone_id}/api_gateway/labels/managed/cf-rss-feed/resources/operation" \
+        -H "Authorization: Bearer $TF_VAR_cloudflare_api_token" \
+        -H "Content-Type: application/json" \
+        --data '{"selector":{"include":{"operation_ids":["${cloudflare_api_shield_operation.feeds.operation_id}"]}}}'
+      echo "cf-rss-feed: attached to operation ${cloudflare_api_shield_operation.feeds.operation_id}"
+    EOT
+  }
 }
