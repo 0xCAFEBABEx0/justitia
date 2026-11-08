@@ -87,8 +87,12 @@ async function shareSheet(): Promise<boolean> {
   }
 }
 
+// Dropdown menus (details elements): the share menu and others marked data-menu. One click outside
+// closes them, as Escape does.
+const MENU = "details[data-share], details[data-menu]";
+
 function closeMenus(except?: Element | null): void {
-  document.querySelectorAll<HTMLDetailsElement>("details[data-share][open]").forEach((d) => {
+  document.querySelectorAll<HTMLDetailsElement>(`:is(${MENU})[open]`).forEach((d) => {
     if (d !== except) d.open = false;
   });
 }
@@ -182,7 +186,7 @@ function prepareMenu(details: HTMLDetailsElement): void {
 
 function onClick(e: MouseEvent): void {
   const el = e.target instanceof Element ? e.target : null;
-  closeMenus(el?.closest("details[data-share]"));
+  closeMenus(el?.closest(MENU));
   if (!el) return;
 
   const summary = el.closest("details[data-share] > summary");
@@ -202,10 +206,17 @@ function onClick(e: MouseEvent): void {
     return;
   }
 
-  const action = el.closest<HTMLElement>("[data-share-copy], [data-share-native], [data-share-to], [data-print], [data-print-law], [data-cite-copy]");
-  if (!action) return;
+  const action = el.closest<HTMLElement>("[data-share-copy], [data-share-native], [data-share-to], [data-print], [data-print-law], [data-cite-copy], [data-copy]");
+  if (!action) {
+    // A link in a menu, such as a calendar file: the page stays, so the menu closes.
+    if (el.closest("details[data-menu] a")) closeMenus();
+    return;
+  }
   const d = action.dataset;
-  if (d.shareCopy) {
+  if (d.copy) {
+    // Any other text to copy, such as a calendar's URL, with the message to show once it is copied.
+    void copy(d.copy, d.copyDone ?? "コピーしました");
+  } else if (d.shareCopy) {
     void copy(d.shareCopy === "titled" ? titledText(shareTitle(), location.href) : location.href, "リンクをコピーしました");
   } else if (action.hasAttribute("data-share-native")) {
     void shareSheet().then((shared) => {
@@ -237,7 +248,7 @@ export function initShare(): void {
   document.addEventListener("click", onClick);
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
-    const open = document.querySelector<HTMLDetailsElement>("details[data-share][open]");
+    const open = document.querySelector<HTMLDetailsElement>(`:is(${MENU})[open]`);
     if (!open) return;
     open.open = false;
     open.querySelector("summary")?.focus();

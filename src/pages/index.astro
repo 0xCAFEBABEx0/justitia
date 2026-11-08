@@ -79,7 +79,7 @@ const newThisYear = allNew.filter((l) => l.branch === "main" && l.enforced?.star
         <div class="card-body p-5">
           <h2 class="card-title text-base">これから施行される改正</h2>
           <AmendmentList items={upcoming} groupByDate={false} bare />
-          <p class="text-xs text-base-content/65">公布済みで施行前の改正です（{m.counts.upcomingAmendments.toLocaleString()} 件）。</p>
+          <p class="text-xs text-base-content/65">公布済みで施行前の改正です（{m.counts.upcomingAmendments.toLocaleString()} 件）。<a class="link" href="/upcoming/">施行予定の改正をすべて見る・カレンダーに登録</a></p>
         </div>
       </section>
       {recentRepealed.length > 0 && (

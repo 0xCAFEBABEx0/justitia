@@ -106,10 +106,11 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | --- | --- |
 | `/` | Search, newly enacted laws (recent and upcoming), recent amendments, upcoming amendments |
 | `/browse/`, `/browse/kana/<row>/`, `/browse/type/<type>/`, `/browse/category/<category>/` | Law lists |
-| `/laws/<law ID>/` | Law text (an anchor per heading), table of contents, amendment history |
+| `/laws/<law ID>/` | Law text (an anchor per heading), table of contents, amendment history, and the law's calendar (`.ics`) |
 | `/amendment/?k=<amendment key>` | Old and new text of the articles an amendment changed (side by side, or inline) |
 | `/new/`, `/new/<year>/` | Newly enacted laws (a law whose file first appears in houritsu through the law itself), by year of entry into force, with a type filter. Later parts of a new law coming into force are labeled 段階施行, not 改正, across the site |
 | `/repealed/`, `/repealed/<year>/` | Repealed laws (a law whose file is deleted from houritsu's main branch; houritsu records repeals from 2017 on), by year and date of repeal, laid out like `/new/`, with type and "how it was repealed" filters: by a new law coming into force, by a law made to repeal it, or by another amending law. Each links the text in force just before the repeal. Repealed law pages show the same details |
+| `/upcoming/` | Amendments promulgated and not yet in force, by month of entry into force (with a countdown in days), then those without a date; a filter by category and law name; the calendar (`.ics`) of the whole site or of the chosen category to subscribe to (see [Calendars](#calendars)) |
 | `/timeline/`, `/timeline/<year>/` | Amendments by year of entry into force |
 | `/versions/?law=<law ID>&at=<amendment key or YYYY-MM-DD>[&from=<…>]` | The law's text at any revision, past or upcoming; with `from`, what changed between two revisions (like `git diff from..at`) |
 | `/search/?q=<words>` | Full-text search over the current law text, with links to the matching articles |
@@ -184,14 +185,15 @@ It rebuilds only what changed:
    unless the published index was built from the same input: `shards.json` records a hash of the indexed parts
    of the law pages, the indexer and the Pagefind version, and the upload publishes it as
    `_publish/pagefind-input.txt` once the whole index is uploaded (`incomplete` while it uploads);
-3. `npm run upload-data` (`scripts/upload-data.sh`): sync to the R2 bucket with rclone only the parts that were
-   rebuilt: `data` (`amendments/`, `laws/`, `history/`) and `pagefind`. The data files are stored
+3. `npm run feeds` writes the calendars to `data/feeds/` (see [Calendars](#calendars)), on every run;
+4. `npm run upload-data` (`scripts/upload-data.sh`): sync to the R2 bucket with rclone only the parts that were
+   rebuilt: `data` (`amendments/`, `laws/`, `history/`), `feeds` (every run) and `pagefind`. The data files are stored
    Brotli-compressed (see below). Only files whose content changed are uploaded, and files that are gone are
    deleted. Pagefind files are deleted only after they have been unused for
    7 days, so a search page that has been open since before an upload keeps working for a week; a full index is
    about 260 MiB, so that keeps under 2 GB of old files even if every file changed every day. The cache is saved
    after this step, so a run that fails earlier saves nothing;
-4. `npm run deploy`: deploy `dist/` to Workers static assets with Wrangler (`wrangler.jsonc`). Wrangler uploads
+5. `npm run deploy`: deploy `dist/` to Workers static assets with Wrangler (`wrangler.jsonc`). Wrangler uploads
    only the files that changed.
 
 A change to the site takes a few minutes. New commits in houritsu take about 15 minutes more for the extraction
@@ -224,6 +226,34 @@ Pagefind files that the current index does not use, each with the time it was fi
 
 The home page and the graph take today's date from the build (in Japan time), not from the data, so the daily
 publish moves amendments from upcoming to enforced even on days that reuse the cached data.
+
+### Calendars
+
+`scripts/feeds.ts` (`npm run feeds`) writes iCalendar files (RFC 5545) of the days amendments come into force to
+`data/feeds/`, from `laws.json` and `timeline/` only, so it also runs when the workflow reuses its cached data:
+
+| File (under `https://data.anisotro.pics/feeds/`) | Events |
+| --- | --- |
+| `all.ics` | every amendment |
+| `category-<category>.ics` | the amendments that change a law of the category (as on `/browse/category/<category>/`) |
+| `law-<law ID>.ics` | the amendments that change the law; one file for every law that is not repealed |
+
+Each amendment is an all-day event on its enforcement day, with the amending law, the laws it changes, a link to
+its page on the site and the disclaimer. Amendments without an enforcement date are left out, and so are those
+that came into force more than a year (366 days) before the day the file is written, so a subscription stays
+small. Nothing in a file depends on the time it is written (`DTSTAMP` is the promulgation date), so a file is
+uploaded again only when its events change. `REFRESH-INTERVAL` (RFC 7986) and `X-PUBLISHED-TTL` ask calendar
+apps to fetch it again every 12 hours. The upload stores the files uncompressed as `text/calendar; charset=utf-8`
+with `Cache-Control: public, max-age=3600`, at URLs without `?v=`, since a subscription keeps its URL; the zone's
+first cache rule caches them for that hour. `/upcoming/` and the law pages copy a calendar's URL for Google
+Calendar, Outlook or Apple Calendar to subscribe to, or open the file to import once.
+
+Calendar apps such as Google Calendar and Outlook fetch subscriptions from their own servers, which Bot Fight Mode
+may challenge on a non-static extension such as `.ics` (see the `--check` note in `scripts/upload-data.sh`).
+Cloudflare documents one exception: Bot Fight Mode does not block requests to Web Assets operations labeled
+`cf-rss-feed` (Cloudflare docs, *Security → Web Assets → Label operations*). In the dashboard, under Security →
+Web Assets → Operations, add the operation `GET data.anisotro.pics/feeds/{var1}` and give it the managed label
+`cf-rss-feed`.
 
 ### One-time setup
 
