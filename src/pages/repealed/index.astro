@@ -25,9 +25,9 @@ const oldest = years.filter((y) => y !== "undetermined").at(-1);
 <Base
   title="廃止された法令"
   description={`廃止された法令 ${all.length.toLocaleString()} 件の一覧。廃止日、廃止した法令、後を継ぐ新しい法令と、廃止直前の条文を見られます。`}
-  nav="laws"
+  nav="repealed"
 >
-  <PageHeader title="廃止された法令" crumbs={[{ href: "/browse/", label: "法令一覧" }]}>
+  <PageHeader title="廃止された法令">
     {all.length.toLocaleString()} 件。日付は廃止の施行日です。houritsu には{oldest ? `${oldest}年` : "e-Gov のデータがそろって"}以降の廃止だけが記録されていて、それより前に廃止された法令は含まれません。
   </PageHeader>
 
