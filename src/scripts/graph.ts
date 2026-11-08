@@ -244,7 +244,7 @@ export function initGraph(root: HTMLElement): void {
     suggestEl.innerHTML =
       sugg.length && ids.length < MAX_LANES
         ? `<span class="text-base-content/70">一緒に改正されることが多い法令：</span>` +
-          sugg.map(([id, s]) => `<button type="button" class="btn btn-dash btn-primary btn-xs" data-add="${id}">＋ ${esc(s.title)}</button>`).join("")
+          sugg.map(([id, s]) => `<button type="button" class="btn btn-dash btn-primary btn-xs h-auto min-h-6 max-w-full py-0.5 text-left" data-add="${id}">＋ ${esc(s.title)}</button>`).join("")
         : "";
     suggestEl.querySelectorAll<HTMLButtonElement>("[data-add]").forEach((b) =>
       b.addEventListener("click", () => setIds([...ids, b.dataset.add!])),

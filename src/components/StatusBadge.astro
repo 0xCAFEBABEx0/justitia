@@ -7,4 +7,9 @@ interface Props {
 }
 const { kind, label } = Astro.props;
 ---
-<span class={`${badgeClass(kind)} ml-1.5`}>{label}</span>
+{/*
+  The gap before the badge is mostly a space, not a margin: when the badge does not fit at the
+  end of a line, it moves to the next one, and the space stays behind, so the badge lines up with
+  the text above it instead of being pushed in by the margin.
+*/}
+{" "}<span class={`${badgeClass(kind)} ml-0.5`}>{label}</span>

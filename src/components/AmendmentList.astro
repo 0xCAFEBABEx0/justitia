@@ -23,11 +23,12 @@ const role = (a: AmendmentSummary) => {
     self,
   };
 };
-const groups: [string, AmendmentSummary[]][] = [];
-for (const a of items) {
+// Without date headings, the whole list is one group (one box, with lines between the items).
+const groups: [string, AmendmentSummary[]][] = groupByDate ? [] : [["", items]];
+for (const a of groupByDate ? items : []) {
   const d = a.enforced ?? "";
   const last = groups.at(-1);
-  if (groupByDate && last && last[0] === d) last[1].push(a);
+  if (last && last[0] === d) last[1].push(a);
   else groups.push([d, [a]]);
 }
 ---
@@ -43,7 +44,7 @@ for (const a of items) {
             {role(a).enacts && <StatusBadge kind="enacted" label="新規制定" />}
             {role(a).staged && <StatusBadge kind="staged" label="段階施行" />}
             {a.branch === "upcoming" && <StatusBadge kind="upcoming" label="施行予定" />}
-            <div class="mt-1.5 text-xs text-base-content/65">
+            <div class="mt-1 text-xs text-base-content/65">
               {a.amendmentLawNum}・
               {a.laws.slice(0, 4).map((l, i) => (
                 <>{i > 0 && "、"}<a class="link link-hover" href={lawUrl(l.id)}>{l.title}</a>{l.kind !== "amended" ? `（${KIND_LABELS[l.kind]}）` : isStaged(l.kind, l.id, role(a).self) && "（段階施行）"}</>

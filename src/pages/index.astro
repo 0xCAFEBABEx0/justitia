@@ -39,8 +39,7 @@ const newThisYear = allNew.filter((l) => l.branch === "main" && l.enforced?.star
   <section class="mt-2 mb-8">
     <h1 class="text-3xl leading-snug font-bold sm:text-4xl">{SITE_TAGLINE}</h1>
     <p class="mt-2 max-w-[46em] text-base-content/70">
-      日本の法令 {m.counts.lawsInForce.toLocaleString()} 件の条文と、{m.counts.amendments.toLocaleString()} 件の改正を、
-      「いつ・どこが・どう変わったか」が分かる新旧対照の形で見られます。
+      日本の法令 {m.counts.lawsInForce.toLocaleString()} 件の条文と、{m.counts.amendments.toLocaleString()} 件の改正を、「いつ・どこが・どう変わったか」が分かる新旧対照の形で見られます。
     </p>
     <div class="relative mt-5 max-w-xl" data-search>
       <label class="input input-lg w-full">
@@ -55,12 +54,12 @@ const newThisYear = allNew.filter((l) => l.branch === "main" && l.enforced?.star
   <div class="mt-6 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
     <div class="flex flex-col gap-8">
       <section>
-        <h2 class="text-xl font-bold">新しく施行された法令</h2>
+        <h2 class="mb-3 text-xl font-bold">新しく施行された法令</h2>
         <NewLawList items={recentNew} groupByDate={false} />
         <p class="mt-4"><a class="link link-primary" href="/new/">新しく制定された法令をすべて見る →</a></p>
       </section>
       <section>
-        <h2 class="text-xl font-bold">最近施行された改正</h2>
+        <h2 class="mb-3 text-xl font-bold">最近施行された改正</h2>
         <AmendmentList items={recent} />
         <p class="mt-4"><a class="link link-primary" href={`/timeline/${today.slice(0, 4)}/`}>{today.slice(0, 4)}年の改正をすべて見る →</a></p>
       </section>
