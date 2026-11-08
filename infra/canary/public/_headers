@@ -1,3 +1,0 @@
-# Keep the canary out of search engines.
-/_canary/*
-  X-Robots-Tag: noindex
