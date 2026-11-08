@@ -19,7 +19,7 @@ const groups: [string, NewLaw[]][] = groupByDate ? [] : [["", items]];
 for (const l of groupByDate ? items : []) {
   const d = l.enforced ?? "";
   const last = groups.at(-1);
-  if (groupByDate && last && last[0] === d) last[1].push(l);
+  if (last && last[0] === d) last[1].push(l);
   else groups.push([d, [l]]);
 }
 ---
@@ -34,7 +34,7 @@ for (const l of groupByDate ? items : []) {
             <a class="link link-hover font-bold text-primary" href={lawUrl(l.id)}>{l.title}</a>
             {l.branch === "upcoming" && <StatusBadge kind="upcoming" label="施行予定" />}
             {l.status === "repealed" && <StatusBadge kind="repealed" label="廃止" />}
-            <div class="mt-1.5 text-xs text-base-content/65">
+            <div class="mt-1 text-xs text-base-content/65">
               {typeLabel(l.dir)}・{l.num}
               {l.promulgated && <>・{jpDate(l.promulgated)} 公布</>}
               {l.alsoChanges > 0 && <>・<a class="link" href={amendmentUrl(l.amendment)}>あわせて {l.alsoChanges} 法令を改正</a></>}

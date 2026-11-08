@@ -169,6 +169,8 @@
     @apply text-base;
     margin: 1.4em 0 0.25em;
   }
+  /* The first heading sits at the top of the column, level with the box beside it. */
+  .law-text > .blk:first-child > .h:first-child { margin-top: 0; }
   .law-text .h .anchor { color: inherit; }
   .law-text .h .anchor:hover { @apply text-primary underline; }
   .law-text p { margin: 0 0 0.35em; }
@@ -275,4 +277,15 @@
 .input:focus-within {
   --input-color: var(--color-primary);
   outline-color: transparent;
+}
+
+/*
+ * daisyUI turns a select into a customizable select (appearance: base-select) where the browser
+ * supports it. There, a long option (the revision selects on /versions/) runs under the arrow,
+ * because the label is not cut at the padding. A plain appearance: none select cuts it with an
+ * ellipsis before the arrow, and the list of options is the browser's own. Unlayered, so it wins
+ * over daisyUI's @supports rule.
+ */
+select.select {
+  appearance: none;
 }

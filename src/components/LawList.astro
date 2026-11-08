@@ -15,7 +15,7 @@ const { laws, showType = true } = Astro.props;
         <div class="list-col-grow">
           <a class="link link-hover font-bold text-primary" href={lawUrl(l.id)}>{l.title}</a>
           {l.status !== "in_force" && <StatusBadge kind={l.status === "repealed" ? "repealed" : "upcoming"} label={STATUS_LABELS[l.status]} />}
-          <div class="mt-0.5 text-xs text-base-content/65">
+          <div class="mt-1 text-xs text-base-content/65">
             {showType && <>{typeLabel(l.dir)}・</>}
             {l.num}
             {l.revisionCount > 1 && <>・改正履歴 {l.revisionCount - 1} 件（最終 {jpDate(l.lastAmended)}）</>}
