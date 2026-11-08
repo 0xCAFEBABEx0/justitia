@@ -75,7 +75,7 @@ const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => 
     <a class="btn btn-soft btn-sm btn-primary" href={graphUrl}>改正のグラフ</a>
     {source && <a class="btn btn-soft btn-sm btn-primary" href={source}>e-Gov 法令検索</a>}
     <a class="btn btn-soft btn-sm btn-primary" href={`${SOURCE_REPO}/commits/main/${law.path}`}>Git の履歴</a>
-    <Fragment set:html={shareToolsHtml("sm:ml-auto")} />
+    <Fragment set:html={shareToolsHtml("sm:ml-auto", "sm:dropdown-end")} />
   </div>
   <Fragment set:html={DISCLAIMER_NOTE_HTML} />
   {rendered && <p class="-mt-2 mb-4 text-xs text-base-content/65 print:hidden">条の見出しを押すと、その条へのリンクや引用文をコピーできます。</p>}

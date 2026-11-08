@@ -30,12 +30,13 @@ const ICON = {
 
 /**
  * 共有 (a menu; the OS share sheet on touch screens) and 印刷. `className` places the group in
- * the row it sits in.
+ * the row it sits in. The menu opens from the button's left edge; `menuAlign` ("sm:dropdown-end")
+ * opens it from the right edge where the group sits at the right of its row, so it stays on screen.
  */
-export function shareToolsHtml(className = ""): string {
+export function shareToolsHtml(className = "", menuAlign = ""): string {
   const item = "gap-3 py-2";
   return `<div class="flex gap-2 print:hidden ${className}" data-share-tools>
-  <details class="dropdown dropdown-end" data-share>
+  <details class="dropdown ${menuAlign}" data-share>
     <summary class="btn btn-soft btn-sm btn-primary">${ICON_SHARE}共有</summary>
     <ul class="dropdown-content menu z-40 mt-1 w-64 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg">
       <li><a class="${item}" href="https://x.com/intent/tweet" target="_blank" rel="noopener" data-share-to="x">${ICON.x}X でポスト</a></li>
