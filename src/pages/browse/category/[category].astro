@@ -4,6 +4,8 @@ import BrowseTabs from "../../../components/BrowseTabs.astro";
 import LawList from "../../../components/LawList.astro";
 import PageHeader from "../../../components/PageHeader.astro";
 import { laws, TYPE_ORDER } from "../../../lib/data.ts";
+import { feedFile, feedUrl } from "../../../lib/feeds.ts";
+import { DATA_BASE, SITE_NAME } from "../../../lib/site.ts";
 
 export function getStaticPaths() {
   const cats = new Set(laws().map((l) => l.category).filter((c): c is string => !!c));
@@ -18,6 +20,7 @@ const list = laws()
   title={`${category}の法令`}
   description={`分野「${category}」の現行の法令 ${list.length.toLocaleString()} 件の一覧。条文と改正の履歴へ移動できます。`}
   nav="laws"
+  feed={{ title: `${category}の法令の改正（${SITE_NAME}）`, href: feedUrl(DATA_BASE, feedFile.category(category, "xml")) }}
 >
   <PageHeader title={category} crumbs={[{ href: "/browse/", label: "法令一覧" }, { href: "/browse/#category", label: "分野" }]}>
     {list.length.toLocaleString()} 件（種別順・五十音順）

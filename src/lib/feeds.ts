@@ -1,6 +1,7 @@
-// Calendars (iCalendar, .ics) of the days amendments come into force, for the whole site, for each
-// category and for each law. scripts/feeds.ts writes them to <data>/feeds/, and the publish
-// workflow uploads them to R2, next to the other data (https://data.anisotro.pics/feeds/).
+// Calendars (iCalendar, .ics) of the days amendments come into force, and RSS feeds of amendments
+// promulgated and coming into force, for the whole site, for each category and for each law.
+// scripts/feeds.ts writes them to <data>/feeds/, and the publish workflow uploads them to R2, next
+// to the other data (https://data.anisotro.pics/feeds/).
 //
 // Every file depends only on the data and the day it is made, never on the time of the build, so a
 // file that did not change is not uploaded again.
@@ -11,10 +12,11 @@ import { SITE_NAME } from "./site-name.ts";
 export const SITE_URL = "https://anisotro.pics";
 
 /** The file names under feeds/: one flat directory, so one URL pattern covers every feed. */
+export type FeedExt = "ics" | "xml";
 export const feedFile = {
-  all: (ext: "ics") => `all.${ext}`,
-  law: (id: string, ext: "ics") => `law-${id}.${ext}`,
-  category: (category: string, ext: "ics") => `category-${category}.${ext}`,
+  all: (ext: FeedExt) => `all.${ext}`,
+  law: (id: string, ext: FeedExt) => `law-${id}.${ext}`,
+  category: (category: string, ext: FeedExt) => `category-${category}.${ext}`,
 };
 
 /** The URL of a feed file under the data base (https://data.anisotro.pics, or /data in a preview). */
@@ -143,6 +145,104 @@ export function icsCalendar(c: Calendar): string {
   }
   lines.push("END:VCALENDAR");
   return lines.map(foldLine).join("\r\n") + "\r\n";
+}
+
+// ---- RSS 2.0 (https://www.rssboard.org/rss-specification) ----
+
+export function xmlText(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** Midnight in Japan on a day, as RFC 822 dates are written in RSS: Wed, 24 Jun 2026 00:00:00 +0900. */
+export function rfc822(iso: string): string {
+  const t = new Date(`${iso}T00:00:00Z`);
+  const [y, m, d] = iso.split("-");
+  return `${DAYS[t.getUTCDay()]}, ${d} ${MONTHS[Number(m) - 1]} ${y} 00:00:00 +0900`;
+}
+
+/** One entry of a feed: an amendment promulgated, or an amendment coming into force. */
+export interface FeedItem {
+  kind: "promulgated" | "enforced";
+  day: string;
+  amendment: AmendmentSummary;
+}
+
+/**
+ * Each amendment gives up to two items, each on its day, so a reader hears of it when it is
+ * promulgated (as soon as houritsu has it) and again when it comes into force: the promulgation,
+ * and the entry into force once that day has come. An amendment in force on the day it is promulgated
+ * gives one item. Items from the past year (CALENDAR_PAST_DAYS) are kept, newest first.
+ */
+export function feedItems(amendments: AmendmentSummary[], today: string): FeedItem[] {
+  const from = addDays(today, -CALENDAR_PAST_DAYS);
+  const items: FeedItem[] = [];
+  for (const a of amendments) {
+    if (a.promulgated && a.promulgated !== a.enforced && a.promulgated >= from && a.promulgated <= today) items.push({ kind: "promulgated", day: a.promulgated, amendment: a });
+    if (a.enforced && a.enforced >= from && a.enforced <= today) items.push({ kind: "enforced", day: a.enforced, amendment: a });
+  }
+  // Newest first; on one day, entries into force before promulgations, then by key.
+  return items.sort((x, y) => y.day.localeCompare(x.day) || x.kind.localeCompare(y.kind) || x.amendment.key.localeCompare(y.amendment.key));
+}
+
+export interface Feed {
+  /** The channel's title, shown as the feed's name in readers. */
+  name: string;
+  description: string;
+  /** The page on the site the feed belongs to. */
+  pageUrl: string;
+  /** The feed's own URL. */
+  selfUrl: string;
+  amendments: AmendmentSummary[];
+  /** The law a law's feed is for: its items link to that law's part of each amendment. */
+  lawId?: string;
+  /** Today in Japan (YYYY-MM-DD). */
+  today: string;
+}
+
+export function rssFeed(f: Feed): string {
+  const items = feedItems(f.amendments, f.today);
+  const out = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">',
+    "<channel>",
+    `<title>${xmlText(f.name)}</title>`,
+    `<link>${xmlText(f.pageUrl)}</link>`,
+    `<description>${xmlText(f.description)}</description>`,
+    "<language>ja</language>",
+    `<atom:link href="${xmlText(f.selfUrl)}" rel="self" type="application/rss+xml" />`,
+    // The newest item's day, not the time of the build, so an unchanged feed is not uploaded again.
+    ...(items.length ? [`<lastBuildDate>${rfc822(items[0].day)}</lastBuildDate>`] : []),
+    "<ttl>720</ttl>",
+  ];
+  for (const { kind, day, amendment: a } of items) {
+    const url = amendmentPageUrl(a.key, f.lawId);
+    const title =
+      kind === "enforced"
+        ? `${a.promulgated === a.enforced ? "公布・施行" : "施行"}：${a.title}`
+        : `公布：${a.title}（${a.enforced ? `${jpDate(a.enforced)}施行${a.enforced > f.today ? "予定" : ""}` : "施行日未定"}）`;
+    const desc = [
+      `${a.title}（${a.amendmentLawNum}）`,
+      a.promulgated ? `公布：${jpDate(a.promulgated)}` : null,
+      `施行：${a.enforced ? `${jpDate(a.enforced)}${a.enforced > f.today ? "（予定）" : ""}` : "未定"}`,
+      `変更される法令：${lawNames(a)}`,
+      DISCLAIMER_LINE,
+    ].filter((l): l is string => l !== null);
+    out.push(
+      "<item>",
+      `<title>${xmlText(title)}</title>`,
+      `<link>${xmlText(url)}</link>`,
+      // The description is HTML, escaped once more as XML text.
+      `<description>${xmlText(desc.map(xmlText).join("<br>"))}</description>`,
+      `<guid isPermaLink="false">${xmlText(`${a.key}${f.lawId ? `-${f.lawId}` : ""}-${kind}@anisotro.pics`)}</guid>`,
+      `<pubDate>${rfc822(day)}</pubDate>`,
+      "</item>",
+    );
+  }
+  out.push("</channel>", "</rss>");
+  return out.join("\n") + "\n";
 }
 
 /** The amendments that change any law of a category. */

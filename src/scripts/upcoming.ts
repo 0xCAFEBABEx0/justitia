@@ -1,5 +1,5 @@
 // The filter on /upcoming/: by category and by a word in the law names. The calendar links follow
-// the category: the whole site's calendar, or the category's.
+// the category: the whole site's calendar and feed, or the category's.
 
 import { feedFile, feedUrl } from "../lib/feeds.ts";
 
@@ -33,6 +33,7 @@ export function initUpcomingFilter(root: HTMLElement): void {
     const url = feedUrl(base, cat ? feedFile.category(cat, "ics") : feedFile.all("ics"));
     root.querySelector<HTMLElement>("[data-calendar-copy]")!.dataset.copy = url;
     root.querySelector<HTMLAnchorElement>("[data-calendar-file]")!.href = url;
+    root.querySelector<HTMLElement>("[data-rss-copy]")!.dataset.copy = feedUrl(base, cat ? feedFile.category(cat, "xml") : feedFile.all("xml"));
     root.querySelector<HTMLElement>("[data-calendar-label]")!.textContent = cat ? `分野「${cat}」の法令` : "すべての分野";
   };
   select.addEventListener("change", apply);

@@ -13,7 +13,7 @@ import {
   typeLabel,
 } from "../../lib/data.ts";
 import { renderLawFile, renderInline } from "../../lib/lawtext.ts";
-import { DATA_BASE, SOURCE_REPO } from "../../lib/site.ts";
+import { DATA_BASE, SITE_NAME, SOURCE_REPO } from "../../lib/site.ts";
 import { DISCLAIMER_NOTE_HTML } from "../../lib/disclaimer.ts";
 import { feedFile, feedUrl } from "../../lib/feeds.ts";
 import { shareToolsHtml } from "../../lib/share.ts";
@@ -60,9 +60,10 @@ const citeAsOf =
 // The calendar of the days the law's amendments come into force (scripts/feeds.ts); a repealed law
 // gets none.
 const calendarUrl = law.status === "repealed" ? null : feedUrl(DATA_BASE, feedFile.law(law.id, "ics"));
+const rssUrl = law.status === "repealed" ? null : feedUrl(DATA_BASE, feedFile.law(law.id, "xml"));
 const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => r.id)].join(",")}`;
 ---
-<Base title={pageTitle} description={description}>
+<Base title={pageTitle} description={description} feed={rssUrl ? { title: `${law.title}の改正（${SITE_NAME}）`, href: rssUrl } : undefined}>
   <PageHeader
     title={law.title}
     crumbs={[
@@ -86,17 +87,20 @@ const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => 
     <a class="btn btn-soft btn-sm btn-primary" href={graphUrl}>改正のグラフ</a>
     {source && <a class="btn btn-soft btn-sm btn-primary" href={source}>e-Gov 法令検索</a>}
     <a class="btn btn-soft btn-sm btn-primary" href={`${SOURCE_REPO}/commits/main/${law.path}`}>Git の履歴</a>
-    {calendarUrl && (
+    {calendarUrl && rssUrl && (
       <details class="dropdown" data-menu>
         <summary class="btn btn-soft btn-sm btn-primary">
-          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>施行日をカレンダーに登録
+          <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /></svg>カレンダー・RSS
         </summary>
         <div class="dropdown-content z-40 mt-1 w-72 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg">
-          <p class="px-3 pt-1 pb-2 text-xs text-base-content/70">この法令の改正が施行される日を、Google カレンダーや Outlook に登録できます。URL で登録（購読）すると、新しく公布された改正も毎日反映されます。</p>
+          <p class="px-3 pt-1 pb-2 text-xs text-base-content/70">この法令の改正を、カレンダーや RSS リーダーで追えます。URL で登録すると、新しく公布された改正も毎日反映されます。</p>
           <ul class="menu w-full p-0">
+            <li class="menu-title px-3 pt-1 pb-0 text-xs text-base-content/65">施行日のカレンダー（Google カレンダー・Outlook など）</li>
             <li><button type="button" class="py-2" data-copy={calendarUrl} data-copy-done="カレンダーの URL をコピーしました">カレンダーの URL をコピー</button></li>
             <li><a class="py-2" href={calendarUrl}>.ics ファイルを開く</a></li>
-            <li><a class="py-2" href="/upcoming/#calendar">登録のしかた</a></li>
+            <li class="menu-title px-3 pt-2 pb-0 text-xs text-base-content/65">公布・施行のお知らせ（RSS）</li>
+            <li><button type="button" class="py-2" data-copy={rssUrl} data-copy-done="RSS の URL をコピーしました">RSS の URL をコピー</button></li>
+            <li class="mt-1 border-t border-base-300 pt-1"><a class="py-2" href="/upcoming/#calendar">登録のしかた</a></li>
           </ul>
         </div>
       </details>

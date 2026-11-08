@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AmendmentSummary, LawSummary } from "../../scripts/extract/types.ts";
-import { byCategory, byLaw, calendarEvents, feedUrl, foldLine, icsCalendar, icsText, lawNames } from "./feeds.ts";
+import { byCategory, byLaw, calendarEvents, feedItems, feedUrl, foldLine, icsCalendar, icsText, lawNames, rfc822, rssFeed, xmlText } from "./feeds.ts";
 
 function amendment(over: Partial<AmendmentSummary>): AmendmentSummary {
   return {
@@ -79,4 +79,71 @@ test("lawNames shortens long lists", () => {
 test("feedUrl encodes the file name", () => {
   assert.equal(feedUrl("https://data.anisotro.pics/", "category-民事.ics"), "https://data.anisotro.pics/feeds/category-%E6%B0%91%E4%BA%8B.ics");
   assert.equal(feedUrl("/data", "all.ics"), "/data/feeds/all.ics");
+});
+
+test("xmlText escapes markup", () => {
+  assert.equal(xmlText(`a&b<c>"d"`), "a&amp;b&lt;c&gt;&quot;d&quot;");
+});
+
+test("rfc822 writes midnight in Japan with the right weekday", () => {
+  assert.equal(rfc822("2026-06-24"), "Wed, 24 Jun 2026 00:00:00 +0900");
+  assert.equal(rfc822("2027-01-01"), "Fri, 01 Jan 2027 00:00:00 +0900");
+});
+
+test("feedItems gives promulgations and entries into force of the past year, newest first", () => {
+  const today = "2026-11-08";
+  const items = feedItems(
+    [
+      amendment({ key: "b", promulgated: "2026-11-08", enforced: "2027-04-01" }),
+      amendment({ key: "a", promulgated: "2026-04-01", enforced: "2026-11-08" }),
+      amendment({ key: "old", promulgated: "2025-01-01", enforced: "2025-11-06" }),
+      amendment({ key: "edge", promulgated: "2025-11-07", enforced: null }),
+      amendment({ key: "same", promulgated: "2026-05-01", enforced: "2026-05-01" }),
+    ],
+    today,
+  );
+  assert.deepEqual(
+    items.map((i) => `${i.amendment.key}:${i.kind}:${i.day}`),
+    ["a:enforced:2026-11-08", "b:promulgated:2026-11-08", "same:enforced:2026-05-01", "a:promulgated:2026-04-01", "edge:promulgated:2025-11-07"],
+  );
+});
+
+test("rssFeed writes valid, escaped, deterministic RSS", () => {
+  const feed = {
+    name: "民法の改正（Anisotropics）",
+    description: "説明 & <注記>",
+    pageUrl: "https://anisotro.pics/laws/129AC0000000089/",
+    selfUrl: "https://data.anisotro.pics/feeds/law-129AC0000000089.xml",
+    amendments: [amendment({ title: "A & B <改正>", promulgated: "2026-06-24", enforced: "2027-06-23" })],
+    lawId: "129AC0000000089",
+    today: "2026-11-08",
+  };
+  const xml = rssFeed(feed);
+  assert.equal(xml, rssFeed(feed));
+  assert.ok(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>\n<rss version="2.0"'));
+  assert.ok(xml.includes("<description>説明 &amp; &lt;注記&gt;</description>"));
+  assert.ok(xml.includes('<atom:link href="https://data.anisotro.pics/feeds/law-129AC0000000089.xml" rel="self"'));
+  assert.ok(xml.includes("<lastBuildDate>Wed, 24 Jun 2026 00:00:00 +0900</lastBuildDate>"));
+  assert.equal(xml.match(/<item>/g)?.length, 1);
+  assert.ok(xml.includes("<title>公布：A &amp; B &lt;改正&gt;（2027年6月23日施行予定）</title>"));
+  // The description is HTML inside XML: the title is escaped twice, the line breaks once.
+  assert.ok(xml.includes("A &amp;amp; B &amp;lt;改正&amp;gt;"));
+  assert.ok(xml.includes("&lt;br&gt;"));
+  assert.ok(xml.includes('<guid isPermaLink="false">508AC0000000045_20270623-129AC0000000089-promulgated@anisotro.pics</guid>'));
+  assert.ok(xml.includes("<link>https://anisotro.pics/amendment/?k=508AC0000000045_20270623#law-129AC0000000089</link>"));
+});
+
+test("rssFeed leaves out lastBuildDate when there is no item", () => {
+  const xml = rssFeed({ name: "n", description: "d", pageUrl: "p", selfUrl: "s", amendments: [], today: "2026-11-08" });
+  assert.ok(!xml.includes("<lastBuildDate>"));
+  assert.ok(!xml.includes("<item>"));
+});
+
+test("rssFeed gives one item to an amendment in force on the day it is promulgated", () => {
+  const xml = rssFeed({
+    name: "n", description: "d", pageUrl: "p", selfUrl: "s", today: "2026-11-08",
+    amendments: [amendment({ promulgated: "2026-05-01", enforced: "2026-05-01" })],
+  });
+  assert.equal(xml.match(/<item>/g)?.length, 1);
+  assert.ok(xml.includes("<title>公布・施行：民法等の一部を改正する法律</title>"));
 });

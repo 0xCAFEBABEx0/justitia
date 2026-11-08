@@ -1,6 +1,6 @@
 ---
 // Amendments promulgated and not yet in force, soonest first, with a filter by category and law
-// name, and the calendars (.ics) of their enforcement days (scripts/feeds.ts).
+// name, and the calendars (.ics) of their enforcement days and the RSS feeds (scripts/feeds.ts).
 import Base from "../../layouts/Base.astro";
 import AmendmentList from "../../components/AmendmentList.astro";
 import PageHeader from "../../components/PageHeader.astro";
@@ -32,11 +32,12 @@ const counts = new Map<string, number>();
 for (const a of [...dated, ...undetermined]) for (const c of categoriesOf(a)) counts.set(c, (counts.get(c) ?? 0) + 1);
 const categories = [...counts].sort((a, b) => a[0].localeCompare(b[0], "ja"));
 const allUrl = feedUrl(DATA_BASE, feedFile.all("ics"));
+const allRssUrl = feedUrl(DATA_BASE, feedFile.all("xml"));
 const total = dated.length + undetermined.length;
 ---
 <Base
   title="施行予定の改正"
-  description="公布済みで、まだ施行されていない法令の改正を施行日の順に一覧にしています。分野や法令名で絞り込め、施行日をカレンダー（.ics）に登録できます。"
+  description="公布済みで、まだ施行されていない法令の改正を施行日の順に一覧にしています。分野や法令名で絞り込め、施行日をカレンダー（.ics）に、改正のお知らせを RSS に登録できます。"
   nav="upcoming"
 >
   <PageHeader title="施行予定の改正">
@@ -64,13 +65,17 @@ const total = dated.length + undetermined.length;
       </section>
       <section class="card card-border bg-base-100" id="calendar">
         <div class="card-body gap-2 p-5">
-          <h2 class="card-title text-base">カレンダーに登録</h2>
+          <h2 class="card-title text-base">カレンダー・RSS に登録</h2>
           <p class="text-sm text-base-content/70">
             <span data-calendar-label>すべての分野</span>の施行日を、Google カレンダーや Outlook に登録できます。URL で登録（購読）すると、新しく公布された改正も毎日反映されます。
           </p>
           <div class="flex flex-wrap gap-2">
-            <button type="button" class="btn btn-soft btn-sm btn-primary" data-copy={allUrl} data-copy-done="カレンダーの URL をコピーしました" data-calendar-copy>URL をコピー</button>
+            <button type="button" class="btn btn-soft btn-sm btn-primary" data-copy={allUrl} data-copy-done="カレンダーの URL をコピーしました" data-calendar-copy>カレンダーの URL をコピー</button>
             <a class="btn btn-soft btn-sm btn-primary" href={allUrl} data-calendar-file>.ics ファイル</a>
+          </div>
+          <p class="mt-2 text-sm text-base-content/70">改正の公布と施行のお知らせは RSS でも受け取れます。</p>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="btn btn-soft btn-sm btn-primary" data-copy={allRssUrl} data-copy-done="RSS の URL をコピーしました" data-rss-copy>RSS の URL をコピー</button>
           </div>
           <details class="text-sm">
             <summary class="cursor-pointer py-1 text-primary">登録のしかた</summary>
@@ -79,9 +84,10 @@ const total = dated.length + undetermined.length;
               <li>Outlook：カレンダー →「カレンダーを追加」→「Web から購読」に貼り付けます。</li>
               <li>Apple のカレンダー：「ファイル」→「新規カレンダー照会」に貼り付けます。</li>
               <li>.ics ファイルを開いて取り込むと、その時点の施行日だけが登録されます（後から更新されません）。</li>
+              <li>RSS：Feedly などの RSS リーダーに、コピーした URL を追加します。改正が公布された日と施行された日に、それぞれ 1 件ずつ届きます。</li>
             </ul>
           </details>
-          <p class="text-xs text-base-content/65">法令ごとのカレンダーは、各法令のページの「施行日をカレンダーに登録」から登録できます。</p>
+          <p class="text-xs text-base-content/65">法令ごとのカレンダーと RSS は、各法令のページの「カレンダー・RSS」から登録できます。</p>
         </div>
       </section>
     </aside>

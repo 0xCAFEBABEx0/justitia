@@ -2,7 +2,8 @@
 import "@fontsource/noto-sans-jp/400.css";
 import "@fontsource/noto-sans-jp/700.css";
 import "../styles/global.css";
-import { CODE_LICENSE_URL, CODE_REPO, DATA_LICENSE_URL, PDL_URL, SITE_NAME, SITE_TAGLINE, SOURCE_REPO } from "../lib/site.ts";
+import { CODE_LICENSE_URL, CODE_REPO, DATA_BASE, DATA_LICENSE_URL, PDL_URL, SITE_NAME, SITE_TAGLINE, SOURCE_REPO } from "../lib/site.ts";
+import { feedFile, feedUrl } from "../lib/feeds.ts";
 import { DISCLAIMER_URL, EGOV_URL } from "../lib/disclaimer.ts";
 import { jpDate, jstDate, meta } from "../lib/data.ts";
 
@@ -17,8 +18,11 @@ interface Props {
    * link there would make every amendment look like the same page.
    */
   canonical?: boolean;
+  /** An RSS feed of this page's own (a law's, a category's), announced before the site's. */
+  feed?: { title: string; href: string };
 }
-const { title, description, nav, narrow = false, canonical = true } = Astro.props;
+const { title, description, nav, narrow = false, canonical = true, feed } = Astro.props;
+const siteFeed = { title: `法令の改正（${SITE_NAME}）`, href: feedUrl(DATA_BASE, feedFile.all("xml")) };
 const NAV = [
   { key: "laws", href: "/browse/", label: "法令一覧" },
   { key: "new", href: "/new/", label: "新しい法令" },
@@ -51,6 +55,8 @@ const ogImage = new URL("/og-image.png", Astro.site).href;
     <title>{fullTitle}</title>
     <meta name="description" content={desc} />
     {url && <link rel="canonical" href={url} />}
+    {feed && <link rel="alternate" type="application/rss+xml" title={feed.title} href={feed.href} />}
+    <link rel="alternate" type="application/rss+xml" title={siteFeed.title} href={siteFeed.href} />
     <link rel="icon" href="/favicon.ico" sizes="16x16 32x32 48x48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
