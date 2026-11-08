@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # Uploads the data the pages fetch in the browser to the R2 bucket behind https://data.anisotro.pics:
-# amendments/, laws/, history/ and pagefind/ from the extractor's output directory.
+# amendments/, laws/, history/, feeds/ and pagefind/ from the extractor's output directory.
 #
 #   CLOUDFLARE_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... scripts/upload-data.sh [--check | PART...]
 #
-# PART is "data" (amendments/, laws/ and history/) or "pagefind"; without one, both are uploaded.
+# PART is "data" (amendments/, laws/ and history/), "feeds" (the calendars written by scripts/feeds.ts)
+# or "pagefind"; without one, all three are uploaded.
 # The workflow uploads only the parts it rebuilt.
 # With --check, it only writes, reads back and deletes one small object (_publish/check.txt), so that a
 # wrong key or an rclone problem shows up in seconds, before the build (the workflow runs this first),
@@ -35,15 +36,16 @@ encoding=br
 : "${R2_ACCESS_KEY_ID:?set R2_ACCESS_KEY_ID}"
 : "${R2_SECRET_ACCESS_KEY:?set R2_SECRET_ACCESS_KEY}"
 
-usage() { echo "usage: $0 [--check | data | pagefind ...]" >&2; exit 2; }
-check=false upload_data=false upload_pagefind=false
+usage() { echo "usage: $0 [--check | data | feeds | pagefind ...]" >&2; exit 2; }
+check=false upload_data=false upload_feeds=false upload_pagefind=false
 case "${1:-}" in
   --check) check=true; (($# == 1)) || usage ;;
-  "") (($# == 0)) || usage; upload_data=true upload_pagefind=true ;;
+  "") (($# == 0)) || usage; upload_data=true upload_feeds=true upload_pagefind=true ;;
   *)
     for part in "$@"; do
       case "$part" in
         data) upload_data=true ;;
+        feeds) upload_feeds=true ;;
         pagefind) upload_pagefind=true ;;
         *) usage ;;
       esac
@@ -58,6 +60,9 @@ if $upload_data; then
     [[ -n "$(find "$data/$dir" -maxdepth 1 -name '*.json' -print -quit 2>/dev/null)" ]] ||
       { echo "upload-data: $data/$dir is empty" >&2; exit 1; }
   done
+fi
+if $upload_feeds; then
+  [[ -s "$data/feeds/all.ics" ]] || { echo "upload-data: $data/feeds/all.ics is missing; run npm run feeds first" >&2; exit 1; }
 fi
 if $upload_pagefind; then
   [[ -s "$data/pagefind/shards.json" ]] ||
@@ -144,6 +149,16 @@ if $upload_data; then
     rclone sync "$work/$encoding/$dir" "r2:$bucket/$dir" "${upload[@]}" --header-upload "Content-Encoding: $encoding"
   done
   rclone copyto "$work/data-version.txt" "r2:$bucket/_publish/data-version.txt" --header-upload "Cache-Control: no-store"
+fi
+
+# feeds/: calendars that calendar apps fetch again every few hours, at URLs that never change (no
+# ?v=), so the hour of Cache-Control is how late a change can reach them. Stored uncompressed: some
+# calendar apps' servers may not accept br. Only *.ics, so that files of other types added to the
+# directory later get their own Content-Type.
+if $upload_feeds; then
+  echo "upload-data: feeds/"
+  rclone sync "$data/feeds" "r2:$bucket/feeds" --include "/*.ics" "${upload[@]}" \
+    --header-upload "Content-Type: text/calendar; charset=utf-8"
 fi
 
 $upload_pagefind || exit 0

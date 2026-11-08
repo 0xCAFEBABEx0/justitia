@@ -10,8 +10,13 @@ interface Props {
   bare?: boolean;
   /** Level of the date headings: one below the heading the list sits under. */
   headingLevel?: 2 | 3;
+  /** Extra attributes for each item (the upcoming page filters by them). */
+  itemAttrs?: (a: AmendmentSummary) => Record<string, string>;
+  /** Show how many days are left until each date heading, counted from this day (YYYY-MM-DD). */
+  countdownFrom?: string;
 }
-const { items, groupByDate = true, bare = false, headingLevel = 3 } = Astro.props;
+const { items, groupByDate = true, bare = false, headingLevel = 3, itemAttrs, countdownFrom } = Astro.props;
+const daysUntil = (date: string) => countdownFrom ? Math.round((Date.parse(date) - Date.parse(countdownFrom)) / 86_400_000) : null;
 const DateHeading = `h${headingLevel}` as const;
 // How the amending law relates to the laws it changes: it enacts one of them (a new law), or it is
 // a later part of a new law coming into force (段階施行).
@@ -33,11 +38,16 @@ for (const a of groupByDate ? items : []) {
 }
 ---
 {groups.map(([date, list]) => (
-  <section>
-    {groupByDate && <DateHeading class="mt-5 mb-1.5 text-sm font-bold text-base-content/70">{date ? jpDate(date) : "施行日未定"}</DateHeading>}
+  <section data-group>
+    {groupByDate && (
+      <DateHeading class="mt-5 mb-1.5 text-sm font-bold text-base-content/70">
+        {date ? jpDate(date) : "施行日未定"}
+        {date && daysUntil(date) !== null && <span class="ml-2 font-normal text-base-content/65">{daysUntil(date) === 0 ? "今日" : `あと ${daysUntil(date)} 日`}</span>}
+      </DateHeading>
+    )}
     <ul class:list={["list", { "rounded-box border border-base-300 bg-base-100": !bare }]}>
       {list.map((a) => (
-        <li class:list={["list-row", bare ? "px-0 py-2.5" : "py-3"]}>
+        <li class:list={["list-row", bare ? "px-0 py-2.5" : "py-3"]} {...(itemAttrs?.(a) ?? {})}>
           <div class="list-col-grow">
             {!groupByDate && <div class="text-xs font-bold text-base-content/70">{jpDate(a.enforced)}</div>}
             <a class="link link-hover font-bold text-primary" href={amendmentUrl(a.key)}>{a.title}</a>

@@ -162,16 +162,18 @@ jobs:
         env:
           REBUILD: ${{ inputs.rebuild == true }}
 
+      # The calendars (.ics) keep the past year, which moves with the day, so they are written on every
+      # run, from laws.json and timeline/ (also restored from the cache); only the files that changed
+      # are uploaded.
+      - name: Write the calendars
+        run: npm run feeds
+
       - name: Upload data to R2
         run: |
-          parts=()
+          parts=(feeds)
           if [[ "$EXTRACTED" == success ]]; then parts+=(data); fi
           if [[ -f data/pagefind/shards.json ]]; then parts+=(pagefind); fi
-          if ((${#parts[@]})); then
-            scripts/upload-data.sh "${parts[@]}"
-          else
-            echo "Nothing to upload: the data and the search index are unchanged"
-          fi
+          scripts/upload-data.sh "${parts[@]}"
         env:
           EXTRACTED: ${{ steps.extract.outcome }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}

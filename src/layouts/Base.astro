@@ -9,7 +9,7 @@ import { jpDate, jstDate, meta } from "../lib/data.ts";
 interface Props {
   title?: string;
   description?: string;
-  nav?: "laws" | "new" | "repealed" | "timeline" | "graph" | "search" | "about";
+  nav?: "laws" | "new" | "upcoming" | "repealed" | "timeline" | "graph" | "search" | "about";
   narrow?: boolean;
   /**
    * Whether this URL (without its query string) is the page's address. False for pages whose
@@ -22,6 +22,7 @@ const { title, description, nav, narrow = false, canonical = true } = Astro.prop
 const NAV = [
   { key: "laws", href: "/browse/", label: "法令一覧" },
   { key: "new", href: "/new/", label: "新しい法令" },
+  { key: "upcoming", href: "/upcoming/", label: "施行予定" },
   { key: "repealed", href: "/repealed/", label: "廃止された法令" },
   { key: "timeline", href: "/timeline/", label: "改正の年表" },
   { key: "graph", href: "/graph/", label: "改正のグラフ" },

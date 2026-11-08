@@ -1,0 +1,111 @@
+---
+// Amendments promulgated and not yet in force, soonest first, with a filter by category and law
+// name, and the calendars (.ics) of their enforcement days (scripts/feeds.ts).
+import Base from "../../layouts/Base.astro";
+import AmendmentList from "../../components/AmendmentList.astro";
+import PageHeader from "../../components/PageHeader.astro";
+import { buildDate, laws, timeline, timelineYears, type AmendmentSummary } from "../../lib/data.ts";
+import { feedFile, feedUrl } from "../../lib/feeds.ts";
+import { DATA_BASE } from "../../lib/site.ts";
+
+const today = buildDate();
+const lawsById = new Map(laws().map((l) => [l.id, l]));
+const all = timelineYears().flatMap((y) => timeline(y));
+const dated = all.filter((a) => a.enforced && a.enforced > today).sort((a, b) => a.enforced!.localeCompare(b.enforced!) || a.key.localeCompare(b.key));
+const undetermined = all.filter((a) => !a.enforced && a.branch === "upcoming");
+
+const months = new Map<string, AmendmentSummary[]>();
+for (const a of dated) {
+  const m = a.enforced!.slice(0, 7);
+  if (!months.has(m)) months.set(m, []);
+  months.get(m)!.push(a);
+}
+const monthLabel = (m: string) => `${m.slice(0, 4)}年${Number(m.slice(5, 7))}月`;
+
+const categoriesOf = (a: AmendmentSummary) => [...new Set(a.laws.map((l) => lawsById.get(l.id)?.category).filter((c): c is string => !!c))];
+// Category names cannot hold "|", so it separates them in the attribute.
+const itemAttrs = (a: AmendmentSummary) => ({
+  "data-cats": `|${categoriesOf(a).join("|")}|`,
+  "data-names": [a.title, ...a.laws.map((l) => `${l.title} ${lawsById.get(l.id)?.abbrev ?? ""}`)].join(" "),
+});
+const counts = new Map<string, number>();
+for (const a of [...dated, ...undetermined]) for (const c of categoriesOf(a)) counts.set(c, (counts.get(c) ?? 0) + 1);
+const categories = [...counts].sort((a, b) => a[0].localeCompare(b[0], "ja"));
+const allUrl = feedUrl(DATA_BASE, feedFile.all("ics"));
+const total = dated.length + undetermined.length;
+---
+<Base
+  title="施行予定の改正"
+  description="公布済みで、まだ施行されていない法令の改正を施行日の順に一覧にしています。分野や法令名で絞り込め、施行日をカレンダー（.ics）に登録できます。"
+  nav="upcoming"
+>
+  <PageHeader title="施行予定の改正">
+    公布済みで、まだ施行されていない改正を施行日の順に並べています（{total.toLocaleString()} 件）。施行日は houritsu のデータによるもので、政令で後から決まる施行日は「施行日未定」に入ります。
+  </PageHeader>
+
+  <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <aside class="flex flex-col gap-4 lg:sticky lg:top-[4.5rem] lg:order-last print:hidden" data-upcoming-filter data-base={DATA_BASE}>
+      <section class="card card-border bg-base-100">
+        <div class="card-body gap-3 p-5">
+          <h2 class="card-title text-base">絞り込み</h2>
+          <label class="fieldset py-0">
+            <span class="fieldset-legend pt-0 pb-1 text-xs font-normal text-base-content/70">分野</span>
+            <select class="select select-sm w-full" data-filter-category>
+              <option value="">すべての分野</option>
+              {categories.map(([c, n]) => <option value={c}>{c}（{n}）</option>)}
+            </select>
+          </label>
+          <label class="fieldset py-0">
+            <span class="fieldset-legend pt-0 pb-1 text-xs font-normal text-base-content/70">法令名・改正法令名</span>
+            <input class="input input-sm w-full" type="search" placeholder="例：個人情報" autocomplete="off" data-filter-text />
+          </label>
+          <p class="text-xs text-base-content/65" aria-live="polite" data-filter-count>{total.toLocaleString()} 件</p>
+        </div>
+      </section>
+      <section class="card card-border bg-base-100" id="calendar">
+        <div class="card-body gap-2 p-5">
+          <h2 class="card-title text-base">カレンダーに登録</h2>
+          <p class="text-sm text-base-content/70">
+            <span data-calendar-label>すべての分野</span>の施行日を、Google カレンダーや Outlook に登録できます。URL で登録（購読）すると、新しく公布された改正も毎日反映されます。
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <button type="button" class="btn btn-soft btn-sm btn-primary" data-copy={allUrl} data-copy-done="カレンダーの URL をコピーしました" data-calendar-copy>URL をコピー</button>
+            <a class="btn btn-soft btn-sm btn-primary" href={allUrl} data-calendar-file>.ics ファイル</a>
+          </div>
+          <details class="text-sm">
+            <summary class="cursor-pointer py-1 text-primary">登録のしかた</summary>
+            <ul class="mt-1 list-disc space-y-1 pl-5 text-base-content/80">
+              <li>Google カレンダー：設定 →「カレンダーを追加」→「URL で追加」に、コピーした URL を貼り付けます。</li>
+              <li>Outlook：カレンダー →「カレンダーを追加」→「Web から購読」に貼り付けます。</li>
+              <li>Apple のカレンダー：「ファイル」→「新規カレンダー照会」に貼り付けます。</li>
+              <li>.ics ファイルを開いて取り込むと、その時点の施行日だけが登録されます（後から更新されません）。</li>
+            </ul>
+          </details>
+          <p class="text-xs text-base-content/65">法令ごとのカレンダーは、各法令のページの「施行日をカレンダーに登録」から登録できます。</p>
+        </div>
+      </section>
+    </aside>
+
+    <div class="min-w-0" data-upcoming-list>
+      {[...months].map(([m, list]) => (
+        <section class="mb-6" data-month>
+          <h2 class="text-xl font-bold">{monthLabel(m)}</h2>
+          <AmendmentList items={list} itemAttrs={itemAttrs} countdownFrom={today} />
+        </section>
+      ))}
+      {undetermined.length > 0 && (
+        <section class="mb-6" data-month>
+          <h2 class="text-xl font-bold">施行日未定</h2>
+          <AmendmentList items={undetermined} itemAttrs={itemAttrs} groupByDate={false} />
+        </section>
+      )}
+      {total === 0 && <p class="text-base-content/70">施行予定の改正はありません。</p>}
+      <p class="hidden text-base-content/70" data-filter-empty>条件に合う改正はありません。</p>
+    </div>
+  </div>
+  <script>
+    import { initUpcomingFilter } from "../../scripts/upcoming.ts";
+    const root = document.querySelector<HTMLElement>("[data-upcoming-filter]");
+    if (root) initUpcomingFilter(root);
+  </script>
+</Base>
