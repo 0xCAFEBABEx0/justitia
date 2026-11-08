@@ -2,10 +2,11 @@
 import Base from "../../layouts/Base.astro";
 import {
   amendmentUrl,
-  buildDate,
   jpDate,
+  jstDate,
   KIND_LABELS,
   law as loadLaw,
+  meta,
   pageLaws,
   repealOf,
   STATUS_LABELS,
@@ -48,7 +49,13 @@ const description =
       : `${named}の現行の条文と、${amendments > 0 ? `改正 ${amendments} 件の履歴・新旧対照${latest?.kind === "amended" && latest.enforced ? `（最終改正：${jpDate(latest.enforced)}施行）` : ""}` : "改正の履歴"}${law.upcomingCount > 0 ? `。未施行の改正 ${law.upcomingCount} 件も見られます` : ""}。`;
 // The law and the laws most often amended together with it.
 // What a copied citation says the text is.
-const citeAsOf = law.status === "upcoming_only" ? "公布済み・未施行の法令の条文" : `${jpDate(buildDate())}時点の現行条文`;
+// The date is that of the data, not of the build: a build can reuse data extracted days before.
+const citeAsOf =
+  law.status === "upcoming_only"
+    ? "公布済み・未施行の法令の条文"
+    : law.status === "repealed"
+      ? "廃止された法令の、廃止直前の条文"
+      : `${jpDate(jstDate(meta().generatedAt))}更新のデータによる現行条文`;
 const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => r.id)].join(",")}`;
 ---
 <Base title={pageTitle} description={description}>

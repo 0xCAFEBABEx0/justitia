@@ -21,8 +21,14 @@ function targetBlock(): HTMLElement | null {
   return el?.matches(".law-text .blk") && el.querySelector(":scope > .h") ? el : null;
 }
 
+/** The block's heading as plain text, with ruby readings in brackets as in blockBody. */
 function headingText(block: HTMLElement): string {
-  return block.querySelector(":scope > .h")?.textContent?.trim() ?? "";
+  const h = block.querySelector(":scope > .h");
+  if (!h) return "";
+  const clone = h.cloneNode(true) as HTMLElement;
+  clone.querySelectorAll("rp").forEach((el) => el.remove());
+  clone.querySelectorAll("rt").forEach((el) => el.replaceWith(`（${el.textContent ?? ""}）`));
+  return clone.textContent?.trim() ?? "";
 }
 
 /** The page's name for sharing, with the article in the #fragment: 民法 第九十条（公序良俗）. */
@@ -202,7 +208,9 @@ function onClick(e: MouseEvent): void {
   if (d.shareCopy) {
     void copy(d.shareCopy === "titled" ? titledText(shareTitle(), location.href) : location.href, "リンクをコピーしました");
   } else if (action.hasAttribute("data-share-native")) {
-    void shareSheet();
+    void shareSheet().then((shared) => {
+      if (!shared) toast("共有できませんでした。リンクをコピーしてお使いください", false);
+    });
   } else if (action.hasAttribute("data-print")) {
     window.print();
   } else if (d.printLaw) {

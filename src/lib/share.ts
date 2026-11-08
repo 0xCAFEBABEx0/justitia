@@ -129,14 +129,19 @@ export interface Citation {
   heading: string;
   /** The text of the block, as plain text. */
   body: string;
-  /** Which text this is: 2026年11月8日時点の現行条文 */
+  /** Which text this is: 2026年11月8日更新のデータによる現行条文 */
   asOf: string;
   url: string;
 }
 
-/** The heading a block is cited by: 民法（明治二十九年法律第八十九号）附則（…）第一条 */
+/**
+ * The heading a block is cited by: 民法（明治二十九年法律第八十九号）附則（…）第一条. The block of a
+ * 附則 itself (key "附　則（…）|") is cited by the 附則 alone, not by its heading a second time.
+ */
 export function citationHeading(c: Pick<Citation, "law" | "num" | "key" | "heading">): string {
-  return `${c.law}${c.num ? `（${c.num}）` : ""}${blockScope(c.key)}${c.heading}`;
+  const scope = blockScope(c.key);
+  const ownBlock = scope !== "" && (c.key.split("|")[1] ?? "") === "";
+  return `${c.law}${c.num ? `（${c.num}）` : ""}${scope}${ownBlock ? "" : c.heading}`;
 }
 
 /** A block of law text to paste into a memo or a contract review: heading, text, and where it came from. */

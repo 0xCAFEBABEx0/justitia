@@ -50,6 +50,10 @@ test("citationHeading reads like a citation in a memo", () => {
     citationHeading({ law: "民法", key: "附　則（昭和二二年四月一六日法律第六一号）|第一条", heading: "第一条" }),
     "民法附則（昭和二二年四月一六日法律第六一号）第一条",
   );
+  assert.equal(
+    citationHeading({ law: "民法", key: "附　則（昭和二二年四月一六日法律第六一号）|", heading: "附　則（昭和二二年四月一六日法律第六一号）" }),
+    "民法附則（昭和二二年四月一六日法律第六一号）",
+  );
 });
 
 test("citationText tidies the body and says where the text came from", () => {
