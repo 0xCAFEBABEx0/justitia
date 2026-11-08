@@ -1,0 +1,17 @@
+// Throwaway canary for the delivery redesign (see infra/README.md, "Route canary"): an assets-only Worker
+// (no `main`, so no Worker script) that Terraform attaches to the route anisotro.pics/_canary/*. It checks, before
+// the amendment pages move to their own Workers, that an assets-only Worker on a route answers its paths on the
+// hostname whose Custom Domain belongs to the Worker `justitia`, and leaves every other path to that Worker.
+// Deployed and deleted by hand; the Publish workflow never deploys it. Delete this directory with the route.
+{
+  "name": "justitia-canary",
+  "compatibility_date": "2026-10-20",
+  "assets": {
+    "directory": "./public",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  // No routes here: Terraform owns the route (infra/terraform/envs/prod/canary.tf).
+  "workers_dev": false,
+  "preview_urls": false
+}
