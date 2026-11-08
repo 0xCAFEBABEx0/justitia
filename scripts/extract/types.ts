@@ -147,7 +147,10 @@ export interface FileChange {
 
 export interface Amendment {
   key: string;
-  sha: string; // for linking to GitHub only; not stable before houritsu v1.0
+  // No commit SHA (see above): houritsu's daily update is usually a force push that rewrites its
+  // history, which changes the SHA of every later commit. With the SHA in these files, the run of
+  // 2026-11-08 found 19,994 of 23,811 changed and uploaded them all to R2 again (16 minutes and as
+  // many Class A operations) although their content was the same. Nothing on the site used it.
   branch: Branch;
   amendmentLawId: string;
   amendmentLawNum: string;
