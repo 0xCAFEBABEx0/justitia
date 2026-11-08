@@ -1,0 +1,60 @@
+---
+// A list of repealed laws (src/lib/repealed-laws.ts), by date of repeal. Each item carries its type
+// and how it was repealed in data-type and data-way, for the filters of the /repealed/ page.
+import { amendmentUrl, jpDate, law, lawUrl, typeLabel, type RepealedLaw } from "../lib/data.ts";
+import { lastTextBeforeRepeal, REPEAL_WAY_LABELS } from "../lib/repealed-laws.ts";
+
+interface Props {
+  items: RepealedLaw[];
+  groupByDate?: boolean;
+  /** Level of the date headings: one below the heading the list sits under. */
+  headingLevel?: 2 | 3;
+}
+const { items, groupByDate = true, headingLevel = 3 } = Astro.props;
+const DateHeading = `h${headingLevel}` as const;
+const groups: [string, RepealedLaw[]][] = groupByDate ? [] : [["", items]];
+for (const l of groupByDate ? items : []) {
+  const d = l.enforced ?? "";
+  const last = groups.at(-1);
+  if (last && last[0] === d) last[1].push(l);
+  else groups.push([d, [l]]);
+}
+// The text in force just before the repeal, on the versions page.
+const before = (id: string): string | null => {
+  try {
+    const at = lastTextBeforeRepeal(law(id).revisions);
+    return at ? `/versions/?law=${id}&at=${encodeURIComponent(at)}` : null;
+  } catch {
+    return null; // a quick build without this law's data
+  }
+};
+---
+{groups.map(([date, list]) => (
+  <section data-law-group>
+    {groupByDate && <DateHeading class="mt-5 mb-1.5 text-sm font-bold text-base-content/70">{date ? `${jpDate(date)} 廃止` : "廃止日未定"}</DateHeading>}
+    <ul class="list rounded-box border border-base-300 bg-base-100">
+      {list.map((l) => {
+        const text = before(l.id);
+        return (
+          <li class="list-row py-3" data-type={l.dir} data-way={l.way}>
+            <div class="list-col-grow">
+              {!groupByDate && <div class="text-xs font-bold text-base-content/70">{l.enforced ? `${jpDate(l.enforced)} 廃止` : "廃止日未定"}</div>}
+              <a class="link link-hover font-bold text-primary" href={lawUrl(l.id)}>{l.title}</a>
+              <span class="badge badge-ghost badge-sm ml-1.5 whitespace-nowrap align-middle">{REPEAL_WAY_LABELS[l.way]}</span>
+              <div class="mt-1.5 text-xs text-base-content/65">{typeLabel(l.dir)}{l.num && <>・{l.num}</>}</div>
+              <div class="mt-1 text-xs text-base-content/65">
+                {l.newLaw ? (
+                  <>新しい法令：<a class="link link-primary" href={lawUrl(l.newLaw.id)}>{l.newLaw.title}</a>（{l.amendmentLawNum}）の施行により廃止・<a class="link" href={`${amendmentUrl(l.amendment)}#law-${l.id}`}>施行時の変更</a></>
+                ) : (
+                  <>廃止した法令：<a class="link" href={`${amendmentUrl(l.amendment)}#law-${l.id}`}>{l.amendmentTitle}</a>（{l.amendmentLawNum}）</>
+                )}
+                {l.alsoRepeals > 0 && <>・あわせて {l.alsoRepeals} 法令を廃止</>}
+              </div>
+              {text && <div class="text-xs"><a class="link link-hover link-primary inline-block py-1" href={text}>廃止直前の条文</a></div>}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  </section>
+))}
