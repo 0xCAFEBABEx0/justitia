@@ -106,11 +106,11 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | --- | --- |
 | `/` | Search, newly enacted laws (recent and upcoming), recent amendments, upcoming amendments |
 | `/browse/`, `/browse/kana/<row>/`, `/browse/type/<type>/`, `/browse/category/<category>/` | Law lists |
-| `/laws/<law ID>/` | Law text (an anchor per heading), table of contents, amendment history, and the law's calendar (`.ics`) |
+| `/laws/<law ID>/` | Law text (an anchor per heading), table of contents, amendment history, and the law's calendar (`.ics`) and RSS feed |
 | `/amendment/?k=<amendment key>` | Old and new text of the articles an amendment changed (side by side, or inline) |
 | `/new/`, `/new/<year>/` | Newly enacted laws (a law whose file first appears in houritsu through the law itself), by year of entry into force, with a type filter. Later parts of a new law coming into force are labeled 段階施行, not 改正, across the site |
 | `/repealed/`, `/repealed/<year>/` | Repealed laws (a law whose file is deleted from houritsu's main branch; houritsu records repeals from 2017 on), by year and date of repeal, laid out like `/new/`, with type and "how it was repealed" filters: by a new law coming into force, by a law made to repeal it, or by another amending law. Each links the text in force just before the repeal. Repealed law pages show the same details |
-| `/upcoming/` | Amendments promulgated and not yet in force, by month of entry into force (with a countdown in days), then those without a date; a filter by category and law name; the calendar (`.ics`) of the whole site or of the chosen category to subscribe to (see [Calendars](#calendars)) |
+| `/upcoming/` | Amendments promulgated and not yet in force, by month of entry into force (with a countdown in days), then those without a date; a filter by category and law name; the calendar (`.ics`) and RSS feed of the whole site or of the chosen category to subscribe to (see [Calendars and RSS feeds](#calendars-and-rss-feeds)) |
 | `/timeline/`, `/timeline/<year>/` | Amendments by year of entry into force |
 | `/versions/?law=<law ID>&at=<amendment key or YYYY-MM-DD>[&from=<…>]` | The law's text at any revision, past or upcoming; with `from`, what changed between two revisions (like `git diff from..at`) |
 | `/search/?q=<words>` | Full-text search over the current law text, with links to the matching articles |
@@ -185,7 +185,8 @@ It rebuilds only what changed:
    unless the published index was built from the same input: `shards.json` records a hash of the indexed parts
    of the law pages, the indexer and the Pagefind version, and the upload publishes it as
    `_publish/pagefind-input.txt` once the whole index is uploaded (`incomplete` while it uploads);
-3. `npm run feeds` writes the calendars to `data/feeds/` (see [Calendars](#calendars)), on every run;
+3. `npm run feeds` writes the calendars and RSS feeds to `data/feeds/` (see
+   [Calendars and RSS feeds](#calendars-and-rss-feeds)), on every run;
 4. `npm run upload-data` (`scripts/upload-data.sh`): sync to the R2 bucket with rclone only the parts that were
    rebuilt: `data` (`amendments/`, `laws/`, `history/`), `feeds` (every run) and `pagefind`. The data files are stored
    Brotli-compressed (see below). Only files whose content changed are uploaded, and files that are gone are
@@ -227,16 +228,17 @@ Pagefind files that the current index does not use, each with the time it was fi
 The home page and the graph take today's date from the build (in Japan time), not from the data, so the daily
 publish moves amendments from upcoming to enforced even on days that reuse the cached data.
 
-### Calendars
+### Calendars and RSS feeds
 
-`scripts/feeds.ts` (`npm run feeds`) writes iCalendar files (RFC 5545) of the days amendments come into force to
-`data/feeds/`, from `laws.json` and `timeline/` only, so it also runs when the workflow reuses its cached data:
+`scripts/feeds.ts` (`npm run feeds`) writes iCalendar files (RFC 5545) of the days amendments come into force and
+RSS 2.0 feeds of amendments promulgated and coming into force to `data/feeds/`, from `laws.json` and `timeline/`
+only, so it also runs when the workflow reuses its cached data:
 
-| File (under `https://data.anisotro.pics/feeds/`) | Events |
+| Files (under `https://data.anisotro.pics/feeds/`) | Amendments |
 | --- | --- |
-| `all.ics` | every amendment |
-| `category-<category>.ics` | the amendments that change a law of the category (as on `/browse/category/<category>/`) |
-| `law-<law ID>.ics` | the amendments that change the law; one file for every law that is not repealed |
+| `all.ics`, `all.xml` | every amendment |
+| `category-<category>.ics`, `.xml` | the amendments that change a law of the category (as on `/browse/category/<category>/`); a pair for every category |
+| `law-<law ID>.ics`, `.xml` | the amendments that change the law; a pair for every law that is not repealed |
 
 Each amendment is an all-day event on its enforcement day, with the amending law, the laws it changes, a link to
 its page on the site and the disclaimer. Amendments without an enforcement date are left out, and so are those
@@ -248,8 +250,17 @@ with `Cache-Control: public, max-age=3600`, at URLs without `?v=`, since a subsc
 first cache rule caches them for that hour. `/upcoming/` and the law pages copy a calendar's URL for Google
 Calendar, Outlook or Apple Calendar to subscribe to, or open the file to import once.
 
-Calendar apps such as Google Calendar and Outlook fetch subscriptions from their own servers, which Bot Fight Mode
-may challenge on a non-static extension such as `.ics` (see the `--check` note in `scripts/upload-data.sh`).
+An RSS feed has an item when an amendment is promulgated (公布) and another when it comes into force (施行), each
+dated that day (midnight JST), or one item (公布・施行) when both fall on the same day. Items from the past year
+(366 days) up to the day the file is written are kept, newest first; each links the amendment's page (for a law's
+feed, that law's part of it) and carries the disclaimer. `lastBuildDate` is the newest item's day, not the time of
+writing, so a feed too is uploaded again only when its items change; `ttl` asks for a fetch every 12 hours. The
+upload stores the feeds like the calendars, as `application/rss+xml; charset=utf-8`. Every page links the
+site-wide feed with `<link rel="alternate" type="application/rss+xml">`, and the law and category pages link
+their own feed too, so feed readers find them from the page URL. `/upcoming/` and the law pages copy a feed's URL.
+
+Calendar apps such as Google Calendar and Outlook, and feed readers such as Feedly, fetch subscriptions from their
+own servers, which Bot Fight Mode may challenge on a non-static extension such as `.ics` or `.xml` (see the `--check` note in `scripts/upload-data.sh`).
 Cloudflare documents one exception: Bot Fight Mode does not block requests to Web Assets operations labeled
 `cf-rss-feed` (Cloudflare docs, *Security → Web Assets → Label operations*). Terraform keeps the operation
 `GET data.anisotro.pics/feeds/{var1}` with that label (see [`infra/README.md`](infra/README.md)).

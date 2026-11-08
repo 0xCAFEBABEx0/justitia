@@ -4,7 +4,7 @@
 #
 #   CLOUDFLARE_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... scripts/upload-data.sh [--check | PART...]
 #
-# PART is "data" (amendments/, laws/ and history/), "feeds" (the calendars written by scripts/feeds.ts)
+# PART is "data" (amendments/, laws/ and history/), "feeds" (the calendars and RSS feeds written by scripts/feeds.ts)
 # or "pagefind"; without one, all three are uploaded.
 # The workflow uploads only the parts it rebuilt.
 # With --check, it only writes, reads back and deletes one small object (_publish/check.txt), so that a
@@ -62,7 +62,9 @@ if $upload_data; then
   done
 fi
 if $upload_feeds; then
-  [[ -s "$data/feeds/all.ics" ]] || { echo "upload-data: $data/feeds/all.ics is missing; run npm run feeds first" >&2; exit 1; }
+  for f in all.ics all.xml; do
+    [[ -s "$data/feeds/$f" ]] || { echo "upload-data: $data/feeds/$f is missing; run npm run feeds first" >&2; exit 1; }
+  done
 fi
 if $upload_pagefind; then
   [[ -s "$data/pagefind/shards.json" ]] ||
@@ -151,14 +153,16 @@ if $upload_data; then
   rclone copyto "$work/data-version.txt" "r2:$bucket/_publish/data-version.txt" --header-upload "Cache-Control: no-store"
 fi
 
-# feeds/: calendars that calendar apps fetch again every few hours, at URLs that never change (no
-# ?v=), so the hour of Cache-Control is how late a change can reach them. Stored uncompressed: some
-# calendar apps' servers may not accept br. Only *.ics, so that files of other types added to the
-# directory later get their own Content-Type.
+# feeds/: calendars and RSS feeds that calendar apps and feed readers fetch again every few hours,
+# at URLs that never change (no ?v=), so the hour of Cache-Control is how late a change can reach
+# them. Stored uncompressed: some of those clients' servers may not accept br. One sync per type,
+# each with its Content-Type; a sync with --include deletes only the files of its own type.
 if $upload_feeds; then
   echo "upload-data: feeds/"
   rclone sync "$data/feeds" "r2:$bucket/feeds" --include "/*.ics" "${upload[@]}" \
     --header-upload "Content-Type: text/calendar; charset=utf-8"
+  rclone sync "$data/feeds" "r2:$bucket/feeds" --include "/*.xml" "${upload[@]}" \
+    --header-upload "Content-Type: application/rss+xml; charset=utf-8"
 fi
 
 $upload_pagefind || exit 0
