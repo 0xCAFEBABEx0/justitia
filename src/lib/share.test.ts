@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { blockScope, citationHeading, citationText, shareToolsHtml, shareUrl, titledText } from "./share.ts";
+import { blockScope, citationHeading, citationText, shareToolsHtml, shareUrl, titledText, X_MAX, xLength, xText } from "./share.ts";
 
 const URL_ = "https://anisotro.pics/laws/129AC0000000089/#本則|第九十条";
 
@@ -9,10 +9,25 @@ test("shareUrl encodes the title and the URL", () => {
     shareUrl("x", "民法 第九十条", URL_),
     `https://x.com/intent/tweet?text=${encodeURIComponent("民法 第九十条")}&url=${encodeURIComponent(URL_)}`,
   );
-  assert.equal(shareUrl("line", "民法", URL_), `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(URL_)}`);
+  assert.equal(shareUrl("line", "民法", URL_), `https://social-plugins.line.me/lineit/share?url=${encodeURIComponent(URL_)}&text=${encodeURIComponent("民法")}`);
   const mail = shareUrl("mail", "民法 & 商法", URL_);
   assert.ok(mail.startsWith("mailto:?subject=%E6%B0%91%E6%B3%95%20%26%20"));
   assert.ok(mail.includes(`&body=${encodeURIComponent(`民法 & 商法\n${URL_}`)}`));
+});
+
+test("xLength counts Japanese as 2 and Latin as 1", () => {
+  assert.equal(xLength("民法 Act"), 2 * 2 + 4);
+  assert.equal(xLength("“”"), 2);
+  assert.equal(xLength("…"), 2); // U+2026 is outside the light ranges
+});
+
+test("xText leaves room for the URL in a post", () => {
+  assert.equal(xText("民法 第九十条（公序良俗）"), "民法 第九十条（公序良俗）");
+  const long = "法".repeat(200);
+  const cut = xText(long);
+  assert.ok(cut.endsWith("…"));
+  assert.ok(xLength(cut) + 1 + 23 <= X_MAX);
+  assert.ok(xLength(cut) + 1 + 23 > X_MAX - 2, "uses the room there is");
 });
 
 test("titledText puts the site name after the title", () => {
