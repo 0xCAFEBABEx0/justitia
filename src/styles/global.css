@@ -289,3 +289,95 @@
 select.select {
   appearance: none;
 }
+
+/* ---- Share and print (src/lib/share.ts, src/scripts/share.ts) ---- */
+@layer components {
+  /* The tools under the block a #fragment points at. */
+  .cite-tools {
+    @apply my-1.5 flex flex-wrap gap-2;
+  }
+  /* A heading's anchor shows a link mark on hover and focus: pressing it opens the tools above. */
+  .law-text .h .anchor::after {
+    content: "";
+    display: inline-block;
+    width: 0.9em;
+    height: 0.9em;
+    margin-left: 0.35em;
+    vertical-align: -0.1em;
+    background: currentColor;
+    opacity: 0;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7'/%3E%3Cpath d='M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7'/%3E%3C/svg%3E") center / contain no-repeat;
+  }
+  .law-text .h .anchor:hover::after,
+  .law-text .h .anchor:focus-visible::after,
+  .law-text .blk:target > .h .anchor::after { opacity: 0.6; }
+}
+
+/*
+ * Printing (the 印刷 button, or the browser's own print). The page chrome, buttons and the side
+ * column are hidden with Tailwind's print: variant in the markup; src/scripts/share.ts switches
+ * to the light theme. A changed part of a 新旧対照 is underlined (傍線) and bold as well as
+ * colored, so it still shows in black and white, as in the 新旧対照表 that ministries publish.
+ */
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 12mm 16mm;
+    @bottom-center {
+      content: counter(page) " / " counter(pages);
+      font-size: 8pt;
+      color: #555;
+    }
+  }
+  html { scroll-padding-top: 0; }
+  body {
+    background: #fff;
+    font-size: 10pt;
+  }
+  /* Every block is laid out for the paper, not only those near the screen's viewport. */
+  .law-text {
+    font-size: 10.5pt;
+    line-height: 1.75;
+  }
+  .law-text .blk {
+    content-visibility: visible;
+    contain-intrinsic-size: none;
+  }
+  .law-text .blk:target {
+    background: none;
+    box-shadow: none;
+  }
+  .law-text .h,
+  .cmp .mb-1 { break-after: avoid; }
+  .law-text .h .anchor::after { display: none; }
+  .law-text table { overflow: visible; }
+  a.link { text-decoration: none; }
+
+  /* Diffs: two columns on paper too, and one changed block per box where it fits on a page. */
+  .cmp { grid-template-columns: 1fr 1fr; }
+  .cmp > div + div {
+    border-top: 0;
+    border-left: 1px solid var(--color-base-300);
+  }
+  .card { break-inside: avoid; }
+  .txt,
+  .hunks { font-size: 9.5pt; line-height: 1.7; }
+  .hunks { overflow: visible; }
+  .txt ins,
+  .txt del,
+  .hunks .hl,
+  .badge {
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .txt ins,
+  .txt del {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+    font-weight: 700;
+  }
+  .inline-view .txt del { text-decoration: line-through; }
+
+  /* この法令だけ印刷: the other laws of the amendment stay off the paper. */
+  .print-one #amendment > section[id^="law-"]:not(.print-target) { display: none; }
+}
