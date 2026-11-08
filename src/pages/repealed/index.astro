@@ -2,11 +2,12 @@
 import Base from "../../layouts/Base.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import RepealedLawList from "../../components/RepealedLawList.astro";
-import { repealedLaws, TYPE_LABELS, TYPE_ORDER, typeLabel } from "../../lib/data.ts";
-import { REPEAL_WAYS, REPEAL_WAY_LABELS, repealYear } from "../../lib/repealed-laws.ts";
+import { repealedLaws, TYPE_LABELS } from "../../lib/data.ts";
+import { REPEAL_WAY_LABELS, repealYear } from "../../lib/repealed-laws.ts";
 
 const all = repealedLaws();
 const years = [...new Set(all.map(repealYear))]; // newest first, like the list
+const recent = all.slice(0, 30);
 const byYear = new Map(years.map((y) => [y, all.filter((l) => repealYear(l) === y)]));
 
 // Counts by year and by type, as on /new/. 憲法 and 勅令 are too few to get their own column.
@@ -17,8 +18,6 @@ const COLUMNS = [
   { label: TYPE_LABELS.rule, dirs: ["rule"] },
 ];
 const counts = (list: typeof all) => [...COLUMNS.map((c) => list.filter((l) => c.dirs.includes(l.dir)).length), list.length];
-const types = TYPE_ORDER.map((t) => ({ t, n: all.filter((l) => l.dir === t).length })).filter((x) => x.n > 0);
-const ways = REPEAL_WAYS.map((w) => ({ w, n: all.filter((l) => l.way === w).length })).filter((x) => x.n > 0);
 const yearLabel = (y: string) => (y === "undetermined" ? "未定" : `${y}年`);
 const oldest = years.filter((y) => y !== "undetermined").at(-1);
 ---
@@ -32,32 +31,13 @@ const oldest = years.filter((y) => y !== "undetermined").at(-1);
   </PageHeader>
 
   <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
-    <div class="min-w-0" data-repealed-laws>
-      <nav class="mb-3 flex flex-wrap gap-1" aria-label="年">
-        {years.map((y) => <a class="btn btn-ghost btn-xs tabular-nums" href={`#y${y}`}>{yearLabel(y)}</a>)}
-      </nav>
-      {types.length > 1 && (
-        <fieldset class="mb-2 flex flex-wrap items-center gap-2" data-filter="type">
-          <legend class="sr-only">種別で絞り込む</legend>
-          <input class="btn btn-sm" type="radio" name="type" value="" aria-label={`すべての種別 ${all.length}`} checked />
-          {types.map((x) => <input class="btn btn-sm" type="radio" name="type" value={x.t} aria-label={`${typeLabel(x.t)} ${x.n}`} />)}
-        </fieldset>
-      )}
-      <fieldset class="mb-2 flex flex-wrap items-center gap-2" data-filter="way">
-        <legend class="sr-only">廃止のされ方で絞り込む</legend>
-        <input class="btn btn-sm" type="radio" name="way" value="" aria-label={`すべての廃止 ${all.length}`} checked />
-        {ways.map((x) => <input class="btn btn-sm" type="radio" name="way" value={x.w} aria-label={`${REPEAL_WAY_LABELS[x.w]} ${x.n}`} />)}
-      </fieldset>
-      <p class="mb-2 hidden text-sm text-base-content/70" data-empty>条件に合う法令はありません。</p>
-      {years.map((y) => (
-        <section class="mt-6 scroll-mt-[4.5rem]" id={`y${y}`} data-year>
-          <h2 class="text-xl font-bold">{yearLabel(y)}に廃止された法令<span class="ml-2 text-sm font-normal text-base-content/65">{byYear.get(y)!.length.toLocaleString()} 件</span></h2>
-          <RepealedLawList items={byYear.get(y)!} headingLevel={3} />
-        </section>
-      ))}
-    </div>
+    <section class="min-w-0">
+      <h2 class="mb-3 text-xl font-bold">最近廃止された法令</h2>
+      <RepealedLawList items={recent} />
+      {years[0] && <p class="mt-4"><a class="link link-primary" href={`/repealed/${years[0]}/`}>{yearLabel(years[0])}に廃止された法令をすべて見る →</a></p>}
+    </section>
 
-    <aside class="flex flex-col gap-4 lg:sticky lg:top-[4.5rem]">
+    <aside class="flex flex-col gap-4">
       <section class="card card-border bg-base-100">
         <div class="card-body p-5">
           <h2 class="card-title text-base">年ごとの廃止</h2>
@@ -69,7 +49,7 @@ const oldest = years.filter((y) => y !== "undetermined").at(-1);
               <tbody>
                 {years.map((y) => (
                   <tr>
-                    <th scope="row"><a class="link link-primary inline-block py-1" href={`#y${y}`}>{y === "undetermined" ? "未定" : y}</a></th>
+                    <th scope="row"><a class="link link-primary inline-block py-1" href={`/repealed/${y}/`}>{y === "undetermined" ? "未定" : y}</a></th>
                     {counts(byYear.get(y)!).map((n, i) => <td class:list={["text-right", { "font-bold": i === COLUMNS.length, "text-base-content/65": n === 0 }]}>{n}</td>)}
                   </tr>
                 ))}
@@ -93,35 +73,3 @@ const oldest = years.filter((y) => y !== "undetermined").at(-1);
     </aside>
   </div>
 </Base>
-<script>
-  // The type and way filters: show only the laws that match both, and hide dates and years left empty.
-  for (const root of document.querySelectorAll<HTMLElement>("[data-repealed-laws]")) {
-    const yearLinks = [...document.querySelectorAll<HTMLAnchorElement>('a[href^="#y"]')].map((a) => [a, a.getAttribute("href")!] as const);
-    const picked = (name: string) => root.querySelector<HTMLInputElement>(`[data-filter="${name}"] input:checked`)?.value ?? "";
-    const apply = () => {
-      const type = picked("type");
-      const way = picked("way");
-      for (const li of root.querySelectorAll<HTMLElement>("li[data-type]")) {
-        li.hidden = (!!type && li.dataset.type !== type) || (!!way && li.dataset.way !== way);
-      }
-      for (const group of root.querySelectorAll<HTMLElement>("[data-law-group], [data-year]")) {
-        group.hidden = !group.querySelector("li[data-type]:not([hidden])");
-      }
-      // Links to a year the filters leave empty go nowhere: disable them, taking their href away.
-      for (const [a, href] of yearLinks) {
-        const empty = !!document.getElementById(href.slice(1))?.hidden;
-        a.classList.toggle("opacity-40", empty);
-        if (empty) {
-          a.removeAttribute("href");
-          a.setAttribute("aria-disabled", "true");
-        } else {
-          a.setAttribute("href", href);
-          a.removeAttribute("aria-disabled");
-        }
-      }
-      root.querySelector<HTMLElement>("[data-empty]")!.classList.toggle("hidden", !!root.querySelector("li[data-type]:not([hidden])"));
-    };
-    for (const f of root.querySelectorAll("[data-filter]")) f.addEventListener("change", apply);
-    apply(); // the browser can restore a checked radio on back/forward
-  }
-</script>

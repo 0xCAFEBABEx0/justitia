@@ -1,6 +1,7 @@
 ---
-// A list of repealed laws (src/lib/repealed-laws.ts), by date of repeal. Each item carries its type
-// and how it was repealed in data-type and data-way, for the filters of the /repealed/ page.
+// A list of repealed laws (src/lib/repealed-laws.ts), by date of repeal, laid out like NewLawList. Each
+// item carries its type and how it was repealed in data-type and data-way, for the filters of the
+// /repealed/<year>/ pages.
 import { amendmentUrl, jpDate, law, lawUrl, typeLabel, type RepealedLaw } from "../lib/data.ts";
 import { lastTextBeforeRepeal, REPEAL_WAY_LABELS } from "../lib/repealed-laws.ts";
 
@@ -40,11 +41,10 @@ const before = (id: string): string | null => {
             <div class="list-col-grow">
               {!groupByDate && <div class="text-xs font-bold text-base-content/70">{l.enforced ? `${jpDate(l.enforced)} 廃止` : "廃止日未定"}</div>}
               <a class="link link-hover font-bold text-primary" href={lawUrl(l.id)}>{l.title}</a>
-              {" "}<span class="badge badge-ghost badge-sm ml-0.5 whitespace-nowrap align-middle">{REPEAL_WAY_LABELS[l.way]}</span>
-              <div class="mt-1 text-xs text-base-content/65">{typeLabel(l.dir)}{l.num && <>・{l.num}</>}</div>
+              <div class="mt-1 text-xs text-base-content/65">{typeLabel(l.dir)}{l.num && <>・{l.num}</>}・{REPEAL_WAY_LABELS[l.way]}</div>
               <div class="mt-1 text-xs text-base-content/65">
                 {l.newLaw ? (
-                  <>新しい法令：<a class="link link-primary" href={lawUrl(l.newLaw.id)}>{l.newLaw.title}</a>（{l.amendmentLawNum}）の施行により廃止・<a class="link" href={`${amendmentUrl(l.amendment)}#law-${l.id}`}>施行時の変更</a></>
+                  <>新しい法令：<a class="link link-primary" href={lawUrl(l.newLaw.id)}>{l.newLaw.title}</a>（{l.amendmentLawNum}）・<a class="link" href={`${amendmentUrl(l.amendment)}#law-${l.id}`}>施行時の変更</a></>
                 ) : (
                   <>廃止した法令：<a class="link" href={`${amendmentUrl(l.amendment)}#law-${l.id}`}>{l.amendmentTitle}</a>（{l.amendmentLawNum}）</>
                 )}
