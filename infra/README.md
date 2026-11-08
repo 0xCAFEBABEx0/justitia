@@ -15,6 +15,7 @@ the site and the data on them.
 | R2 bucket `justitia-data-prod` (existence, location hint) | Terraform |
 | The bucket's `r2.dev` URL (off) | Terraform |
 | Workers Custom Domain `anisotro.pics` → Worker `justitia` | Terraform |
+| Workers route `anisotro.pics/_canary/*` → Worker `justitia-canary` (temporary, see [Route canary](#route-canary)) | Terraform |
 | Cache rules `justitia-data-cache` and `data: versioned files 1 day` (zone entrypoint for Cache Rules) | Terraform |
 | Response header rule `justitia-data-cors` (zone entrypoint for Response Header Transform Rules) | Terraform |
 | Zone setting Browser Cache TTL (4 hours) | Terraform |
@@ -23,6 +24,7 @@ the site and the data on them.
 | Its managed label `cf-rss-feed`, which Bot Fight Mode lets through | Terraform, through the API on apply (see below) |
 | The bucket's custom domain `data.anisotro.pics` | Dashboard (cannot be imported, see below) |
 | Worker `justitia`: static assets, compatibility date, `workers_dev`/`preview_urls` off | Wrangler (`wrangler.jsonc`) |
+| Worker `justitia-canary` (temporary) | Wrangler (`infra/canary/wrangler.jsonc`), deployed by hand |
 | Workers Logs and Traces of the Worker | Wrangler (`wrangler.jsonc`, `observability`) |
 | Objects in the bucket | `scripts/upload-data.sh` (Publish workflow) |
 | API tokens for the Publish workflow and for Terraform | Dashboard |
@@ -52,9 +54,11 @@ has `cf-rss-feed` under Security → Web Assets → Operations, and set it again
 ## Layout
 
 ```text
+infra/canary/          temporary assets-only Worker for the route canary (deployed by hand, not by Publish)
 infra/terraform/
 ├─ envs/prod/
 │  ├─ main.tf          provider, zone lookup, the module's inputs
+│  ├─ canary.tf        temporary route for the canary
 │  ├─ variables.tf
 │  ├─ outputs.tf
 │  ├─ backend.tf       state in HCP Terraform, workspace justitia-prod
@@ -146,6 +150,47 @@ The production setup was made before this configuration. To build it from nothin
 2. Set up the Publish workflow's tokens and secrets ([One-time setup](../README.md#one-time-setup)) and run it once:
    it uploads the data and creates the Worker, which the Workers Custom Domain needs.
 3. `terraform apply` for the rest (custom domain, rules, zone settings).
+
+## Route canary
+
+Temporary. The amendment pages are planned to move to static pages served by three more assets-only Workers, each
+attached to part of `/amendment/` by a Workers route on `anisotro.pics` (the Custom Domain of `justitia`). The docs say
+that routes take precedence over a Custom Domain on the same hostname, and that a request is billed only when it runs
+a Worker script, but they show no assets-only Worker (one without `main`) on a route. The canary checks that on the
+live zone with one throwaway path, `/_canary/`, before anything else depends on it.
+
+1. Deploy the canary Worker (from the repository root, with the same 1Password items as Terraform; the
+   `cloudflare-terraform` token has **Workers Scripts: Edit**):
+
+   ```bash
+   cd infra/canary
+   op run --env-file=../terraform/envs/prod/1password.env -- sh -c \
+     'CLOUDFLARE_API_TOKEN="$TF_VAR_cloudflare_api_token" CLOUDFLARE_ACCOUNT_ID="$TF_VAR_cloudflare_account_id" npx --yes wrangler@4.151.3 deploy'
+   ```
+
+   Wrangler creates the Worker `justitia-canary` with its two pages and no route, `workers.dev` address or preview
+   URLs, so nothing can reach it yet.
+2. From `infra/terraform/envs/prod`, on an up-to-date `main`: `terraform plan` must show **1 to add**
+   (`cloudflare_workers_route.canary`) and nothing else; then `terraform apply`.
+3. Check (anyone can run these):
+
+   | Request | Expected |
+   | --- | --- |
+   | `curl -s https://anisotro.pics/_canary/` | 200, body `route-canary: ok` |
+   | `curl -s -w '%{http_code}' https://anisotro.pics/_canary/missing/` | 404, body `route-canary: not found` |
+   | `curl -sI https://anisotro.pics/_canary/index.html` | 307 to `/_canary/` (the canary's `html_handling`) |
+   | `curl -sI https://anisotro.pics/` and a law page | 200 from `justitia`, as before |
+
+   In the dashboard (Workers & Pages → `justitia-canary` → Metrics, and the account's Workers usage), the requests
+   must not show up as Worker invocations: an assets-only Worker has no script to invoke.
+4. Remove it: delete `infra/terraform/envs/prod/canary.tf` and this section, merge, `terraform apply` (**1 to
+   destroy**, the route), then delete the Worker and `infra/canary/`:
+
+   ```bash
+   cd infra/canary
+   op run --env-file=../terraform/envs/prod/1password.env -- sh -c \
+     'CLOUDFLARE_API_TOKEN="$TF_VAR_cloudflare_api_token" CLOUDFLARE_ACCOUNT_ID="$TF_VAR_cloudflare_account_id" npx --yes wrangler@4.151.3 delete'
+   ```
 
 ## Observability
 
