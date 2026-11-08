@@ -128,10 +128,10 @@ or `*.auto.tfvars` here: it would override the `TF_VAR_*` values without a warni
    `access-control-allow-origin: *` (an error response can be cached too, so check the status as well).
    (The files under `_publish/` are uploaded with `Cache-Control: no-store` and never come from the cache.)
 
-The Web Assets operation for the calendars, added in the dashboard on 2026-11-08, is imported by
-`envs/prod/imports.tf` (the operation ID is looked up, so nothing is copied from the dashboard): the plan shows 1 to
-import (the operation), 1 to add (`terraform_data.feeds_rss_label`, which sets the label the operation already has),
-0 to change and 0 to destroy. Delete `imports.tf` in a later change once it is applied.
+The Web Assets operation for the calendars, added in the dashboard on 2026-11-08, was imported the same day (pull
+request #35, with an import block that looked up the operation ID and was then removed): the plan showed 1 to import
+(the operation), 1 to add (`terraform_data.feeds_rss_label`, which set the label the operation already had), 0 to
+change and 0 to destroy, and the plan after the apply said `No changes.`
 
 The existing resources were imported into the state on 2026-11-07 (pull request #21, with import blocks that were
 then removed): the plan showed 6 to import, 1 to add (the `r2.dev` setting, which the provider cannot import), 0 to
