@@ -11,6 +11,8 @@ import { renderBlocks, renderBlockText } from "../lib/render.ts";
 import { blockHtml, esc, jpDate, NOTE, VIEW_KEY, viewToggleHtml, type View } from "./amendment.ts";
 import { DISCLAIMER_NOTE_HTML } from "../lib/disclaimer.ts";
 import { SITE_NAME } from "../lib/site-name.ts";
+import { shareToolsHtml } from "../lib/share.ts";
+import { refreshCiteTools } from "./share.ts";
 import { dataUrl } from "./data-url.ts";
 import { isStaged } from "../lib/new-laws.ts";
 
@@ -39,6 +41,11 @@ function revLabel(r: LawRevision, lawId: string): string {
             ? "段階施行"
             : "改正";
   return `${date} ${kind}${r.branch === "upcoming" ? "（施行予定）" : ""}：${r.amendmentTitle}`;
+}
+
+/** What a copied citation says the text is: 2020年4月1日時点の条文. */
+function citeAsOf(r: LawRevision): string {
+  return `${r.enforced ? `${jpDate(r.enforced)}時点` : "施行日未定の改正後"}の条文${r.branch === "upcoming" ? "（施行前）" : ""}`;
 }
 
 /** The revision a URL value names: an amendment key, or the last revision in force on a date. */
@@ -123,7 +130,7 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
 
     const field = (label: string, control: string) =>
       `<label class="fieldset min-w-0 py-0"><span class="fieldset-legend pt-0 pb-1 text-xs font-normal text-base-content/70">${label}</span>${control}</label>`;
-    const controls = `<div class="card card-border mb-4 bg-base-100"><div class="card-body grid gap-3 p-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)]">
+    const controls = `<div class="card card-border mb-4 bg-base-100 print:hidden"><div class="card-body grid gap-3 p-4 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,2fr)]">
       ${field("表示する時点", `<select class="select select-sm w-full" data-at>${options(revs, id, at)}</select>`)}
       ${field("日付で選ぶ", `<input class="input input-sm w-full" type="date" data-date value="${date}" />`)}
       ${field("比べる時点", `<select class="select select-sm w-full" data-from>${options(revs, id, from, "比べない（条文を表示）")}</select>`)}
@@ -161,13 +168,13 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
             : "過去の条文です。現在の条文とは異なります。";
       body = `<p class="${NOTE} mb-4">${esc(revLabel(r, id))} の後の条文。${notice}
           <a class="link link-primary" href="/amendment/?k=${encodeURIComponent(r.amendment)}#law-${esc(id)}">この改正の新旧対照</a></p>
-        <article class="law-text">${preamble}${rendered.html}</article>`;
+        <article class="law-text" data-cite-law="${esc(title)}" data-cite-num="${esc(law.num)}" data-cite-asof="${esc(citeAsOf(r))}">${preamble}${rendered.html}</article>`;
     }
 
     root.className = from >= 0 && view === "inline" ? "inline-view" : "";
-    root.innerHTML = `<div class="breadcrumbs py-0 text-sm text-base-content/70"><ul><li><a href="/laws/${esc(id)}/">${esc(law.title)}</a></li></ul></div>
+    root.innerHTML = `<div class="breadcrumbs py-0 text-sm text-base-content/70 print:hidden"><ul><li><a href="/laws/${esc(id)}/">${esc(law.title)}</a></li></ul></div>
       <h1 class="mb-4 text-2xl leading-snug font-bold sm:text-3xl">${esc(title)}</h1>
-      ${DISCLAIMER_NOTE_HTML}${controls}${body}`;
+      ${shareToolsHtml("mb-4")}${DISCLAIMER_NOTE_HTML}${controls}${body}`;
 
     root.querySelector<HTMLSelectElement>("[data-at]")!.addEventListener("change", (e) => {
       at = Number((e.target as HTMLSelectElement).value);
@@ -200,6 +207,7 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
         scrollTo(0, y);
       }),
     );
+    refreshCiteTools();
   };
   render();
   if (location.hash) document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();

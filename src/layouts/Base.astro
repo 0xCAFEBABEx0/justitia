@@ -4,6 +4,7 @@ import "@fontsource/noto-sans-jp/700.css";
 import "../styles/global.css";
 import { CODE_LICENSE_URL, CODE_REPO, DATA_LICENSE_URL, PDL_URL, SITE_NAME, SITE_TAGLINE, SOURCE_REPO } from "../lib/site.ts";
 import { DISCLAIMER_URL, EGOV_URL } from "../lib/disclaimer.ts";
+import { jpDate, jstDate, meta } from "../lib/data.ts";
 
 interface Props {
   title?: string;
@@ -71,7 +72,7 @@ const ogImage = new URL("/og-image.png", Astro.site).href;
     <div class="drawer drawer-end">
       <input id="site-menu" type="checkbox" class="drawer-toggle" aria-label="メニュー" />
       <div class="drawer-content flex min-h-screen flex-col">
-        <header class="navbar sticky top-0 z-30 min-h-14 gap-2 border-b border-base-300 bg-base-100 px-4 py-0">
+        <header class="navbar sticky top-0 z-30 print:hidden min-h-14 gap-2 border-b border-base-300 bg-base-100 px-4 py-0">
           <div class="mx-auto flex w-full max-w-[1180px] items-center gap-2">
             <a class="mr-2 shrink-0 text-lg font-bold tracking-wide" href="/">Anisotro<span class="text-primary">pics</span></a>
             <nav class="hidden xl:block" aria-label="サイト">
@@ -97,13 +98,18 @@ const ogImage = new URL("/og-image.png", Astro.site).href;
             </label>
           </div>
         </header>
-        <main class="grow py-6 pb-16">
-          <div class:list={["mx-auto px-4", narrow ? "max-w-[860px]" : "max-w-[1180px]"]}>
+        <main class="grow py-6 pb-16 print:py-0">
+          <div class:list={["mx-auto px-4 print:max-w-none print:px-0", narrow ? "max-w-[860px]" : "max-w-[1180px]"]}>
+            <div class="print-head mb-4 hidden border-b border-base-300 pb-2 text-xs print:block" data-print-head>
+              <p><b>{SITE_NAME}</b>（非公式）— {SITE_TAGLINE}</p>
+              <p data-print-url>{decodeURI(new URL(Astro.url.pathname, Astro.site).href)}</p>
+              <p>印刷日：<span data-print-date></span>／データ更新日：{jpDate(jstDate(meta().generatedAt))}</p>
+            </div>
             <slot />
           </div>
         </main>
-        <footer class="border-t border-base-300 bg-base-100 py-6 text-sm text-base-content/70">
-          <div class="mx-auto max-w-[1180px] space-y-2 px-4">
+        <footer class="border-t border-base-300 bg-base-100 py-6 text-sm text-base-content/70 print:py-3 print:text-xs">
+          <div class="mx-auto max-w-[1180px] space-y-2 px-4 print:max-w-none print:px-0">
             <p>
               条文と改正履歴は <a class="link" href={SOURCE_REPO}>houritsu</a>（e-Gov 法令データを Git の履歴にしたもの）からプログラムで自動的に生成しています。変換の誤りや不具合により、条文の表示が崩れたり、誤った新旧対照が表示されたりすることがあります。正式な法令の内容は <a class="link" href={EGOV_URL}>e-Gov 法令検索</a> で確認してください。
             </p>
@@ -116,7 +122,7 @@ const ogImage = new URL("/og-image.png", Astro.site).href;
           </div>
         </footer>
       </div>
-      <div class="drawer-side z-40">
+      <div class="drawer-side z-40 print:hidden">
         <label for="site-menu" class="drawer-overlay" aria-hidden="true"></label>
         <nav class="min-h-full w-72 bg-base-100 p-4" aria-label="サイト">
           <a class="mb-2 block px-3 text-lg font-bold" href="/">Anisotro<span class="text-primary">pics</span></a>
@@ -128,11 +134,14 @@ const ogImage = new URL("/og-image.png", Astro.site).href;
         </nav>
       </div>
     </div>
+    <div class="toast toast-center toast-bottom z-50 print:hidden" role="status" data-toast></div>
     <script>
       import { initSearch } from "../scripts/search.ts";
+      import { initShare } from "../scripts/share.ts";
       import { initThemeSwitch } from "../scripts/theme.ts";
       document.querySelectorAll<HTMLInputElement>("[data-theme-switch]").forEach((el) => initThemeSwitch(el));
       document.querySelectorAll<HTMLElement>("[data-search]").forEach((el) => initSearch(el));
+      initShare();
     </script>
   </body>
 </html>

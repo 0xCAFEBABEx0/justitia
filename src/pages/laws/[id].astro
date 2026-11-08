@@ -3,8 +3,10 @@ import Base from "../../layouts/Base.astro";
 import {
   amendmentUrl,
   jpDate,
+  jstDate,
   KIND_LABELS,
   law as loadLaw,
+  meta,
   pageLaws,
   repealOf,
   STATUS_LABELS,
@@ -13,6 +15,7 @@ import {
 import { renderLawFile, renderInline } from "../../lib/lawtext.ts";
 import { SOURCE_REPO } from "../../lib/site.ts";
 import { DISCLAIMER_NOTE_HTML } from "../../lib/disclaimer.ts";
+import { shareToolsHtml } from "../../lib/share.ts";
 import { isStaged } from "../../lib/new-laws.ts";
 import { lastTextBeforeRepeal, REPEAL_WAY_LABELS } from "../../lib/repealed-laws.ts";
 import PageHeader from "../../components/PageHeader.astro";
@@ -45,6 +48,14 @@ const description =
       ? `${named}は公布済みで、まだ施行されていない法令です。施行後の条文を見られます。`
       : `${named}の現行の条文と、${amendments > 0 ? `改正 ${amendments} 件の履歴・新旧対照${latest?.kind === "amended" && latest.enforced ? `（最終改正：${jpDate(latest.enforced)}施行）` : ""}` : "改正の履歴"}${law.upcomingCount > 0 ? `。未施行の改正 ${law.upcomingCount} 件も見られます` : ""}。`;
 // The law and the laws most often amended together with it.
+// What a copied citation says the text is.
+// The date is that of the data, not of the build: a build can reuse data extracted days before.
+const citeAsOf =
+  law.status === "upcoming_only"
+    ? "公布済み・未施行の法令の条文"
+    : law.status === "repealed"
+      ? "廃止された法令の、廃止直前の条文"
+      : `${jpDate(jstDate(meta().generatedAt))}更新のデータによる現行条文`;
 const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => r.id)].join(",")}`;
 ---
 <Base title={pageTitle} description={description}>
@@ -65,17 +76,19 @@ const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => 
       {repeal && <span>廃止：{repeal.enforced ? `${jpDate(repeal.enforced)} 施行` : "施行日未定"}（{repeal.amendmentLawNum}）</span>}
     </div>
   </PageHeader>
-  <div class="-mt-2 mb-4 flex flex-wrap gap-2">
+  <div class="-mt-2 mb-4 flex flex-wrap gap-2 print:hidden" data-share-title={law.title}>
     {beforeRepealUrl && <a class="btn btn-sm btn-primary" href={beforeRepealUrl}>廃止直前の条文</a>}
     {revisions.length > 0 && <a class:list={["btn btn-sm btn-primary", { "btn-soft": beforeRepealUrl }]} href={`/versions/?law=${law.id}`}>過去・将来の条文と比較</a>}
     <a class="btn btn-soft btn-sm btn-primary" href={graphUrl}>改正のグラフ</a>
     {source && <a class="btn btn-soft btn-sm btn-primary" href={source}>e-Gov 法令検索</a>}
     <a class="btn btn-soft btn-sm btn-primary" href={`${SOURCE_REPO}/commits/main/${law.path}`}>Git の履歴</a>
+    <Fragment set:html={shareToolsHtml("sm:ml-auto", "sm:dropdown-end")} />
   </div>
   <Fragment set:html={DISCLAIMER_NOTE_HTML} />
+  {rendered && <p class="-mt-2 mb-4 text-xs text-base-content/65 print:hidden">条の見出しを押すと、その条へのリンクや引用文をコピーできます。</p>}
 
-  <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
-    <article class="law-text min-w-0" data-law-text>
+  <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px] print:block">
+    <article class="law-text min-w-0" data-law-text data-cite-law={law.title} data-cite-num={law.num} data-cite-asof={citeAsOf}>
       {rendered ? (
         <Fragment set:html={rendered.html} />
       ) : law.status === "repealed" ? (
@@ -118,7 +131,7 @@ const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => 
       )}
     </article>
 
-    <aside class="flex flex-col gap-4 text-sm lg:sticky lg:top-[4.5rem] lg:max-h-[calc(100vh-5.5rem)] lg:overflow-auto">
+    <aside class="flex flex-col gap-4 text-sm print:hidden lg:sticky lg:top-[4.5rem] lg:max-h-[calc(100vh-5.5rem)] lg:overflow-auto">
       <section class="card card-border bg-base-100">
         <div class="card-body p-4">
           <h2 class="card-title text-base">改正履歴（{revisions.length} 件）</h2>

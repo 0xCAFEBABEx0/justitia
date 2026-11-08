@@ -9,6 +9,7 @@ import { isStaged } from "../lib/new-laws.ts";
 import { DISCLAIMER_NOTE_HTML } from "../lib/disclaimer.ts";
 import { linkPieces, type Piece } from "../lib/links.ts";
 import { SITE_NAME } from "../lib/site-name.ts";
+import { shareToolsHtml } from "../lib/share.ts";
 import { dataUrl } from "./data-url.ts";
 
 const KIND: Record<FileChange["kind"], string> = {
@@ -36,7 +37,7 @@ export const NOTE = "text-sm text-base-content/70";
 export function viewToggleHtml(view: View): string {
   const btn = (v: View, label: string) =>
     `<button type="button" class="btn btn-sm join-item ${view === v ? "btn-primary" : "border-base-300 bg-base-100"}" data-view="${v}" aria-pressed="${view === v}">${label}</button>`;
-  return `<div class="join my-2" role="group" aria-label="表示">${btn("side", "新旧対照")}${btn("inline", "インライン")}</div>`;
+  return `<div class="join my-2 print:hidden" role="group" aria-label="表示">${btn("side", "新旧対照")}${btn("inline", "インライン")}</div>`;
 }
 
 export type View = "side" | "inline";
@@ -132,7 +133,7 @@ function headingHtml(h: string): string {
 export function blockHtml(b: BlockChange, lawId: string, view: View, articleUrl?: (key: string) => string): string {
   const ctx = b.context.length ? `<span class="text-xs text-base-content/65">${b.context.map(headingHtml).join(" › ")}</span>` : "";
   const href = articleUrl ? articleUrl(b.key) : `/laws/${lawId}/#${encodeURIComponent(b.key)}`;
-  const link = b.op !== "deleted" ? ` <a class="link link-primary text-xs" href="${esc(href)}">条文へ</a>` : "";
+  const link = b.op !== "deleted" ? ` <a class="link link-primary text-xs print:hidden" href="${esc(href)}">条文へ</a>` : "";
   const heading = b.oldHeading
     ? `<del>${headingHtml(b.oldHeading)}</del> → <b>${headingHtml(b.heading)}</b>`
     : `<b>${headingHtml(b.heading) || "（前文）"}</b>`;
@@ -176,9 +177,14 @@ function fileHtml(f: FileChange, view: View, a: Amendment): string {
     f.kind !== "repealed" && amendmentKey
       ? `・<a class="link link-primary" href="/versions/?law=${f.lawId}&at=${encodeURIComponent(amendmentKey)}">${staged ? "施行後" : "改正後"}の条文</a>`
       : "";
-  return `<section class="mt-8 scroll-mt-[4.5rem]" id="law-${esc(f.lawId)}">
-    <h2 class="text-xl font-bold"><a class="link link-hover" href="/laws/${f.lawId}/">${esc(f.title)}</a> ${kindBadge(f, a.amendmentLawId)}</h2>
-    <div class="mt-0.5 mb-3 text-sm text-base-content/65">${esc(f.lawNum)}${stats}${f.blocks ? `・変更 ${f.blocks.length} か所` : ""}${versions}</div>
+  // An amendment that changes many laws: each can be printed alone.
+  const printOne =
+    a.files.length > 1
+      ? ` <button type="button" class="btn btn-ghost btn-xs ml-1 align-middle font-normal text-primary print:hidden" data-print-law="law-${esc(f.lawId)}">この法令だけ印刷</button>`
+      : "";
+  return `<section class="mt-8 scroll-mt-[4.5rem] print:mt-6" id="law-${esc(f.lawId)}">
+    <h2 class="text-xl font-bold break-after-avoid"><a class="link link-hover" href="/laws/${f.lawId}/">${esc(f.title)}</a> ${kindBadge(f, a.amendmentLawId)}</h2>
+    <div class="mt-0.5 mb-3 text-sm text-base-content/65">${esc(f.lawNum)}${stats}${f.blocks ? `・変更 ${f.blocks.length} か所` : ""}${versions}${printOne}</div>
     ${title}${body}
   </section>`;
 }
@@ -196,14 +202,15 @@ function headHtml(a: Amendment): string {
   facts.push(["変更された法令", `${a.files.length} 件`]);
   const toc =
     a.files.length > 1
-      ? `<details class="collapse-arrow collapse mb-2 border border-base-300 bg-base-100" ${a.files.length <= 20 ? "open" : ""}><summary class="collapse-title font-bold">変更された法令</summary><ul class="collapse-content menu menu-sm w-full pt-0">${a.files
+      ? `<details class="collapse-arrow collapse mb-2 border print:hidden border-base-300 bg-base-100" ${a.files.length <= 20 ? "open" : ""}><summary class="collapse-title font-bold">変更された法令</summary><ul class="collapse-content menu menu-sm w-full pt-0">${a.files
           .map((f) => `<li><a href="#law-${esc(f.lawId)}">${esc(f.title)} ${kindBadge(f, a.amendmentLawId)}</a></li>`)
           .join("")}</ul></details>`
       : "";
   return `<div>
-    <div class="breadcrumbs py-0 text-sm text-base-content/70"><ul><li><a href="/timeline/">改正の年表</a></li><li><a href="/timeline/${a.enforced?.slice(0, 4) ?? "undetermined"}/">${a.enforced?.slice(0, 4) ?? "施行日未定"}</a></li></ul></div>
+    <div class="breadcrumbs py-0 text-sm text-base-content/70 print:hidden"><ul><li><a href="/timeline/">改正の年表</a></li><li><a href="/timeline/${a.enforced?.slice(0, 4) ?? "undetermined"}/">${a.enforced?.slice(0, 4) ?? "施行日未定"}</a></li></ul></div>
     <h1 class="text-2xl leading-snug font-bold sm:text-3xl">${esc(a.title)}${a.branch === "upcoming" ? ` <span class="${badgeClass("upcoming")}">施行予定</span>` : ""}</h1>
     <dl class="my-4 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-0.5 text-sm">${facts.map(([k, v]) => `<dt class="text-base-content/65">${k}</dt><dd>${v}</dd>`).join("")}</dl>
+    ${shareToolsHtml("mb-4")}
     ${DISCLAIMER_NOTE_HTML}
     ${toc}
   </div>`;
