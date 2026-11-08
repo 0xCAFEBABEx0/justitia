@@ -16,7 +16,7 @@ const cats = [...categories].sort((a, b) => a[0].localeCompare(b[0], "ja"));
   description={`現行の法令 ${inForce.length.toLocaleString()} 件を、五十音・種別（法律・政令・府省令など）・分野から探せます。`}
   nav="laws"
 >
-  <PageHeader title="法令一覧">現行 {inForce.length.toLocaleString()} 件、廃止 {all.filter((l) => l.status === "repealed").length.toLocaleString()} 件。五十音・種別・分野から探せます。</PageHeader>
+  <PageHeader title="法令一覧">現行 {inForce.length.toLocaleString()} 件、<a class="link" href="/repealed/">廃止 {all.filter((l) => l.status === "repealed").length.toLocaleString()} 件</a>。五十音・種別・分野から探せます。</PageHeader>
   <BrowseTabs mode="none" />
 
   <h2 class="mt-8 mb-3 text-xl font-bold">種別</h2>

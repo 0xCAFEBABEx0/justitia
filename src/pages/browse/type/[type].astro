@@ -26,7 +26,10 @@ const repealed = all.filter((l) => l.status === "repealed");
   {repealed.length > 0 && (
     <details class="collapse-arrow collapse mt-6 border border-base-300 bg-base-100">
       <summary class="collapse-title font-bold">廃止された{typeLabel(type)}（{repealed.length} 件）</summary>
-      <div class="collapse-content"><LawList laws={repealed} showType={false} /></div>
+      <div class="collapse-content">
+        <p class="mb-2 text-sm"><a class="link link-primary" href="/repealed/">廃止日や廃止した法令は「廃止された法令」の一覧で見られます →</a></p>
+        <LawList laws={repealed} showType={false} />
+      </div>
     </details>
   )}
 </Base>
