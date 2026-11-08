@@ -247,12 +247,16 @@ small. Nothing in a file depends on the time it is written (`DTSTAMP` is the pro
 uploaded again only when its events change. `REFRESH-INTERVAL` (RFC 7986) and `X-PUBLISHED-TTL` ask calendar
 apps to fetch it again every 12 hours. The upload stores the files uncompressed as `text/calendar; charset=utf-8`
 with `Cache-Control: public, max-age=3600`, at URLs without `?v=`, since a subscription keeps its URL; the zone's
-first cache rule caches them for that hour. `/upcoming/` and the law pages copy a calendar's URL for Google
+first cache rule caches them at the edge for that hour. Clients see `max-age=14400`: the zone's Browser Cache TTL
+(4 hours, Terraform) replaces an origin value lower than itself (Cloudflare docs, *Edge and Browser Cache TTL*),
+which is still well within the 12 hours the files ask for. `/upcoming/` and the law pages copy a calendar's URL for Google
 Calendar, Outlook or Apple Calendar to subscribe to, or open the file to import once.
 
 An RSS feed has an item when an amendment is promulgated (公布) and another when it comes into force (施行), each
 dated that day (midnight JST), or one item (公布・施行) when both fall on the same day. Items from the past year
-(366 days) up to the day the file is written are kept, newest first; each links the amendment's page (for a law's
+(366 days) up to the day the file is written are kept, newest first, but at most 200 (`RSS_MAX_ITEMS`; the
+site-wide feed would have about 3,500, 3 MB), finishing the last day kept, so a day like 1 April is never cut;
+each links the amendment's page (for a law's
 feed, that law's part of it) and carries the disclaimer. `lastBuildDate` is the newest item's day, not the time of
 writing, so a feed too is uploaded again only when its items change; `ttl` asks for a fetch every 12 hours. The
 upload stores the feeds like the calendars, as `application/rss+xml; charset=utf-8`. Every page links the
