@@ -8,9 +8,10 @@ import type {
   Meta,
 } from "../../scripts/extract/types.ts";
 import { collectNewLaws, type NewLaw } from "./new-laws.ts";
+import { collectRepealedLaws, type RepealedLaw } from "./repealed-laws.ts";
 import { DATA_DIR } from "./site.ts";
 
-export type { AmendmentSummary, FileChangeKind, LawDetail, LawSummary, Meta, NewLaw };
+export type { AmendmentSummary, FileChangeKind, LawDetail, LawSummary, Meta, NewLaw, RepealedLaw };
 
 function readJson<T>(...parts: string[]): T {
   return JSON.parse(readFileSync(join(DATA_DIR, ...parts), "utf8")) as T;
@@ -84,6 +85,22 @@ export function newLaws(): NewLaw[] {
     new Map(laws().map((l) => [l.id, l])),
     TYPE_ORDER,
   ));
+}
+
+let repealedLawsCache: RepealedLaw[] | null = null;
+/** Every repealed law (see src/lib/repealed-laws.ts), newest repeal first. */
+export function repealedLaws(): RepealedLaw[] {
+  return (repealedLawsCache ??= collectRepealedLaws(
+    timelineYears().flatMap((y) => timeline(y)),
+    new Map(laws().map((l) => [l.id, l])),
+    TYPE_ORDER,
+  ));
+}
+
+let repealedByIdCache: Map<string, RepealedLaw> | null = null;
+/** The repeal of a law, if it is repealed and houritsu records how. */
+export function repealOf(id: string): RepealedLaw | undefined {
+  return (repealedByIdCache ??= new Map(repealedLaws().map((l) => [l.id, l]))).get(id);
 }
 
 // Labels ------------------------------------------------------------------------------

@@ -6,6 +6,7 @@ import {
   KIND_LABELS,
   law as loadLaw,
   pageLaws,
+  repealOf,
   STATUS_LABELS,
   typeLabel,
 } from "../../lib/data.ts";
@@ -13,6 +14,7 @@ import { renderLawFile, renderInline } from "../../lib/lawtext.ts";
 import { SOURCE_REPO } from "../../lib/site.ts";
 import { DISCLAIMER_NOTE_HTML } from "../../lib/disclaimer.ts";
 import { isStaged } from "../../lib/new-laws.ts";
+import { lastTextBeforeRepeal, REPEAL_WAY_LABELS } from "../../lib/repealed-laws.ts";
 import PageHeader from "../../components/PageHeader.astro";
 import StatusBadge from "../../components/StatusBadge.astro";
 
@@ -29,13 +31,16 @@ const revisions = [...law.revisions].reverse(); // newest first
 // (段階施行) is not an amendment.
 const latest = law.revisions.filter((r) => r.branch === "main" && !isStaged(r.kind, law.id, r.amendmentLawId)).at(-1);
 const enacted = law.revisions.find((r) => r.kind === "enacted");
+const repeal = law.status === "repealed" ? repealOf(law.id) : undefined;
+const beforeRepeal = law.status === "repealed" ? lastTextBeforeRepeal(law.revisions) : null;
+const beforeRepealUrl = beforeRepeal ? `/versions/?law=${law.id}&at=${encodeURIComponent(beforeRepeal)}` : null;
 const anchor = `#law-${law.id}`;
 const amendments = law.revisionCount - 1; // the first revision is the enactment or the start of coverage
 const named = `${law.title}（${law.num}${law.abbrev ? `、略称：${law.abbrev}` : ""}）`;
 const pageTitle = law.status === "repealed" ? `${law.title}（廃止）の改正履歴` : `${law.title}の条文と改正履歴`;
 const description =
   law.status === "repealed"
-    ? `${named}は廃止された法令です。廃止までの改正の履歴と新旧対照を見られます。`
+    ? `${named}は${repeal?.enforced ? `${jpDate(repeal.enforced)}に` : ""}廃止された法令です。廃止直前の条文と、廃止までの改正の履歴・新旧対照を見られます。`
     : law.status === "upcoming_only"
       ? `${named}は公布済みで、まだ施行されていない法令です。施行後の条文を見られます。`
       : `${named}の現行の条文と、${amendments > 0 ? `改正 ${amendments} 件の履歴・新旧対照${latest?.kind === "amended" && latest.enforced ? `（最終改正：${jpDate(latest.enforced)}施行）` : ""}` : "改正の履歴"}${law.upcomingCount > 0 ? `。未施行の改正 ${law.upcomingCount} 件も見られます` : ""}。`;
@@ -57,10 +62,12 @@ const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => 
       {law.abbrev && <span>略称：{law.abbrev}</span>}
       {enacted && <span>制定：{enacted.enforced ? `${jpDate(enacted.enforced)} 施行` : "施行日未定"}{enacted.branch === "upcoming" && "（予定）"}</span>}
       {latest && latest.kind === "amended" && <span>最終改正：{jpDate(latest.enforced)} 施行（{latest.amendmentLawNum}）</span>}
+      {repeal && <span>廃止：{repeal.enforced ? `${jpDate(repeal.enforced)} 施行` : "施行日未定"}（{repeal.amendmentLawNum}）</span>}
     </div>
   </PageHeader>
   <div class="-mt-2 mb-4 flex flex-wrap gap-2">
-    {revisions.length > 0 && <a class="btn btn-sm btn-primary" href={`/versions/?law=${law.id}`}>過去・将来の条文と比較</a>}
+    {beforeRepealUrl && <a class="btn btn-sm btn-primary" href={beforeRepealUrl}>廃止直前の条文</a>}
+    {revisions.length > 0 && <a class:list={["btn btn-sm btn-primary", { "btn-soft": beforeRepealUrl }]} href={`/versions/?law=${law.id}`}>過去・将来の条文と比較</a>}
     <a class="btn btn-soft btn-sm btn-primary" href={graphUrl}>改正のグラフ</a>
     {source && <a class="btn btn-soft btn-sm btn-primary" href={source}>e-Gov 法令検索</a>}
     <a class="btn btn-soft btn-sm btn-primary" href={`${SOURCE_REPO}/commits/main/${law.path}`}>Git の履歴</a>
@@ -72,7 +79,40 @@ const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => 
       {rendered ? (
         <Fragment set:html={rendered.html} />
       ) : law.status === "repealed" ? (
-        <p class="text-base-content/70">この法令は廃止されています。廃止までの改正履歴を右に表示しています。</p>
+        <div class="card card-border bg-base-100">
+          <div class="card-body gap-2 p-5">
+            <h2 class="card-title text-base">
+              {repeal?.enforced ? `${jpDate(repeal.enforced)}に廃止されました` : "この法令は廃止されています"}
+              {repeal && <span class="badge badge-ghost badge-sm whitespace-nowrap font-normal">{REPEAL_WAY_LABELS[repeal.way]}</span>}
+            </h2>
+            {repeal && (
+              <dl class="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[auto_minmax(0,1fr)]">
+                {repeal.newLaw ? (
+                  <>
+                    <dt class="text-base-content/70">新しい法令</dt>
+                    <dd><a class="link link-primary" href={`/laws/${repeal.newLaw.id}/`}>{repeal.newLaw.title}</a><span class="text-xs text-base-content/65">（{repeal.amendmentLawNum}）</span>の施行により廃止・<a class="link" href={`${amendmentUrl(repeal.amendment)}${anchor}`}>施行時の変更</a></dd>
+                  </>
+                ) : (
+                  <>
+                    <dt class="text-base-content/70">廃止した法令</dt>
+                    <dd><a class="link link-primary" href={`${amendmentUrl(repeal.amendment)}${anchor}`}>{repeal.amendmentTitle}</a><span class="text-xs text-base-content/65">（{repeal.amendmentLawNum}）</span></dd>
+                  </>
+                )}
+                {repeal.alsoRepeals > 0 && (
+                  <>
+                    <dt class="text-base-content/70">同時に廃止</dt>
+                    <dd>ほか {repeal.alsoRepeals} 法令（<a class="link" href={amendmentUrl(repeal.amendment)}>施行時の変更</a>）</dd>
+                  </>
+                )}
+              </dl>
+            )}
+            <p class="text-sm text-base-content/70">
+              {beforeRepealUrl ? <>廃止される前の条文は<a class="link link-primary" href={beforeRepealUrl}>廃止直前の条文</a>で見られます。</> : "houritsu には廃止される前の条文がありません。"}
+              廃止までの改正履歴を<span class="lg:hidden">下</span><span class="hidden lg:inline">右</span>に表示しています。
+            </p>
+            <p class="text-xs"><a class="link" href="/repealed/">廃止された法令の一覧</a></p>
+          </div>
+        </div>
       ) : (
         <p class="text-base-content/70">この法令はまだ施行されていません。施行予定の改正を右に表示しています。</p>
       )}
@@ -107,7 +147,7 @@ const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => 
                   )}
                   <div class="mt-0.5 flex flex-wrap gap-x-3 text-xs">
                     {r.kind === "amended" && <span class="tabular-nums"><span class="text-add">+{r.additions}</span> <span class="text-del">−{r.deletions}</span></span>}
-                    {r.kind !== "repealed" && <a class="link link-hover link-primary" href={`/versions/?law=${law.id}&at=${r.amendment}`}>この時点の条文</a>}
+                    {r.kind !== "repealed" && <a class="link link-hover link-primary inline-block py-1" href={`/versions/?law=${law.id}&at=${r.amendment}`}>この時点の条文</a>}
                   </div>
                 </div>
                 {i < revisions.length - 1 && <hr />}
