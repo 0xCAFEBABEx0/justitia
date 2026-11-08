@@ -287,7 +287,6 @@ async function processCommit(c: RawCommit, branch: Branch): Promise<void> {
   const bill = first(info, "Bill");
   const amendment: Amendment = {
     key,
-    sha: c.sha,
     branch,
     amendmentLawId,
     amendmentLawNum: c.author,
