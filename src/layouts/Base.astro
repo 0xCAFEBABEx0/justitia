@@ -4,7 +4,7 @@ import "@fontsource/noto-sans-jp/700.css";
 import "../styles/global.css";
 import { CODE_LICENSE_URL, CODE_REPO, DATA_LICENSE_URL, PDL_URL, SITE_NAME, SITE_TAGLINE, SOURCE_REPO } from "../lib/site.ts";
 import { DISCLAIMER_URL, EGOV_URL } from "../lib/disclaimer.ts";
-import { buildDate, jpDate } from "../lib/data.ts";
+import { jpDate, jstDate, meta } from "../lib/data.ts";
 
 interface Props {
   title?: string;
@@ -103,7 +103,7 @@ const ogImage = new URL("/og-image.png", Astro.site).href;
             <div class="print-head mb-4 hidden border-b border-base-300 pb-2 text-xs print:block" data-print-head>
               <p><b>{SITE_NAME}</b>（非公式）— {SITE_TAGLINE}</p>
               <p data-print-url>{decodeURI(new URL(Astro.url.pathname, Astro.site).href)}</p>
-              <p>印刷日：<span data-print-date></span>／データ更新日：{jpDate(buildDate())}</p>
+              <p>印刷日：<span data-print-date></span>／データ更新日：{jpDate(jstDate(meta().generatedAt))}</p>
             </div>
             <slot />
           </div>

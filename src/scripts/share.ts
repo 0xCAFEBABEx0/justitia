@@ -167,6 +167,13 @@ function afterPrint(): void {
   document.querySelectorAll(".print-target").forEach((el) => el.classList.remove("print-target"));
 }
 
+function prepareMenu(details: HTMLDetailsElement): void {
+  details.querySelectorAll<HTMLAnchorElement>("[data-share-to]").forEach((a) => {
+    a.href = shareUrl(a.dataset.shareTo as ShareTarget, shareTitle(), location.href);
+  });
+  if (typeof navigator.share === "function") details.querySelector<HTMLElement>("[data-share-native-item]")?.removeAttribute("hidden");
+}
+
 function onClick(e: MouseEvent): void {
   const el = e.target instanceof Element ? e.target : null;
   closeMenus(el?.closest("details[data-share]"));
@@ -175,18 +182,17 @@ function onClick(e: MouseEvent): void {
   const summary = el.closest("details[data-share] > summary");
   if (summary) {
     const details = summary.parentElement as HTMLDetailsElement;
-    if (!details.open && useShareSheet()) {
+    if (details.open) return;
+    // Fill in the links before the menu can open, whichever way it opens: the URL changes with the
+    // #fragment and on the versions page.
+    prepareMenu(details);
+    if (useShareSheet()) {
       e.preventDefault();
+      // The menu is the fallback when the share sheet fails for another reason than being closed.
       void shareSheet().then((shared) => {
         if (!shared) details.open = true;
       });
-      return;
     }
-    // Fill in the links now: the URL changes with the #fragment and on the versions page.
-    details.querySelectorAll<HTMLAnchorElement>("[data-share-to]").forEach((a) => {
-      a.href = shareUrl(a.dataset.shareTo as ShareTarget, shareTitle(), location.href);
-    });
-    if (typeof navigator.share === "function") details.querySelector<HTMLElement>("[data-share-native-item]")?.removeAttribute("hidden");
     return;
   }
 
