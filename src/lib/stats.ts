@@ -1,10 +1,12 @@
 // Statistics over all laws for the /stats/ pages, computed at build time from the extracted data
-// (laws.json and laws/<id>.json). Nothing here is fetched by the browser.
+// (laws.json and laws/<id>.json) and the law files in the houritsu clone. Nothing here is fetched by
+// the browser.
 
 import { law as loadLaw, laws, type LawDetail, type LawSummary } from "./data.ts";
 import { splitBlocks } from "../../scripts/extract/blocks.ts";
 import { readLawFile } from "./lawtext.ts";
 import { isStaged } from "./new-laws.ts";
+import { COMPANIES, companyMatcher } from "./companies.ts";
 
 /** The eras of e-Gov law IDs: the first digit of an ID is the era of the law's number. */
 export const ERAS = [
@@ -255,20 +257,80 @@ export function measureBlocks(blocks: { key: string; level: number; heading: str
   return { chars, articles, deleted, branched, katakana: kata > hira };
 }
 
-let textCache: Map<string, TextStats> | null = null;
+/** A law number (法令番号) as laws cite it: 「昭和二十二年法律第六十七号」, 「平成十二年厚生省令第百二十七号」. */
+const LAW_NUMBER = /(?:明治|大正|昭和|平成|令和)[元〇一二三四五六七八九十]+年[^\s（）「」、。年]{1,30}?第[〇一二三四五六七八九十百千]+号/g;
+
+/** The law numbers that occur in a text, each once. */
+export function lawNumbers(text: string): Set<string> {
+  return new Set(text.match(LAW_NUMBER) ?? []);
+}
+
+/** The law cited by its title rather than by a number. */
+const CONSTITUTION = "日本国憲法";
+
+export interface LawScan {
+  /** The text stats of each law in force. */
+  text: Map<string, TextStats>;
+  /** For each law in force, the other laws in force that cite it, by law ID. */
+  citedBy: Map<string, string[]>;
+  /** For each law in force, how many other laws in force it cites. */
+  cites: Map<string, number>;
+  /** For each entry of COMPANIES, in the same order, the laws in force that name it. */
+  companies: string[][];
+}
+
+let scanCache: LawScan | null = null;
 /**
- * The text stats of every law in force, by law ID, measured from the houritsu clone once per build
- * (about 10 seconds for all laws). Laws missing from the clone, as in a partial local build, are
- * left out.
+ * Reads the text of every law in force from the houritsu clone once per build (about 10 seconds for
+ * all laws) and measures it. Laws missing from the clone, as in a partial local build, are left out.
+ *
+ * - Citations: a law cites another when it has the other's law number, or for 日本国憲法, which is
+ *   always cited by title, its title outside longer law titles. Only laws in force count, on both
+ *   sides. The dated numbers in the headings of 附則 (「昭和二二年四月一六日法律第六一号」) name
+ *   the laws that amended the law, not laws it cites, and do not match.
+ * - Companies: a law names a company when the name occurs outside the titles of laws (companyMatcher).
  */
-export function textStats(): Map<string, TextStats> {
-  if (textCache) return textCache;
-  const map = new Map<string, TextStats>();
-  for (const l of laws()) {
-    if (l.status !== "in_force") continue;
+export function scanLaws(): LawScan {
+  if (scanCache) return scanCache;
+  const all = laws();
+  const inForce = all.filter((l) => l.status === "in_force");
+  const byNumber = new Map<string, string | null>();
+  for (const l of inForce) byNumber.set(l.num, byNumber.has(l.num) ? null : l.id);
+  const titles = new Set(all.map((l) => l.title));
+  const constitution = inForce.find((l) => l.title === CONSTITUTION)?.id;
+  // 「日本国憲法の改正手続に関する法律」 alone does not cite the constitution.
+  const citesConstitution = companyMatcher({ name: CONSTITUTION }, titles);
+  const matchers = COMPANIES.map((c) => companyMatcher(c, titles));
+  const text = new Map<string, TextStats>();
+  const citedBy = new Map<string, string[]>();
+  const cites = new Map<string, number>();
+  const companies: string[][] = COMPANIES.map(() => []);
+  for (const l of inForce) {
     const doc = readLawFile(l.path);
-    if (doc) map.set(l.id, measureBlocks(splitBlocks(doc.body)));
+    if (!doc) continue;
+    text.set(l.id, measureBlocks(splitBlocks(doc.body)));
+    const targets = new Set<string>();
+    for (const n of lawNumbers(doc.body)) {
+      const id = byNumber.get(n);
+      if (id) targets.add(id);
+    }
+    if (constitution && citesConstitution(doc.body)) targets.add(constitution);
+    targets.delete(l.id);
+    for (const id of targets) {
+      const list = citedBy.get(id);
+      if (list) list.push(l.id);
+      else citedBy.set(id, [l.id]);
+    }
+    cites.set(l.id, targets.size);
+    matchers.forEach((m, i) => {
+      if (m(doc.body)) companies[i].push(l.id);
+    });
   }
-  textCache = map;
-  return map;
+  scanCache = { text, citedBy, cites, companies };
+  return scanCache;
+}
+
+/** The text stats of every law in force, by law ID (see scanLaws). */
+export function textStats(): Map<string, TextStats> {
+  return scanLaws().text;
 }
