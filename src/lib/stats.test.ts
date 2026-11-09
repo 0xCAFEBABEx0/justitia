@@ -42,7 +42,7 @@ test("yearBefore and yearsSince", () => {
 const revision = (enforced: string | null, kind: LawRevision["kind"], amendmentLawId: string, branch: "main" | "upcoming" = "main") =>
   ({ amendment: `${amendmentLawId}_x`, branch, enforced, kind, amendmentLawId }) as LawRevision;
 
-test("statLaw counts amendments in force, leaving out the first revision and 段階施行", () => {
+test("statLaw counts amendments in force, leaving out the enactment and 段階施行", () => {
   const detail = {
     id: "506AC0000000001",
     title: "テスト法",
@@ -63,6 +63,19 @@ test("statLaw counts amendments in force, leaving out the first revision and 段
   assert.equal(s.amendmentsLastYear, 1);
   assert.equal(s.unamended, false);
   assert.deepEqual(s.year, { era: "令和", eraYear: 6, year: 2024 });
+});
+
+test("statLaw counts a first revision that is an amendment by another law (収録開始)", () => {
+  const detail = {
+    id: "415AC0000000057",
+    title: "個人情報の保護に関する法律",
+    num: "平成十五年法律第五十七号",
+    dir: "act",
+    upcomingCount: 0,
+    frontmatter: { amendment: { law_id: "505AC0000000047" } },
+    revisions: [revision("2017-05-30", "coverage_start", "427AC0000000065"), revision("2022-04-01", "amended", "502AC0000000044")],
+  } as unknown as LawDetail;
+  assert.equal(statLaw(detail, "2026-11-09").amendments, 2);
 });
 
 test("byAge sorts by year, then by ID, unknown years last", () => {

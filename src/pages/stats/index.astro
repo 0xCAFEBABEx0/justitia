@@ -14,10 +14,10 @@ const mostAmended = all.filter((l) => l.amendments > 0).sort((a, b) => b.amendme
 
 interface Row {
   law: StatLaw;
-  n: string;
+  n: string | null;
   unit: string;
 }
-const ago = (l: StatLaw): Row => ({ law: l, n: (yearsSince(l.year, today) ?? 0).toLocaleString(), unit: "年" });
+const ago = (l: StatLaw): Row => ({ law: l, n: yearsSince(l.year, today)?.toLocaleString() ?? null, unit: "年" });
 const SECTIONS: { href: string; title: string; desc: string; rows: Row[]; more: string }[] = [
   {
     href: "/stats/unamended/",
@@ -78,7 +78,7 @@ const description = `現行の法令 ${all.length.toLocaleString()} 件を、改
                   <a class="link link-hover font-bold text-primary" href={lawUrl(r.law.id)}>{r.law.title}</a>
                   <div class="text-xs text-base-content/65">{typeLabel(r.law.dir)}{r.law.year && <>・{lawYearLabel(r.law.year)}</>}</div>
                 </div>
-                <span class="tabular-nums"><b>{r.n}</b><span class="ml-0.5 text-xs text-base-content/65">{r.unit}</span></span>
+                {r.n !== null && <span class="tabular-nums"><b>{r.n}</b><span class="ml-0.5 text-xs text-base-content/65">{r.unit}</span></span>}
               </li>
             ))}
           </ol>

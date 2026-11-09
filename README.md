@@ -116,7 +116,7 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | `/stats/` | 「法令の統計」: statistics over the laws in force, with the top five of each list below. Built from the extracted data at build time (`src/lib/stats.ts`, which reads every `laws/<id>.json`); each page says the date of the data, and has a note that the figures are counted by a program |
 | `/stats/unamended/` | Laws never amended since they were made according to e-Gov (frontmatter `amendment.law_id` null or `""`; houritsu's own history mostly starts in the 2000s, so it cannot tell), oldest first by era, with a type filter. Law pages of these laws get a 「制定以来改正なし」 badge linking here |
 | `/stats/oldest/` | The 300 oldest laws in force, by the year of their number (read from the law ID) |
-| `/stats/most-amended/` | Laws with the most amendments in force recorded in houritsu (段階施行 not counted), and the most amended in the last year |
+| `/stats/most-amended/` | Laws with the most amendments in force recorded in houritsu (the enactment and 段階施行 not counted; a first recorded revision made by another law is), and the most amended in the last year |
 | `/versions/?law=<law ID>&at=<amendment key or YYYY-MM-DD>[&from=<…>]` | The law's text at any revision, past or upcoming; with `from`, what changed between two revisions (like `git diff from..at`) |
 | `/search/?q=<words>` | Full-text search over the current law text, with links to the matching articles |
 | `/graph/?laws=<ID>,<ID>,…` | Amendment graph: one lane per law, with laws changed by the same amending law joined by a line (git-graph style) |
