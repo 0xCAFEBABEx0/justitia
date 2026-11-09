@@ -97,8 +97,9 @@ missing:
 1. Merge the change (`scripts/amendment-shards.ts`, its `wrangler.<name>.jsonc` and `amendments.tf`). The Publish run
    creates the new Worker with its first `wrangler deploy`.
 2. Apply: the plan updates the `script` of the routes in place (`~`), and adds a route for each new prefix. Do it
-   before another change to the site's CSS or scripts is published: the old Worker is no longer deployed, and its
-   pages load `/_astro/` files that the main Worker keeps for only one more build (README, publishing step 5).
+   before any change to the site's CSS or scripts is published: the old Worker is no longer deployed, and its pages
+   load `/_astro/` files that the main Worker keeps only until the Publish run after the one that replaced them
+   (README, publishing step 5).
 3. Run the checks above, then delete the Worker that no route uses any more, in the dashboard (Workers & Pages → the
    Worker → Settings → Delete) or with `npx wrangler delete --name <old name>` (needs the Workers Admin role).
 
