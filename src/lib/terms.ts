@@ -178,6 +178,8 @@ export function definitionsIn(text: string, block: string): Definition[] {
   const out: Definition[] = [];
   const add = (term: string, form: DefinitionForm, def: string, items?: string[]) => {
     const t = clean(def);
+    // A definition whose substance is in a list (次に掲げる者) means nothing without it.
+    if (LIST.test(t) && !items?.length) return;
     if (t.length >= 4 && t.length <= MAX_TEXT && balanced(t)) out.push({ term, form, text: t, block, ...(items?.length ? { items } : {}) });
   };
   // 「X」とは、…をいう / この法律で、X とは、…をいう

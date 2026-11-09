@@ -64,6 +64,9 @@ test("items of a definition that refers to them", () => {
   const many = Array.from({ length: 31 }, (_, i) => `- ${"一二三四五六七八九"[i % 9]} 者${i}`).join("\n\n");
   assert.deepEqual(definitionsIn(`この法律において「事業者」とは、次に掲げる者をいう。\n\n${many}`, "本則|第二条"), []);
   assert.deepEqual(definitionsIn("この法律において「事業者」とは、次に掲げる者をいう。\n\n２ 次の項。", "本則|第二条"), []);
+  // and so is one in parentheses, which never takes the items
+  assert.deepEqual(terms("次に掲げる者（以下「事業者」という。）は、届出をしなければならない。\n\n- 一 会社"), []);
+  assert.deepEqual(terms("国は、事業者（次に掲げる者をいう。以下同じ。）を\n\n- 一 会社"), []);
 });
 
 test("markup other than ruby is taken out; the marker of an item too", () => {
