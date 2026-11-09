@@ -3,7 +3,7 @@
 //
 //   node scripts/changelog.ts                 check CHANGELOG.md; print the newest version
 //   node scripts/changelog.ts --notes <file>  also write the newest release's notes to <file>
-//   node scripts/changelog.ts --this-month …  also require the newest release to be of this month (Japan time)
+//   node scripts/changelog.ts --merged-at <ISO time> …  also require the newest release to be of that month (JST)
 //
 // Exits with 1 and lists the problems when CHANGELOG.md breaks a rule.
 
@@ -182,11 +182,11 @@ export function releaseNotes(releases: Release[], i: number): string {
 
 if (import.meta.main) {
   const args = process.argv.slice(2);
-  const thisMonth = args[0] === "--this-month";
-  if (thisMonth) args.shift();
+  const mergedAt = args[0] === "--merged-at" ? new Date(args[1] ?? "") : undefined;
+  if (mergedAt) args.splice(0, 2);
   const notesFile = args[0] === "--notes" ? args[1] : undefined;
-  if (args.length !== (notesFile ? 2 : 0)) {
-    console.error("usage: node scripts/changelog.ts [--this-month] [--notes <file>]");
+  if (args.length !== (notesFile ? 2 : 0) || (mergedAt && Number.isNaN(mergedAt.getTime()))) {
+    console.error("usage: node scripts/changelog.ts [--merged-at <ISO time>] [--notes <file>]");
     process.exit(2);
   }
   const markdown = await readFile(join(import.meta.dirname, "../CHANGELOG.md"), "utf8");
@@ -196,10 +196,12 @@ if (import.meta.main) {
     process.exit(1);
   }
   const { releases } = parseChangelog(markdown);
-  // A release PR merged in a later month than it was written in must get that month's version first.
-  const month = jstMonth(new Date());
-  if (thisMonth && !releases[0].version.startsWith(`${month}.`)) {
-    console.error(`CHANGELOG.md: the newest release ${releases[0].version} is not of this month (${month}, Japan time)`);
+  // A release PR merged in a later month than it was written in must get that month's version first. The merge time,
+  // not the time of the run, which may start after midnight at the end of a month.
+  if (mergedAt && !releases[0].version.startsWith(`${jstMonth(mergedAt)}.`)) {
+    console.error(
+      `CHANGELOG.md: the newest release ${releases[0].version} is not of the month it was merged in (${jstMonth(mergedAt)}, Japan time)`,
+    );
     process.exit(1);
   }
   if (notesFile) await writeFile(notesFile, releaseNotes(releases, 0));

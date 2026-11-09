@@ -36,14 +36,17 @@ jobs:
         with:
           node-version: 22
 
-      # On a merge, the newest release must be of this month: a release PR written in one month and merged in the
-      # next gets the new month's version first. A run by hand may create a missed release later.
+      # On a merge, the newest release must be of the month of the merge commit (its committer date, in Japan time): a
+      # release PR written in one month and merged in the next gets the new month's version first. A run by hand may
+      # create a missed release later.
       - name: Check CHANGELOG.md and write the release notes
         id: changelog
         env:
-          THIS_MONTH: ${{ github.event_name == 'push' && '--this-month' || '' }}
+          ON_PUSH: ${{ github.event_name == 'push' }}
         run: |
-          version=$(node scripts/changelog.ts $THIS_MONTH --notes "$RUNNER_TEMP/notes.md")
+          month=()
+          if [[ "$ON_PUSH" == true ]]; then month=(--merged-at "$(git log -1 --format=%cI "$GITHUB_SHA")"); fi
+          version=$(node scripts/changelog.ts "${month[@]}" --notes "$RUNNER_TEMP/notes.md")
           echo "version=$version" >>"$GITHUB_OUTPUT"
           # The release PR's merge commit (on a push, the pushed commit itself), so a run by hand after later merges
           # still tags the commit the notes describe.
