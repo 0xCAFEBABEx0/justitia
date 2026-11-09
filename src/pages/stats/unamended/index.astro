@@ -4,7 +4,9 @@ import PageHeader from "../../../components/PageHeader.astro";
 import StatsNote from "../../../components/StatsNote.astro";
 import StatLawList from "../../../components/StatLawList.astro";
 import TypeFilter from "../../../components/TypeFilter.astro";
-import { buildDate, TYPE_LABELS } from "../../../lib/data.ts";
+import EraTypeTable from "../../../components/EraTypeTable.astro";
+import StatsLinks from "../../../components/StatsLinks.astro";
+import { buildDate } from "../../../lib/data.ts";
 import { byAge, ERAS, statLaws, yearsSince } from "../../../lib/stats.ts";
 
 const today = buildDate();
@@ -15,14 +17,6 @@ const oldestAct = items.find((l) => l.dir === "act" || l.dir === "constitution")
 const eras = ERAS.map((e) => ({ ...e, items: items.filter((l) => l.year?.era === e.name) })).filter((e) => e.items.length > 0);
 const unknownYear = items.filter((l) => !l.year);
 
-// Counts by era and type, as on /new/. 憲法 and 勅令 are too few to get their own column.
-const COLUMNS = [
-  { label: TYPE_LABELS.act, dirs: ["act", "constitution"] },
-  { label: TYPE_LABELS["cabinet-order"], dirs: ["cabinet-order", "imperial-order"] },
-  { label: TYPE_LABELS["ministerial-ordinance"], dirs: ["ministerial-ordinance"] },
-  { label: TYPE_LABELS.rule, dirs: ["rule"] },
-];
-const counts = (list: typeof items) => [...COLUMNS.map((c) => list.filter((l) => c.dirs.includes(l.dir)).length), list.length];
 const acts = items.filter((l) => l.dir === "act" || l.dir === "constitution").length;
 const age = (l: (typeof items)[number]) => {
   const n = yearsSince(l.year, today);
@@ -55,26 +49,7 @@ const description = `現行の法令 ${all.length.toLocaleString()} 件のうち
     </section>
 
     <aside class="flex flex-col gap-4 text-sm">
-      <section class="card card-border bg-base-100">
-        <div class="card-body p-5">
-          <h2 class="card-title text-base">時代と種別ごとの件数</h2>
-          <div class="overflow-x-auto">
-            <table class="table table-xs tabular-nums">
-              <thead>
-                <tr class="text-base-content/65"><th scope="col">時代</th>{COLUMNS.map((c) => <th scope="col" class="text-right">{c.label}</th>)}<th scope="col" class="text-right">計</th></tr>
-              </thead>
-              <tbody>
-                {eras.map((e) => (
-                  <tr>
-                    <th scope="row">{e.name}</th>
-                    {counts(e.items).map((n, i) => <td class:list={["text-right", { "font-bold": i === COLUMNS.length, "text-base-content/65": n === 0 }]}>{n.toLocaleString()}</td>)}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
+      <EraTypeTable items={items} />
       <section class="card card-border bg-base-100">
         <div class="card-body gap-2 p-5">
           <h2 class="card-title text-base">数え方</h2>
@@ -82,11 +57,7 @@ const description = `現行の法令 ${all.length.toLocaleString()} 件のうち
           <p class="text-base-content/70">停止中の法令（陪審法など）も、廃止されていなければ現行の法令として数えています。</p>
         </div>
       </section>
-      <ul class="flex flex-col gap-2">
-        <li><a class="link link-primary" href="/stats/oldest/">日本一古い法律は？現行法令の古い順 →</a></li>
-        <li><a class="link link-primary" href="/stats/most-amended/">改正回数が多い法律ランキング →</a></li>
-        <li><a class="link link-primary" href="/stats/">法令の統計 →</a></li>
-      </ul>
+      <StatsLinks current="/stats/unamended/" />
     </aside>
   </div>
 </Base>

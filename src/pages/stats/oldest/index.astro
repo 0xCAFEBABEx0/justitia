@@ -2,6 +2,7 @@
 import Base from "../../../layouts/Base.astro";
 import PageHeader from "../../../components/PageHeader.astro";
 import StatsNote from "../../../components/StatsNote.astro";
+import StatsLinks from "../../../components/StatsLinks.astro";
 import StatLawList from "../../../components/StatLawList.astro";
 import TypeFilter from "../../../components/TypeFilter.astro";
 import { buildDate } from "../../../lib/data.ts";
@@ -64,11 +65,7 @@ const description = `現行の法令で最も古いのは${oldest ? `${oldest.ti
           </div>
         </section>
       )}
-      <ul class="flex flex-col gap-2">
-        <li><a class="link link-primary" href="/stats/unamended/">一度も改正されていない法律の一覧 →</a></li>
-        <li><a class="link link-primary" href="/stats/most-amended/">改正回数が多い法律ランキング →</a></li>
-        <li><a class="link link-primary" href="/stats/">法令の統計 →</a></li>
-      </ul>
+      <StatsLinks current="/stats/oldest/" />
     </aside>
   </div>
 </Base>

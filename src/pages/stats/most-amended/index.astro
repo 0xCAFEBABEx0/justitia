@@ -2,6 +2,7 @@
 import Base from "../../../layouts/Base.astro";
 import PageHeader from "../../../components/PageHeader.astro";
 import StatsNote from "../../../components/StatsNote.astro";
+import StatsLinks from "../../../components/StatsLinks.astro";
 import StatLawList from "../../../components/StatLawList.astro";
 import TypeFilter from "../../../components/TypeFilter.astro";
 import { buildDate } from "../../../lib/data.ts";
@@ -60,11 +61,7 @@ const times = (key: "amendments" | "amendmentsLastYear") => (l: (typeof all)[num
           <p class="text-base-content/70">改正法令の施行ごとに1回と数えます。同じ改正法令でも、施行日が分かれていればそれぞれ数えます。新しい法令の一部が後から施行される段階施行は数えません。</p>
         </div>
       </section>
-      <ul class="flex flex-col gap-2">
-        <li><a class="link link-primary" href="/stats/unamended/">一度も改正されていない法律の一覧 →</a></li>
-        <li><a class="link link-primary" href="/stats/oldest/">日本一古い法律は？現行法令の古い順 →</a></li>
-        <li><a class="link link-primary" href="/stats/">法令の統計 →</a></li>
-      </ul>
+      <StatsLinks current="/stats/most-amended/" />
     </aside>
   </div>
 </Base>

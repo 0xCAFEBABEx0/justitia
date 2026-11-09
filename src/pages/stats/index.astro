@@ -3,13 +3,17 @@ import Base from "../../layouts/Base.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import StatsNote from "../../components/StatsNote.astro";
 import { buildDate, lawUrl, typeLabel } from "../../lib/data.ts";
-import { byAge, lawYearLabel, statLaws, yearsSince, type StatLaw } from "../../lib/stats.ts";
+import { byAge, lawYearLabel, statLaws, textStats, yearsSince, type StatLaw } from "../../lib/stats.ts";
 
 const today = buildDate();
 const all = statLaws(today);
 const unamended = all.filter((l) => l.unamended).sort(byAge);
 const unamendedActs = unamended.filter((l) => l.dir === "act" || l.dir === "constitution");
 const oldest = all.filter((l) => l.year).sort(byAge);
+const text = textStats();
+const longest = all.filter((l) => text.has(l.id)).sort((a, b) => text.get(b.id)!.chars - text.get(a.id)!.chars || (a.id < b.id ? -1 : 1));
+const katakana = all.filter((l) => text.get(l.id)?.katakana).sort(byAge);
+const katakanaActs = katakana.filter((l) => l.dir === "act" || l.dir === "constitution");
 const mostAmended = all.filter((l) => l.amendments > 0).sort((a, b) => b.amendments - a.amendments || (a.id < b.id ? -1 : 1));
 
 interface Row {
@@ -40,6 +44,20 @@ const SECTIONS: { href: string; title: string; desc: string; rows: Row[]; more: 
     rows: mostAmended.slice(0, 5).map((l) => ({ law: l, n: l.amendments.toLocaleString(), unit: "回" })),
     more: "ランキングをすべて見る",
   },
+  {
+    href: "/stats/length/",
+    title: "日本一長い法律",
+    desc: "附則と別表を含む条文の文字数です。短い法律のランキングもあります。",
+    rows: longest.slice(0, 5).map((l) => ({ law: l, n: text.get(l.id)!.chars.toLocaleString(), unit: "字" })),
+    more: "長い法律・短い法律を見る",
+  },
+  {
+    href: "/stats/katakana/",
+    title: "カタカナで書かれた法律",
+    desc: `本則がカタカナの文語体で書かれた法令は ${katakana.length.toLocaleString()} 件。法律の古い順です。`,
+    rows: katakanaActs.slice(0, 5).map((l) => ({ law: l, n: null, unit: "" })),
+    more: `すべて見る（${katakana.length.toLocaleString()} 件）`,
+  },
 ];
 const TILES = [
   { n: all.length, label: "現行の法令" },
@@ -47,11 +65,11 @@ const TILES = [
   { n: oldest[0] ? yearsSince(oldest[0].year, today) ?? 0 : 0, label: "最も古い現行法令の年数（年）", href: "/stats/oldest/" },
 ];
 const title = "法令の統計";
-const description = `現行の法令 ${all.length.toLocaleString()} 件を、改正の回数や古さで比べた統計です。一度も改正されていない法律（${unamended.length.toLocaleString()} 件）、日本一古い法律、改正回数が多い法律のランキングなど。`;
+const description = `現行の法令 ${all.length.toLocaleString()} 件を、改正の回数や古さ、長さで比べた統計です。一度も改正されていない法律（${unamended.length.toLocaleString()} 件）、日本一古い法律、改正回数が多い法律、日本一長い法律のランキング、カタカナで書かれた法律の一覧など。`;
 ---
 <Base title={title} description={description} nav="stats">
   <PageHeader title={title}>
-    現行の法令 {all.length.toLocaleString()} 件を、改正の回数や古さで比べました。毎日のデータ更新で自動的に集計し直します。
+    現行の法令 {all.length.toLocaleString()} 件を、改正の回数や古さ、長さで比べました。毎日のデータ更新で自動的に集計し直します。
   </PageHeader>
   <StatsNote />
 

@@ -2,6 +2,8 @@
 // (laws.json and laws/<id>.json). Nothing here is fetched by the browser.
 
 import { law as loadLaw, laws, type LawDetail, type LawSummary } from "./data.ts";
+import { splitBlocks } from "../../scripts/extract/blocks.ts";
+import { readLawFile } from "./lawtext.ts";
 import { isStaged } from "./new-laws.ts";
 
 /** The eras of e-Gov law IDs: the first digit of an ID is the era of the law's number. */
@@ -72,11 +74,21 @@ export interface StatLaw {
   year: LawYear | null;
   /** No amendment of the current text according to e-Gov (see isUnamended). */
   unamended: boolean;
+  /** Enforcement date (YYYY-MM-DD) of the latest amendment according to e-Gov; null when never amended. */
+  lastAmended: string | null;
   /** Amendments in force recorded in houritsu (mostly since the 2000s); 段階施行 is not counted. */
   amendments: number;
   /** Of those, the ones that came into force in the year up to the data's date. */
   amendmentsLastYear: number;
   upcomingCount: number;
+}
+
+/** The enforcement date e-Gov records for the latest amendment, or null for a law never amended. */
+export function lastAmended(frontmatter: Record<string, unknown>): string | null {
+  if (isUnamended(frontmatter)) return null;
+  const a = frontmatter.amendment as Record<string, unknown> | null | undefined;
+  const d = a?.enforced;
+  return typeof d === "string" && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null;
 }
 
 /** The day one year before an ISO date (YYYY-MM-DD); 29 February goes to 1 March. */
@@ -101,6 +113,7 @@ export function statLaw(detail: LawDetail, today: string): StatLaw {
     dir: detail.dir,
     year: lawYear(detail.id),
     unamended: isUnamended(detail.frontmatter),
+    lastAmended: lastAmended(detail.frontmatter),
     amendments: amendments.length,
     amendmentsLastYear: amendments.filter((r) => r.enforced && r.enforced > since && r.enforced <= today).length,
     upcomingCount: detail.upcomingCount,
@@ -126,4 +139,115 @@ export function byAge(a: StatLaw, b: StatLaw): number {
 /** Years since a law was made, as of `today` (YYYY-MM-DD). */
 export function yearsSince(y: LawYear | null, today: string): number | null {
   return y ? Number(today.slice(0, 4)) - y.year : null;
+}
+
+const NUMERALS = "〇一二三四五六七八九";
+/** A kanji numeral as used in article numbers (三百二十四 → 324). */
+export function kanjiNumber(s: string): number {
+  let total = 0;
+  let digit = 0;
+  for (const ch of s) {
+    const d = NUMERALS.indexOf(ch);
+    if (d >= 0) digit = digit * 10 + d;
+    else {
+      const unit = ch === "十" ? 10 : ch === "百" ? 100 : ch === "千" ? 1000 : 0;
+      if (!unit) continue;
+      total += (digit || 1) * unit;
+      digit = 0;
+    }
+  }
+  return total + digit;
+}
+
+const ARTICLE_HEADING = /^第([〇一二三四五六七八九十百千]+)条((?:の[〇一二三四五六七八九十百千]+)*)(?:(から|及び)第([〇一二三四五六七八九十百千]+)条((?:の[〇一二三四五六七八九十百千]+)*)(?:まで)?)?/;
+
+/**
+ * How many articles a heading stands for: 第三条から第五条まで is three, 第十二条及び第十三条 two.
+ * 0 for a heading that is not an article.
+ */
+export function articleSpan(heading: string): number {
+  const m = ARTICLE_HEADING.exec(heading);
+  if (!m) return 0;
+  const [, fromNum, fromBranch, joiner, toNum, toBranch] = m;
+  if (!joiner) return 1;
+  if (joiner === "及び") return 2;
+  const [from, to] = [kanjiNumber(fromNum), kanjiNumber(toNum)];
+  if (from !== to) return to > from ? to - from + 1 : 1;
+  // 第三条の二から第三条の五まで
+  const last = (s: string) => kanjiNumber(s.split("の").pop() ?? "");
+  const [a, b] = [fromBranch ? last(fromBranch) : 1, toBranch ? last(toBranch) : 1];
+  return b > a ? b - a + 1 : 1;
+}
+
+export interface TextStats {
+  /** Characters of the text as shown, without the title, whitespace and markup. */
+  chars: number;
+  /** Articles in the main provisions (本則), counting each article a range heading stands for. */
+  articles: number;
+  /** Of those, articles whose whole text is 削除. */
+  deleted: number;
+  /** Article headings with a branch number (第三条の二). */
+  branched: number;
+  /** The main provisions are written with katakana (文語体), like 失火ノ責任ニ関スル法律. */
+  katakana: boolean;
+}
+
+const KANJI = "\\u4E00-\\u9FFF\\u3005";
+const KATAKANA_PARTICLE = new RegExp(`[${KANJI}][ノニヲハヘトモ](?=[${KANJI}])`, "g");
+const HIRAGANA_PARTICLE = new RegExp(`[${KANJI}][のにをはへとも](?=[${KANJI}])`, "g");
+
+/** Visible characters of a markdown line: no tags, list markers or whitespace. */
+function visible(text: string): number {
+  return text.replace(/<[^>]*>/g, "").replace(/^\s*- /gm, "").replace(/\s/g, "").length;
+}
+
+/**
+ * Measures the text of a law from its blocks (scripts/extract/blocks.ts). Katakana is told from
+ * the particles between kanji: 条ノ規定ハ against 条の規定は, in the main provisions only, since
+ * supplementary provisions of later amending laws are in hiragana.
+ */
+export function measureBlocks(blocks: { key: string; level: number; heading: string; text: string }[]): TextStats {
+  let chars = 0;
+  let articles = 0;
+  let deleted = 0;
+  let branched = 0;
+  let kata = 0;
+  let hira = 0;
+  for (const b of blocks) {
+    if (b.level === 1) {
+      // Text under the title: the 制定文, or the whole of a law without articles (失火ノ責任ニ関スル法律).
+      chars += visible(b.text);
+      kata += b.text.match(KATAKANA_PARTICLE)?.length ?? 0;
+      hira += b.text.match(HIRAGANA_PARTICLE)?.length ?? 0;
+      continue;
+    }
+    chars += visible(b.heading) + visible(b.text);
+    if (!b.key.startsWith("本則|")) continue;
+    kata += b.text.match(KATAKANA_PARTICLE)?.length ?? 0;
+    hira += b.text.match(HIRAGANA_PARTICLE)?.length ?? 0;
+    const span = b.level > 0 ? articleSpan(b.heading) : 0;
+    if (!span) continue;
+    articles += span;
+    if (/^削除\s*$/.test(b.text.trim())) deleted += span;
+    if (/^第[〇一二三四五六七八九十百千]+条の/.test(b.heading)) branched++;
+  }
+  return { chars, articles, deleted, branched, katakana: kata > hira && kata >= 2 };
+}
+
+let textCache: Map<string, TextStats> | null = null;
+/**
+ * The text stats of every law in force, by law ID, measured from the houritsu clone once per build
+ * (about 10 seconds for all laws). Laws missing from the clone, as in a partial local build, are
+ * left out.
+ */
+export function textStats(): Map<string, TextStats> {
+  if (textCache) return textCache;
+  const map = new Map<string, TextStats>();
+  for (const l of laws()) {
+    if (l.status !== "in_force") continue;
+    const doc = readLawFile(l.path);
+    if (doc) map.set(l.id, measureBlocks(splitBlocks(doc.body)));
+  }
+  textCache = map;
+  return map;
 }

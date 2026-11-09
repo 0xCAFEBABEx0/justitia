@@ -1,0 +1,86 @@
+---
+import Base from "../../../layouts/Base.astro";
+import PageHeader from "../../../components/PageHeader.astro";
+import StatsNote from "../../../components/StatsNote.astro";
+import StatsLinks from "../../../components/StatsLinks.astro";
+import StatLawList from "../../../components/StatLawList.astro";
+import TypeFilter from "../../../components/TypeFilter.astro";
+import { buildDate, lawUrl } from "../../../lib/data.ts";
+import { statLaws, textStats, type StatLaw, type TextStats } from "../../../lib/stats.ts";
+
+/** Laws in each list. */
+const LIMIT_LONG = 100;
+const LIMIT_SHORT = 30;
+const LIMIT_SIDE = 10;
+
+const today = buildDate();
+const text = textStats();
+const all = statLaws(today).filter((l) => text.has(l.id));
+const t = (l: StatLaw): TextStats => text.get(l.id)!;
+const byId = (a: StatLaw, b: StatLaw) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+const isAct = (l: StatLaw) => l.dir === "act";
+const longest = [...all].sort((a, b) => t(b).chars - t(a).chars || byId(a, b)).slice(0, LIMIT_LONG);
+const shortest = all.filter(isAct).sort((a, b) => t(a).chars - t(b).chars || byId(a, b)).slice(0, LIMIT_SHORT);
+const deleted = all.filter((l) => isAct(l) && t(l).deleted > 0).sort((a, b) => t(b).deleted - t(a).deleted || byId(a, b)).slice(0, LIMIT_SIDE);
+const branched = all.filter((l) => isAct(l) && t(l).branched > 0).sort((a, b) => t(b).branched - t(a).branched || byId(a, b)).slice(0, LIMIT_SIDE);
+const longestAct = longest.find(isAct);
+const top = longest[0];
+
+const chars = (l: StatLaw) => ({ n: t(l).chars.toLocaleString(), unit: "字" });
+const articles = (l: StatLaw) => (t(l).articles > 0 ? `本則 ${t(l).articles.toLocaleString()}条` : null);
+/** 3,182,901 → 約318万字 */
+const approx = (n: number) => (n >= 10_000 ? `約${Math.round(n / 10_000).toLocaleString()}万字` : `${n.toLocaleString()}字`);
+const title = "日本一長い法律・短い法律は？法令の文字数ランキング";
+const description = `現行の法令で最も長いのは${top ? `${top.title}（${approx(t(top).chars)}）` : ""}、法律で最も短いのは${shortest[0] ? `${shortest[0].title}（${t(shortest[0]).chars}字）` : ""}。法令の文字数のランキングと、削除された条や枝番の条が多い法律です。`;
+---
+<Base title={title} description={description} nav="stats">
+  <PageHeader title={title} crumbs={[{ href: "/stats/", label: "法令の統計" }]}>
+    {top && <>現行の法令で最も長いのは<b>{top.title}</b>（{approx(t(top).chars)}）です。</>}{longestAct && longestAct !== top && <>法律では{longestAct.title}が最も長く、</>}{shortest[0] && <>最も短い法律は<b>{shortest[0].title}</b>（{t(shortest[0]).chars}字）です。</>}文字数は、附則と別表を含む条文の文字数です。
+  </PageHeader>
+  <StatsNote />
+
+  <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div class="min-w-0">
+      <section class="mb-8" data-type-filter-root>
+        <h2 class="mb-3 text-xl font-bold">長い法令（上位 {longest.length} 件）</h2>
+        <TypeFilter dirs={longest.map((l) => l.dir)} />
+        <StatLawList items={longest} fig={chars} note={articles} ranked />
+      </section>
+      <section>
+        <h2 class="mb-3 text-xl font-bold">短い法律（上位 {shortest.length} 件）</h2>
+        <StatLawList items={shortest} fig={chars} ranked markUnamended />
+      </section>
+    </div>
+
+    <aside class="flex flex-col gap-4 text-sm">
+      {[
+        { title: "削除された条が多い法律", desc: "本則の条のうち、条文が「削除」だけになっている条の数です。", items: deleted, n: (l: StatLaw) => t(l).deleted },
+        { title: "枝番の条が多い法律", desc: "第三条の二のように、後から条と条の間に加えられた条の数です。", items: branched, n: (l: StatLaw) => t(l).branched },
+      ].filter((s) => s.items.length > 0).map((s) => (
+        <section class="card card-border bg-base-100">
+          <div class="card-body gap-2 p-5">
+            <h2 class="card-title text-base">{s.title}</h2>
+            <p class="text-xs text-base-content/65">{s.desc}</p>
+            <ol class="list">
+              {s.items.map((l, i) => (
+                <li class="list-row items-baseline px-0 py-2">
+                  <span class="w-5 text-right text-xs tabular-nums text-base-content/65" aria-hidden="true">{i + 1}</span>
+                  <a class="list-col-grow link link-hover font-bold text-primary" href={lawUrl(l.id)}>{l.title}</a>
+                  <span class="shrink-0 text-right tabular-nums"><b>{s.n(l).toLocaleString()}</b><span class="ml-0.5 text-xs text-base-content/65">条／{t(l).articles.toLocaleString()}条</span></span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+      ))}
+      <section class="card card-border bg-base-100">
+        <div class="card-body gap-2 p-5">
+          <h2 class="card-title text-base">数え方</h2>
+          <p class="text-base-content/70">文字数は、題名を除く条文（見出し、附則、別表を含む）の文字数で、空白と改行は数えません。</p>
+          <p class="text-base-content/70">条の数は本則の条を数えたもので、「第二条から第四条まで　削除」のようにまとめられた条は、それぞれ1条と数えます。</p>
+        </div>
+      </section>
+      <StatsLinks current="/stats/length/" />
+    </aside>
+  </div>
+</Base>
