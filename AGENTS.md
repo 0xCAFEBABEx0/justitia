@@ -143,7 +143,7 @@ Calendar versions `YYYY.M.N` (year and month of the release in Japan time, `N` f
   (a page URL, a JSON file, field or key under `data.anisotro.pics`, a calendar or feed URL), say so in its
   description; its changelog entry will start with **Breaking:**.
 - Cutting a release is the owner's decision. When asked, open a PR titled `Release YYYY.M.N` that changes only
-  `CHANGELOG.md` and passes `node scripts/changelog.ts`; right before it merges, check for PRs merged in the meantime
-  and add their entries. The Release workflow creates the tag and the GitHub Release
+  `CHANGELOG.md` and passes `node scripts/changelog.ts`; before it merges, ask the owner to hold other merges, check
+  for PRs merged in the meantime and add their entries. The Release workflow creates the tag and the GitHub Release
   when it merges; never create, move or delete tags or releases by hand.
 - `package.json`'s `version` is not the site's version; do not bump it.

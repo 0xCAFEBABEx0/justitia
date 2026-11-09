@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { test } from "node:test";
-import { checkChangelog, jstMonth, parseChangelog, releaseNotes, REPO_URL, unwrap } from "./changelog.ts";
+import { checkChangelog, fencedLines, jstMonth, parseChangelog, releaseNotes, REPO_URL, unwrap } from "./changelog.ts";
 
 const head = "# Changelog\n\nIntro.\n\n";
 
@@ -115,4 +115,16 @@ test("the month of an instant is taken in Japan time", () => {
 
 test("release notes keep the lines of code blocks", () => {
   assert.equal(unwrap("- A:\n\n  ```\n  one\n  two\n  ```\n"), "- A:\n\n  ```\n  one\n  two\n  ```\n");
+});
+
+test("a fence closes only at a fence of the same kind and at least its length", () => {
+  assert.deepEqual(fencedLines(["a", "````md", "```", "## x", "````", "b"]), [false, true, true, true, true, false]);
+  assert.deepEqual(fencedLines(["~~~", "```", "~~~", "c"]), [true, true, true, false]);
+});
+
+test("headings inside a code block are neither releases nor sections", () => {
+  const body = "### Added\n\n- Example:\n\n  ````\n  ```\n## not a release\n### Not a section\n  ````";
+  const md = changelog({ version: "2026.11.0", date: "2026-11-09", body });
+  assert.deepEqual(checkChangelog(md), []);
+  assert.equal(unwrap(body), body);
 });

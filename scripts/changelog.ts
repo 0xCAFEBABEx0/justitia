@@ -34,6 +34,23 @@ const RELEASE_HEADING = /^## \[([^\]]+)\] - (\S+)$/;
 const LINK_DEFINITION = /^\[([^\]]+)\]:\s+(\S+)\s*$/;
 const VERSION = /^(\d{4})\.([1-9]|1[0-2])\.(0|[1-9]\d*)$/;
 
+/**
+ * For each line, whether it belongs to a fenced code block (its fence lines included). A block closes at a fence of
+ * the same character at least as long as the one that opened it, with nothing after it (CommonMark).
+ */
+export function fencedLines(lines: string[]): boolean[] {
+  let open: { char: string; length: number } | null = null;
+  return lines.map((line) => {
+    const fence = /^\s*(`{3,}|~{3,})(.*)$/.exec(line);
+    if (!open) {
+      if (fence) open = { char: fence[1][0], length: fence[1].length };
+      return fence !== null;
+    }
+    if (fence && fence[1][0] === open.char && fence[1].length >= open.length && fence[2].trim() === "") open = null;
+    return true;
+  });
+}
+
 export function parseChangelog(markdown: string): Changelog {
   const releases: Release[] = [];
   const links = new Map<string, string>();
@@ -42,10 +59,10 @@ export function parseChangelog(markdown: string): Changelog {
   const finish = () => {
     if (current) releases.push({ version: current.version, date: current.date, body: current.lines.join("\n").trim() });
   };
-  let fenced = false; // inside a fenced code block, no line is structure
-  for (const line of markdown.split(/\r?\n/)) {
-    if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
-    if (fenced || /^\s*(```|~~~)/.test(line)) {
+  const lines = markdown.split(/\r?\n/);
+  const fenced = fencedLines(lines); // no line of a code block is structure
+  for (const [i, line] of lines.entries()) {
+    if (fenced[i]) {
       current?.lines.push(line);
       continue;
     }
@@ -120,7 +137,9 @@ export function checkChangelog(markdown: string): string[] {
       problems.push(`${where}: the version appears more than once`);
     }
 
-    const headings = [...release.body.matchAll(/^### (.*)$/gm)].map((m) => m[1].trim());
+    const bodyLines = release.body.split("\n");
+    const inCode = fencedLines(bodyLines);
+    const headings = bodyLines.filter((l, j) => !inCode[j] && l.startsWith("### ")).map((l) => l.slice(4).trim());
     let last = -1;
     for (const heading of headings) {
       const at = (SECTIONS as readonly string[]).indexOf(heading);
@@ -158,13 +177,12 @@ export function jstMonth(now: Date): string {
  */
 export function unwrap(markdown: string): string {
   const out: string[] = [];
-  let fenced = false; // code blocks keep their lines
-  for (const line of markdown.split("\n")) {
-    const fence = /^\s*(```|~~~)/.test(line);
+  const lines = markdown.split("\n");
+  const fenced = fencedLines(lines); // code blocks keep their lines
+  for (const [i, line] of lines.entries()) {
     const prev = out.at(-1);
-    const continues = !fenced && !fence && line.trim() !== "" && !/^\s*([-*+] |\d+\. |#|>|\|)/.test(line);
-    if (fence) fenced = !fenced;
-    if (continues && prev !== undefined && prev.trim() !== "" && !/^\s*(#|\||```|~~~)/.test(prev)) {
+    const continues = !fenced[i] && line.trim() !== "" && !/^\s*([-*+] |\d+\. |#|>|\|)/.test(line);
+    if (continues && prev !== undefined && !fenced[i - 1] && prev.trim() !== "" && !/^\s*(#|\|)/.test(prev)) {
       out[out.length - 1] = `${prev} ${line.trim()}`;
     } else {
       out.push(line);

@@ -48,9 +48,11 @@ jobs:
           if [[ "$ON_PUSH" == true ]]; then month=(--merged-at "$(git log -1 --format=%cI "$GITHUB_SHA")"); fi
           version=$(node scripts/changelog.ts "${month[@]}" --notes "$RUNNER_TEMP/notes.md")
           echo "version=$version" >>"$GITHUB_OUTPUT"
-          # The release PR's merge commit (on a push, the pushed commit itself), so a run by hand after later merges
-          # still tags the commit the notes describe.
-          echo "target=$(git log -1 --format=%H -- CHANGELOG.md)" >>"$GITHUB_OUTPUT"
+          # The release PR's merge commit: on a push, the pushed commit itself; on a run by hand, the last commit on main's
+          # first-parent line that changed CHANGELOG.md (not a commit inside a merged branch), so a run after later
+          # merges still tags the commit the notes describe.
+          if [[ "$ON_PUSH" == true ]]; then target=$GITHUB_SHA; else target=$(git log --first-parent -1 --format=%H -- CHANGELOG.md); fi
+          echo "target=$target" >>"$GITHUB_OUTPUT"
 
       # gh is preinstalled on GitHub-hosted runners. A tag that does not exist yet is created at --target.
       - name: Create the release
