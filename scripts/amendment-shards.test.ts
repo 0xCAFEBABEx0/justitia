@@ -4,13 +4,13 @@ import { readFileSync } from "node:fs";
 import { shardOf, SHARDS } from "./amendment-shards.ts";
 
 test("shardOf follows the era and year of the amending law", () => {
-  assert.equal(shardOf("129AC0000000089_18980716").name, "amendments-1");
-  assert.equal(shardOf("426AC0000000042_20160401").name, "amendments-1");
-  assert.equal(shardOf("501AC0000000001_20190601").name, "amendments-2");
-  assert.equal(shardOf("504CO0000000100_undetermined").name, "amendments-2");
-  assert.equal(shardOf("505M60000008001_20230401").name, "amendments-3");
-  assert.equal(shardOf("508AC0000000040_20260401").name, "amendments-3");
-  assert.equal(shardOf("510AC0000000001_20280401").name, "amendments-3");
+  assert.equal(shardOf("129AC0000000089_18980716").name, "justitia-amendments-meiji-heisei");
+  assert.equal(shardOf("426AC0000000042_20160401").name, "justitia-amendments-meiji-heisei");
+  assert.equal(shardOf("501AC0000000001_20190601").name, "justitia-amendments-reiwa1-4");
+  assert.equal(shardOf("504CO0000000100_undetermined").name, "justitia-amendments-reiwa1-4");
+  assert.equal(shardOf("505M60000008001_20230401").name, "justitia-amendments-latest");
+  assert.equal(shardOf("508AC0000000040_20260401").name, "justitia-amendments-latest");
+  assert.equal(shardOf("510AC0000000001_20280401").name, "justitia-amendments-latest");
 });
 
 test("every shard has a Wrangler config and a Terraform route for each prefix", () => {

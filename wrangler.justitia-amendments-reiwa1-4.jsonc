@@ -4,10 +4,10 @@
 // anisotro.pics/amendment/ (infra/terraform/envs/prod/amendments.tf) send requests here; there is no `routes` key,
 // so `wrangler deploy` leaves them alone. No Worker script: every request is a free static asset request.
 {
-  "name": "amendments-2",
+  "name": "justitia-amendments-reiwa1-4",
   "compatibility_date": "2026-10-20",
   "assets": {
-    "directory": "./dist-amendments/amendments-2",
+    "directory": "./dist-amendments/justitia-amendments-reiwa1-4",
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "404-page"
   },

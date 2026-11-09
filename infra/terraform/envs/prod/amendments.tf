@@ -1,7 +1,7 @@
 # Workers routes for the static amendment pages (/amendment/<key>/). Three assets-only Workers serve them
-# (scripts/amendment-shards.ts, wrangler.amendments-*.jsonc), because one Worker version holds at most 20,000
-# files on the Workers Free plan. Workers routes take precedence over the Custom Domain of the main Worker
-# justitia on the same hostname, and the most specific route wins, so "amendment/*" catches only what the
+# (scripts/amendment-shards.ts, wrangler.justitia-amendments-*.jsonc), because one Worker version holds at most
+# 20,000 files on the Workers Free plan. Workers routes take precedence over the Custom Domain of the main
+# Worker justitia on the same hostname, and the most specific route wins, so "amendment/*" catches only what the
 # others do not (Reiwa 5 on, and the /amendment/ page itself). A request a static asset answers runs no Worker
 # script, so it is free like a request to the Custom Domain (checked live with a canary on 2026-11-08).
 #
@@ -10,16 +10,16 @@
 # scripts/amendment-shards.ts (scripts/amendment-shards.test.ts checks it).
 locals {
   amendment_routes = {
-    "0"   = "amendments-1"
-    "1"   = "amendments-1"
-    "2"   = "amendments-1"
-    "3"   = "amendments-1"
-    "4"   = "amendments-1"
-    "501" = "amendments-2"
-    "502" = "amendments-2"
-    "503" = "amendments-2"
-    "504" = "amendments-2"
-    ""    = "amendments-3"
+    "0"   = "justitia-amendments-meiji-heisei"
+    "1"   = "justitia-amendments-meiji-heisei"
+    "2"   = "justitia-amendments-meiji-heisei"
+    "3"   = "justitia-amendments-meiji-heisei"
+    "4"   = "justitia-amendments-meiji-heisei"
+    "501" = "justitia-amendments-reiwa1-4"
+    "502" = "justitia-amendments-reiwa1-4"
+    "503" = "justitia-amendments-reiwa1-4"
+    "504" = "justitia-amendments-reiwa1-4"
+    ""    = "justitia-amendments-latest"
   }
 }
 
