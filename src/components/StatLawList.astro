@@ -1,0 +1,37 @@
+---
+// A list of laws on the /stats/ pages: rank, title (linked to the law page), type, number and the
+// year it was made, and a figure on the right. Each row carries its type for the type filter
+// (TypeFilter.astro).
+import { lawUrl, typeLabel } from "../lib/data.ts";
+import { lawYearLabel, type StatLaw } from "../lib/stats.ts";
+import { badgeClass } from "../lib/badges.ts";
+
+interface Props {
+  items: StatLaw[];
+  /** The figure on the right, such as "153年" (number and unit). */
+  fig?: (l: StatLaw) => { n: string; unit: string } | null;
+  /** Show the rank (1, 2, 3, ...) before each row. */
+  ranked?: boolean;
+  /** Mark the laws never amended. */
+  markUnamended?: boolean;
+}
+const { items, fig, ranked = false, markUnamended = false } = Astro.props;
+---
+<ol class="list rounded-box border border-base-300 bg-base-100">
+  {items.map((l, i) => {
+    const f = fig?.(l);
+    return (
+      <li class="list-row items-baseline py-3" data-type={l.dir}>
+        {ranked && <span class="w-8 text-right text-sm tabular-nums text-base-content/65" aria-hidden="true">{i + 1}</span>}
+        <div class="list-col-grow min-w-0">
+          <a class="link link-hover font-bold text-primary" href={lawUrl(l.id)}>{l.title}</a>
+          {markUnamended && l.unamended && <>{" "}<span class={badgeClass("unamended")}>改正なし</span></>}
+          <div class="mt-1 text-xs text-base-content/65">
+            {typeLabel(l.dir)}・{l.num}{l.year && <>・{lawYearLabel(l.year)}</>}
+          </div>
+        </div>
+        {f && <span class="shrink-0 text-right tabular-nums"><b class="text-lg">{f.n}</b><span class="ml-0.5 text-xs text-base-content/65">{f.unit}</span></span>}
+      </li>
+    );
+  })}
+</ol>

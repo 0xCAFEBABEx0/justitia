@@ -1,0 +1,90 @@
+---
+import Base from "../../layouts/Base.astro";
+import PageHeader from "../../components/PageHeader.astro";
+import StatsNote from "../../components/StatsNote.astro";
+import { buildDate, lawUrl, typeLabel } from "../../lib/data.ts";
+import { byAge, lawYearLabel, statLaws, yearsSince, type StatLaw } from "../../lib/stats.ts";
+
+const today = buildDate();
+const all = statLaws(today);
+const unamended = all.filter((l) => l.unamended).sort(byAge);
+const unamendedActs = unamended.filter((l) => l.dir === "act" || l.dir === "constitution");
+const oldest = all.filter((l) => l.year).sort(byAge);
+const mostAmended = all.filter((l) => l.amendments > 0).sort((a, b) => b.amendments - a.amendments || (a.id < b.id ? -1 : 1));
+
+interface Row {
+  law: StatLaw;
+  n: string | null;
+  unit: string;
+}
+const ago = (l: StatLaw): Row => ({ law: l, n: yearsSince(l.year, today)?.toLocaleString() ?? null, unit: "年" });
+const SECTIONS: { href: string; title: string; desc: string; rows: Row[]; more: string }[] = [
+  {
+    href: "/stats/unamended/",
+    title: "一度も改正されていない法律",
+    desc: `制定以来、一度も改正されていない法令は ${unamended.length.toLocaleString()} 件。法律の古い順です。`,
+    rows: unamendedActs.slice(0, 5).map(ago),
+    more: `すべて見る（${unamended.length.toLocaleString()} 件、種別で絞り込み）`,
+  },
+  {
+    href: "/stats/oldest/",
+    title: "日本一古い法律",
+    desc: "今も効力のある法令の古い順です。",
+    rows: oldest.slice(0, 5).map(ago),
+    more: "古い順にすべて見る",
+  },
+  {
+    href: "/stats/most-amended/",
+    title: "改正回数が多い法律",
+    desc: "houritsu に記録された改正の回数です（主に2000年代以降）。",
+    rows: mostAmended.slice(0, 5).map((l) => ({ law: l, n: l.amendments.toLocaleString(), unit: "回" })),
+    more: "ランキングをすべて見る",
+  },
+];
+const TILES = [
+  { n: all.length, label: "現行の法令" },
+  { n: unamended.length, label: "一度も改正されていない法令", href: "/stats/unamended/" },
+  { n: oldest[0] ? yearsSince(oldest[0].year, today) ?? 0 : 0, label: "最も古い現行法令の年数（年）", href: "/stats/oldest/" },
+];
+const title = "法令の統計";
+const description = `現行の法令 ${all.length.toLocaleString()} 件を、改正の回数や古さで比べた統計です。一度も改正されていない法律（${unamended.length.toLocaleString()} 件）、日本一古い法律、改正回数が多い法律のランキングなど。`;
+---
+<Base title={title} description={description} nav="stats">
+  <PageHeader title={title}>
+    現行の法令 {all.length.toLocaleString()} 件を、改正の回数や古さで比べました。毎日のデータ更新で自動的に集計し直します。
+  </PageHeader>
+  <StatsNote />
+
+  <div class="stats stats-vertical mb-6 w-full border border-base-300 bg-base-100 sm:stats-horizontal">
+    {TILES.map((t) => (
+      <div class="stat py-3">
+        <div class="stat-title text-base-content/65">{t.label}</div>
+        <div class="stat-value text-2xl tabular-nums">{t.href ? <a class="link link-hover" href={t.href}>{t.n.toLocaleString()}</a> : t.n.toLocaleString()}</div>
+      </div>
+    ))}
+  </div>
+
+  <div class="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
+    {SECTIONS.map((s) => (
+      <section class="card card-border h-full bg-base-100">
+        <div class="card-body gap-2 p-5">
+          <h2 class="card-title text-base"><a class="link link-hover" href={s.href}>{s.title}</a></h2>
+          <div class="text-xs text-base-content/65">{s.desc}</div>
+          <ol class="list">
+            {s.rows.map((r, i) => (
+              <li class="list-row items-baseline px-0 py-2">
+                <span class="w-4 text-right text-xs tabular-nums text-base-content/65" aria-hidden="true">{i + 1}</span>
+                <div class="list-col-grow min-w-0">
+                  <a class="link link-hover font-bold text-primary" href={lawUrl(r.law.id)}>{r.law.title}</a>
+                  <div class="text-xs text-base-content/65">{typeLabel(r.law.dir)}{r.law.year && <>・{lawYearLabel(r.law.year)}</>}</div>
+                </div>
+                {r.n !== null && <span class="tabular-nums"><b>{r.n}</b><span class="ml-0.5 text-xs text-base-content/65">{r.unit}</span></span>}
+              </li>
+            ))}
+          </ol>
+          <div class="mt-auto pt-1 text-sm"><a class="link link-primary" href={s.href}>{s.more} →</a></div>
+        </div>
+      </section>
+    ))}
+  </div>
+</Base>

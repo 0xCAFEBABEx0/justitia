@@ -1,7 +1,7 @@
 // daisyUI badge classes for law and amendment states, shared by the Astro pages and the
 // browser scripts that render amendment and graph pages.
 
-export type BadgeKind = "repealed" | "upcoming" | "enacted" | "amended" | "coverage_start" | "staged";
+export type BadgeKind = "repealed" | "upcoming" | "enacted" | "amended" | "coverage_start" | "staged" | "unamended";
 
 const CLASSES: Record<BadgeKind, string> = {
   repealed: "badge-outline badge-error",
@@ -11,6 +11,8 @@ const CLASSES: Record<BadgeKind, string> = {
   coverage_start: "badge-ghost",
   // A later part of a newly enacted law coming into force (see isStaged in src/lib/new-laws.ts).
   staged: "badge-soft badge-success",
+  // Never amended since the law was made, according to e-Gov (see isUnamended in src/lib/stats.ts).
+  unamended: "badge-outline",
 };
 
 export function badgeClass(kind: BadgeKind): string {

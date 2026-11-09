@@ -20,6 +20,8 @@ import { shareToolsHtml } from "../../lib/share.ts";
 import { isStaged } from "../../lib/new-laws.ts";
 import { lastTextBeforeRepeal, REPEAL_WAY_LABELS } from "../../lib/repealed-laws.ts";
 import { jsonLdText, legislation } from "../../lib/seo.ts";
+import { isUnamended } from "../../lib/stats.ts";
+import { badgeClass } from "../../lib/badges.ts";
 import PageHeader from "../../components/PageHeader.astro";
 import StatusBadge from "../../components/StatusBadge.astro";
 
@@ -40,6 +42,8 @@ const repeal = law.status === "repealed" ? repealOf(law.id) : undefined;
 const beforeRepeal = law.status === "repealed" ? lastTextBeforeRepeal(law.revisions) : null;
 const beforeRepealUrl = beforeRepeal ? `/versions/?law=${law.id}&at=${encodeURIComponent(beforeRepeal)}` : null;
 const anchor = `#law-${law.id}`;
+// Never amended since it was made, according to e-Gov: links to the list of such laws.
+const unamended = law.status === "in_force" && isUnamended(law.frontmatter);
 const amendments = law.revisionCount - 1; // the first revision is the enactment or the start of coverage
 const named = `${law.title}（${law.num}${law.abbrev ? `、略称：${law.abbrev}` : ""}）`;
 const pageTitle = law.status === "repealed" ? `${law.title}（廃止）の改正履歴` : `${law.title}の条文と改正履歴`;
@@ -86,6 +90,7 @@ const legislationLd = jsonLdText(
     ]}
   >
     {law.status !== "in_force" && <StatusBadge slot="badge" kind={law.status === "repealed" ? "repealed" : "upcoming"} label={STATUS_LABELS[law.status]} />}
+    {unamended && <Fragment slot="badge">{" "}<a class={`${badgeClass("unamended")} ml-0.5 hover:bg-base-200`} href="/stats/unamended/">制定以来改正なし</a></Fragment>}
     <div class="flex flex-wrap gap-x-4 gap-y-1">
       <span data-law-num>{law.num}</span>
       {law.abbrev && <span>略称：{law.abbrev}</span>}

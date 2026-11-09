@@ -1,0 +1,74 @@
+---
+import Base from "../../../layouts/Base.astro";
+import PageHeader from "../../../components/PageHeader.astro";
+import StatsNote from "../../../components/StatsNote.astro";
+import StatLawList from "../../../components/StatLawList.astro";
+import TypeFilter from "../../../components/TypeFilter.astro";
+import { buildDate } from "../../../lib/data.ts";
+import { byAge, ERAS, statLaws, yearsSince } from "../../../lib/stats.ts";
+
+/** How many of the oldest laws are listed. */
+const LIMIT = 300;
+
+const today = buildDate();
+const all = statLaws(today);
+const sorted = all.filter((l) => l.year).sort(byAge);
+const items = sorted.slice(0, LIMIT);
+const isAct = (l: (typeof all)[number]) => l.dir === "act" || l.dir === "constitution";
+const oldest = items[0];
+const oldestActs = sorted.filter(isAct).slice(0, 3);
+const eras = ERAS.map((e) => ({ ...e, n: all.filter((l) => l.year?.era === e.name).length, acts: all.filter((l) => l.year?.era === e.name && isAct(l)).length }));
+const age = (l: (typeof all)[number]) => {
+  const n = yearsSince(l.year, today);
+  return n === null ? null : { n: n.toLocaleString(), unit: "年" };
+};
+const title = "日本一古い法律は？現行法令の古い順";
+const description = `現行の法令で最も古いのは${oldest ? `${oldest.title}（${oldest.year?.year}年）` : ""}。${oldestActs.map((l) => `${l.title}（${l.year?.year}年）`).join("、")}など、今も効力のある古い法令 ${items.length} 件を古い順に並べました。`;
+---
+<Base title={title} description={description} nav="stats">
+  <PageHeader title={title} crumbs={[{ href: "/stats/", label: "法令の統計" }]}>
+    {oldest && <>現行の法令で最も古いのは<b>{oldest.title}</b>（{oldest.year?.year}年）です。</>}今も効力のある法令 {all.length.toLocaleString()} 件のうち、古い順に {items.length} 件を並べています。順番は法令番号の年（公布の年）によります。
+  </PageHeader>
+  <StatsNote />
+
+  <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <section class="min-w-0" data-type-filter-root>
+      <TypeFilter dirs={items.map((l) => l.dir)} />
+      <StatLawList items={items} fig={age} ranked markUnamended />
+    </section>
+
+    <aside class="flex flex-col gap-4 text-sm">
+      <section class="card card-border bg-base-100">
+        <div class="card-body p-5">
+          <h2 class="card-title text-base">時代ごとの現行法令</h2>
+          <table class="table table-xs tabular-nums">
+            <thead>
+              <tr class="text-base-content/65"><th scope="col">時代</th><th scope="col" class="text-right">法律</th><th scope="col" class="text-right">すべて</th></tr>
+            </thead>
+            <tbody>
+              {eras.map((e) => (
+                <tr><th scope="row">{e.name}</th><td class="text-right">{e.acts.toLocaleString()}</td><td class="text-right font-bold">{e.n.toLocaleString()}</td></tr>
+              ))}
+            </tbody>
+          </table>
+          <p class="text-xs text-base-content/65">法令番号の時代で数えています。法律には憲法と太政官布告などを含みます。</p>
+        </div>
+      </section>
+      {oldestActs.length > 0 && (
+        <section class="card card-border bg-base-100">
+          <div class="card-body gap-2 p-5">
+            <h2 class="card-title text-base">古い法律</h2>
+            <ol class="list-decimal pl-5 text-base-content/70">
+              {oldestActs.map((l) => <li><a class="link" href={`/laws/${l.id}/`}>{l.title}</a>（{l.year?.year}年）</li>)}
+            </ol>
+          </div>
+        </section>
+      )}
+      <ul class="flex flex-col gap-2">
+        <li><a class="link link-primary" href="/stats/unamended/">一度も改正されていない法律の一覧 →</a></li>
+        <li><a class="link link-primary" href="/stats/most-amended/">改正回数が多い法律ランキング →</a></li>
+        <li><a class="link link-primary" href="/stats/">法令の統計 →</a></li>
+      </ul>
+    </aside>
+  </div>
+</Base>

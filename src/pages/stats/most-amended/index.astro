@@ -1,0 +1,70 @@
+---
+import Base from "../../../layouts/Base.astro";
+import PageHeader from "../../../components/PageHeader.astro";
+import StatsNote from "../../../components/StatsNote.astro";
+import StatLawList from "../../../components/StatLawList.astro";
+import TypeFilter from "../../../components/TypeFilter.astro";
+import { buildDate } from "../../../lib/data.ts";
+import { statLaws } from "../../../lib/stats.ts";
+
+/** Laws listed in each ranking. */
+const LIMIT = 100;
+const LIMIT_LAST_YEAR = 30;
+
+const today = buildDate();
+const all = statLaws(today);
+const byCount = (key: "amendments" | "amendmentsLastYear") => (a: (typeof all)[number], b: (typeof all)[number]) =>
+  b[key] - a[key] || (a.id < b.id ? -1 : 1);
+const items = all.filter((l) => l.amendments > 0).sort(byCount("amendments")).slice(0, LIMIT);
+const lastYear = all.filter((l) => l.amendmentsLastYear > 0).sort(byCount("amendmentsLastYear")).slice(0, LIMIT_LAST_YEAR);
+const acts = items.filter((l) => l.dir === "act");
+const top = items[0];
+const title = "改正回数が多い法律ランキング";
+const description = `改正回数が最も多い法令は${top ? `${top.title}（${top.amendments}回）` : ""}。${acts.slice(0, 3).map((l) => `${l.title} ${l.amendments}回`).join("、")}など、改正の多い法令の上位 ${items.length} 件と、直近1年に改正の多かった法令です。`;
+const times = (key: "amendments" | "amendmentsLastYear") => (l: (typeof all)[number]) => ({ n: l[key].toLocaleString(), unit: "回" });
+---
+<Base title={title} description={description} nav="stats">
+  <PageHeader title={title} crumbs={[{ href: "/stats/", label: "法令の統計" }]}>
+    {top && <>改正回数が最も多いのは<b>{top.title}</b>（{top.amendments}回）です。</>}回数は、houritsu に記録された施行済みの改正を数えたもので、主に2000年代以降の改正です。それより前の改正は含まれません。
+  </PageHeader>
+  <StatsNote />
+
+  <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <section class="min-w-0" data-type-filter-root>
+      <h2 class="mb-3 text-xl font-bold">改正回数の多い法令（上位 {items.length} 件）</h2>
+      <TypeFilter dirs={items.map((l) => l.dir)} />
+      <StatLawList items={items} fig={times("amendments")} ranked />
+    </section>
+
+    <aside class="flex flex-col gap-4 text-sm">
+      {lastYear.length > 0 && (
+        <section class="card card-border bg-base-100">
+          <div class="card-body gap-2 p-5">
+            <h2 class="card-title text-base">直近1年に改正の多かった法令</h2>
+            <p class="text-xs text-base-content/65">{today.slice(0, 4)}年{Number(today.slice(5, 7))}月{Number(today.slice(8, 10))}日までの1年間に施行された改正の回数です。</p>
+            <ol class="list">
+              {lastYear.map((l, i) => (
+                <li class="list-row items-baseline px-0 py-2">
+                  <span class="w-5 text-right text-xs tabular-nums text-base-content/65" aria-hidden="true">{i + 1}</span>
+                  <a class="list-col-grow link link-hover font-bold text-primary" href={`/laws/${l.id}/`}>{l.title}</a>
+                  <span class="tabular-nums"><b>{l.amendmentsLastYear}</b><span class="ml-0.5 text-xs text-base-content/65">回</span></span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+      )}
+      <section class="card card-border bg-base-100">
+        <div class="card-body gap-2 p-5">
+          <h2 class="card-title text-base">数え方</h2>
+          <p class="text-base-content/70">改正法令の施行ごとに1回と数えます。同じ改正法令でも、施行日が分かれていればそれぞれ数えます。新しい法令の一部が後から施行される段階施行は数えません。</p>
+        </div>
+      </section>
+      <ul class="flex flex-col gap-2">
+        <li><a class="link link-primary" href="/stats/unamended/">一度も改正されていない法律の一覧 →</a></li>
+        <li><a class="link link-primary" href="/stats/oldest/">日本一古い法律は？現行法令の古い順 →</a></li>
+        <li><a class="link link-primary" href="/stats/">法令の統計 →</a></li>
+      </ul>
+    </aside>
+  </div>
+</Base>
