@@ -408,8 +408,10 @@ smaller changes have piled up. Changes that would all be left out of the changel
    with the version and today's date in Japan time, and its link reference at the end; update the version in the
    "Changes merged since the latest release" compare link under the introduction. `node scripts/changelog.ts` checks
    the file (`npm test` does too).
-3. Open a pull request titled `Release YYYY.M.N` that changes only CHANGELOG.md. The Publish workflow ignores it,
-   so the merge deploys nothing new. Before merging it, hold other merges until it is in, run the command of step 1
+3. Open a pull request titled `Release YYYY.M.N` that changes only CHANGELOG.md, with `@coderabbitai ignore` in its
+   description so that it does not spend a CodeRabbit review. CodeRabbit then posts no check, so the owner merges it
+   by bypassing the ruleset ("Merge without waiting for requirements to be met"). The Publish workflow ignores it, so
+   the merge deploys nothing new. Before merging it, hold other merges until it is in, run the command of step 1
    again and add entries for anything merged in the meantime (above all a **Breaking:** change). If the date has
    passed, update it (and the version, if the month changed: the workflow refuses a version of an earlier month).
 4. Merge it. `.github/workflows/release.yml` checks CHANGELOG.md, then creates the tag `vYYYY.M.N` on the merge
