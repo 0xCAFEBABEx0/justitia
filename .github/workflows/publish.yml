@@ -116,8 +116,9 @@ jobs:
           upcoming=$(git -C houritsu rev-parse --verify -q origin/upcoming || echo none)
           echo "commits=$main-$upcoming" >>"$GITHUB_OUTPUT"
 
-      # What the site build reads from the extracted data (about 100 MB). amendments/ and history/
-      # are only fetched by the browser, from R2, so a cache hit needs neither.
+      # What the site build reads from the extracted data: amendments/ for the static amendment pages,
+      # and the rest for the other pages. history/ is only fetched by the browser, from R2, so a cache hit
+      # does not need it.
       # The key covers the extractor's code and the packages it imports (installed versions), not the
       # whole package-lock.json, so a change to the site's dependencies does not extract again. Add a
       # package here when scripts/extract/ starts importing it.
@@ -130,6 +131,7 @@ jobs:
             data/laws.json
             data/laws
             data/timeline
+            data/amendments
           key: data-${{ steps.houritsu.outputs.commits }}-${{ hashFiles('scripts/extract/**', '!scripts/extract/**/*.test.ts', 'node_modules/diff/package.json', 'node_modules/diff-match-patch/package.json', 'node_modules/yaml/package.json') }}
           lookup-only: ${{ inputs.rebuild == true }}
 
@@ -160,6 +162,29 @@ jobs:
 
       - name: Build the site
         run: npm run build
+
+      # The static amendment pages go to their own Workers (scripts/amendment-shards.ts); the main Worker keeps
+      # fewer than 20,000 files.
+      - name: Split the amendment pages off
+        run: npm run split-amendments
+
+      # The amendment pages, on the amendment Workers, load the site's CSS and scripts from /_astro/ on the main
+      # Worker. The main Worker keeps the previous build's files for one more deploy, so that the pages the
+      # amendment Workers still serve while they are deployed after it, and pages already open in a browser,
+      # keep their styles. Only this build's own files are saved for the next run, so old files do not pile up.
+      - name: Note this build's /_astro/ files
+        run: cp -r dist/_astro "$RUNNER_TEMP/astro-new"
+      - name: Restore the previous build's /_astro/ files
+        uses: actions/cache/restore@v5
+        with:
+          path: astro-assets
+          key: astro-assets-${{ github.run_id }}
+          restore-keys: astro-assets-
+      - name: Keep the previous build's /_astro/ files
+        run: |
+          if [[ -d astro-assets ]]; then cp -rn astro-assets/. dist/_astro/; fi
+          rm -rf astro-assets
+          mv "$RUNNER_TEMP/astro-new" astro-assets
 
       # Skipped (in a few seconds) when the published index was built from the same input.
       - name: Build the search index (about 10 minutes when it changed)
@@ -199,9 +224,23 @@ jobs:
             data/laws.json
             data/laws
             data/timeline
+            data/amendments
           key: ${{ steps.data.outputs.cache-primary-key }}
 
       - name: Deploy the site
         run: npm run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      # After the main Worker, which now has the /_astro/ files their new pages use. The first deploy creates
+      # each Worker; Wrangler uploads only the files that changed.
+      - name: Deploy the amendment pages
+        run: npm run deploy:amendments
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+
+      - name: Save this build's /_astro/ files
+        uses: actions/cache/save@v5
+        with:
+          path: astro-assets
+          key: astro-assets-${{ github.run_id }}

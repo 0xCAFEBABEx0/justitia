@@ -108,6 +108,7 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | `/browse/`, `/browse/kana/<row>/`, `/browse/type/<type>/`, `/browse/category/<category>/` | Law lists |
 | `/laws/<law ID>/` | Law text (an anchor per heading), table of contents, amendment history, and the law's calendar (`.ics`) and RSS feed |
 | `/amendment/?k=<amendment key>` | Old and new text of the articles an amendment changed (side by side, or inline) |
+| `/amendment/<amendment key>/` | The same, as a static page with its own title, description and structured data, served by the amendment Workers (see [Amendment Workers](#amendment-workers)); not linked or in the sitemap until their routes are applied |
 | `/new/`, `/new/<year>/` | Newly enacted laws (a law whose file first appears in houritsu through the law itself), by year of entry into force, with a type filter. Later parts of a new law coming into force are labeled 段階施行, not 改正, across the site |
 | `/repealed/`, `/repealed/<year>/` | Repealed laws (a law whose file is deleted from houritsu's main branch; houritsu records repeals from 2017 on), by year and date of repeal, laid out like `/new/`, with type and "how it was repealed" filters: by a new law coming into force, by a law made to repeal it, or by another amending law. Each links the text in force just before the repeal. Repealed law pages show the same details |
 | `/upcoming/` | Amendments promulgated and not yet in force, by month of entry into force (with a countdown in days), then those without a date; a filter by category and law name; the calendar (`.ics`) and RSS feed of the whole site or of the chosen category to subscribe to (see [Calendars and RSS feeds](#calendars-and-rss-feeds)) |
@@ -189,7 +190,7 @@ It rebuilds only what changed:
    extractor's code and the installed versions of the packages it imports (`diff`, `diff-match-patch`, `yaml`;
    `scripts/extract/cache-key.test.ts` checks that list against the imports), so a change to the site's
    dependencies does not extract again. The cache holds what the site build reads (`meta.json`,
-   `laws.json`, `laws/`, `timeline/`). A change to the site alone, or a day without new commits in houritsu, uses
+   `laws.json`, `laws/`, `timeline/`, and `amendments/` for the static amendment pages). A change to the site alone, or a day without new commits in houritsu, uses
    the cache, as long as R2 still holds the same data: the upload records the data version it uploaded and how
    it stored it in `_publish/data-version.txt` (`<data version> br`, `incomplete` while it uploads), and a cached
    copy with another version (after an extractor change is reverted, for example) is extracted and uploaded again;
@@ -207,7 +208,36 @@ It rebuilds only what changed:
    about 260 MiB, so that keeps under 2 GB of old files even if every file changed every day. The cache is saved
    after this step, so a run that fails earlier saves nothing;
 5. `npm run deploy`: deploy `dist/` to Workers static assets with Wrangler (`wrangler.jsonc`). Wrangler uploads
-   only the files that changed.
+   only the files that changed. Before that, `npm run split-amendments` has moved the static amendment pages out of
+   `dist/`, and `dist/_astro/` has received the previous build's files back (from the workflow's cache), so pages
+   still served from the amendment Workers, or open in a browser, keep their CSS and scripts during the deploy;
+6. `npm run deploy:amendments`: deploy the three amendment Workers the same way (see below).
+
+### Amendment Workers
+
+A Worker version holds at most 20,000 files on the Workers Free plan. The site has about 10,000 pages and there are
+over 23,000 amendments, so the static amendment pages (`/amendment/<key>/`, `src/pages/amendment/[key].astro`) are
+served by three more assets-only Workers, `amendments-1` to `amendments-3` (`wrangler.amendments-*.jsonc`), split by
+the era and year of the amending law, the first three characters of the key (`scripts/amendment-shards.ts`):
+`0`–`4` (Meiji to Heisei, which no longer grow), `501`–`504` (Reiwa 1–4), and everything else (Reiwa 5 on, about
+1,900 a year). Each answers Workers routes `anisotro.pics/amendment/<prefix>*`, which Terraform manages
+(`infra/terraform/envs/prod/amendments.tf`): routes take precedence over the main Worker's Custom Domain on the same
+hostname, and the most specific route wins, so the catch-all `amendment/*` also takes `/amendment/?k=` (it has a copy
+of that page). None of them runs a Worker script, so their requests are free static asset requests, as for the main
+Worker (checked with a live canary on 2026-11-08).
+
+After the build, `scripts/split-amendments.ts` moves each page to `dist-amendments/<worker>/amendment/<key>/`, gives
+each Worker a copy of the 404 page, and fails when a Worker would hold 18,000 files or more; then a fourth Worker has
+to take the newest years. An amendment page builds in the side-by-side view as much of the diff as fits in 800 KB
+(Googlebot reads the first 2 MB of a page, and an amendment that changes dozens of laws runs to several MB); the
+browser fetches the amendment from R2 only for the rest, or when the inline view is chosen.
+
+The amendment pages load their CSS and scripts from `/_astro/` on the main Worker, which the main Worker therefore
+keeps for one build after they change (see step 5 above).
+
+Rollout: the first Publish run after the merge creates the three Workers (the Wrangler token may create Workers);
+then the owner applies the routes (`infra/README.md`); then the site links to the static pages and lists them in the
+sitemap (a later change).
 
 A change to the site takes a few minutes. New commits in houritsu take about 15 minutes more for the extraction
 and, when the law text changed, about 10 for the search index. To rebuild everything anyway, run the workflow by

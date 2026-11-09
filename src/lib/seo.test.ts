@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { breadcrumbList, jsonLdText, lawLastmod, legislation } from "./seo.ts";
+import { amendingLegislation, breadcrumbList, jsonLdText, lawLastmod, legislation } from "./seo.ts";
 
 test("jsonLdText cannot end its <script> and parses back to the same data", () => {
   const data = { name: "a</script><script>alert(1)</script>" };
@@ -44,4 +44,20 @@ test("lawLastmod is the last amendment in force, capped at the data date", () =>
   assert.equal(lawLastmod("2027-04-01", "2026-11-09"), "2026-11-09");
   assert.equal(lawLastmod(null, "2026-11-09"), undefined);
   assert.equal(lawLastmod("undetermined", "2026-11-09"), undefined);
+});
+
+test("amendingLegislation lists the laws the amendment changed", () => {
+  const ld = amendingLegislation({
+    url: "https://anisotro.pics/amendment/426AC0000000042_20160401/",
+    title: "地方自治法の一部を改正する法律",
+    num: "平成二十六年法律第四十二号",
+    promulgated: "2014-05-30",
+    enforced: null,
+    changes: [{ title: "地方自治法", num: "昭和二十二年法律第六十七号", url: "https://anisotro.pics/laws/322AC0000000067/" }],
+  }) as Record<string, unknown>;
+  assert.equal(ld.legislationDate, "2014-05-30");
+  assert.ok(!("legislationDateVersion" in ld));
+  assert.deepEqual(ld.legislationChanges, [
+    { "@type": "Legislation", name: "地方自治法", legislationIdentifier: "昭和二十二年法律第六十七号", url: "https://anisotro.pics/laws/322AC0000000067/" },
+  ]);
 });

@@ -13,7 +13,9 @@
     "feeds": "node scripts/feeds.ts",
     "preview": "node scripts/preview.ts",
     "upload-data": "scripts/upload-data.sh",
-    "deploy": "npx --yes wrangler@4.151.3 deploy"
+    "split-amendments": "node scripts/split-amendments.ts",
+    "deploy": "npx --yes wrangler@4.151.3 deploy",
+    "deploy:amendments": "for n in 1 2 3; do npx --yes wrangler@4.151.3 deploy --config wrangler.amendments-$n.jsonc || exit 1; done"
   },
   "repository": {
     "type": "git",

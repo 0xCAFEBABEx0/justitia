@@ -1,0 +1,51 @@
+---
+// The static page of one amendment, /amendment/<key>/: the same content the client-rendered /amendment/?k=<key>
+// shows, built in, with its own title, description, canonical link and structured data. These pages are served
+// by the amendment Workers, not by the main Worker: scripts/split-amendments.ts moves them out of dist/ after the
+// build (see scripts/amendment-shards.ts).
+import Base from "../../layouts/Base.astro";
+import { amendment, dataVersion, jpDate, pageAmendments } from "../../lib/data.ts";
+import { DATA_BASE } from "../../lib/site.ts";
+import { amendingLegislation, breadcrumbList, jsonLdText } from "../../lib/seo.ts";
+import { amendmentDescription, amendmentStaticHtml } from "../../scripts/amendment.ts";
+
+export function getStaticPaths() {
+  return pageAmendments().map((a) => ({ params: { key: a.key } }));
+}
+
+// Googlebot reads the first 2 MB of a page; Japanese text is 3 bytes a character in UTF-8. The layout and the
+// header add about 30 KB, so the content stops well short of that, and the browser renders the rest.
+const CONTENT_BUDGET = 800_000;
+
+const { key } = Astro.params;
+const a = amendment(key);
+const { html, complete } = amendmentStaticHtml(a, CONTENT_BUDGET);
+const year = a.enforced?.slice(0, 4) ?? "undetermined";
+const url = new URL(`/amendment/${key}/`, Astro.site).href;
+const ld = [
+  breadcrumbList(
+    Astro.site!,
+    [
+      { href: "/timeline/", label: "改正の年表" },
+      { href: `/timeline/${year}/`, label: a.enforced ? year : "施行日未定" },
+    ],
+    a.title,
+  ),
+  amendingLegislation({
+    url,
+    title: a.title,
+    num: a.amendmentLawNum,
+    promulgated: a.promulgated,
+    enforced: a.enforced,
+    changes: a.files.map((f) => ({ title: f.title, num: f.lawNum, url: new URL(`/laws/${f.lawId}/`, Astro.site).href })),
+  }),
+];
+---
+<Base title={`${a.title}（${a.enforced ? `${jpDate(a.enforced)}施行` : "施行日未定"}）`} description={amendmentDescription(a)} nav="timeline">
+  <script is:inline type="application/ld+json" set:html={jsonLdText(ld)} />
+  <div id="amendment" data-base={DATA_BASE} data-v={dataVersion()} data-key={key} data-complete={String(complete)} set:html={html} />
+  <script>
+    import { renderAmendmentPage } from "../../scripts/amendment.ts";
+    void renderAmendmentPage(document.getElementById("amendment")!);
+  </script>
+</Base>

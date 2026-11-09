@@ -1,0 +1,20 @@
+// One of the three assets-only Workers that serve the static amendment pages (/amendment/<key>/); see
+// scripts/amendment-shards.ts for which keys it holds and why there are three. scripts/split-amendments.ts moves
+// its pages out of dist/ into the directory below, with a copy of the site's 404 page. Workers routes under
+// anisotro.pics/amendment/ (infra/terraform/envs/prod/amendments.tf) send requests here; there is no `routes` key,
+// so `wrangler deploy` leaves them alone. No Worker script: every request is a free static asset request.
+{
+  "name": "amendments-2",
+  "compatibility_date": "2026-10-20",
+  "assets": {
+    "directory": "./dist-amendments/amendments-2",
+    "html_handling": "auto-trailing-slash",
+    "not_found_handling": "404-page"
+  },
+  // Reachable only through the routes on anisotro.pics, as for the main Worker (wrangler.jsonc).
+  "workers_dev": false,
+  "preview_urls": false,
+  // Off: requests that a static asset answers run no Worker script and log little, and the main Worker already
+  // shows the site's traffic.
+  "observability": { "enabled": false }
+}
