@@ -3,6 +3,7 @@
 //
 //   node scripts/changelog.ts                 check CHANGELOG.md; print the newest version
 //   node scripts/changelog.ts --notes <file>  also write the newest release's notes to <file>
+//   node scripts/changelog.ts --this-month …  also require the newest release to be of this month (Japan time)
 //
 // Exits with 1 and lists the problems when CHANGELOG.md breaks a rule.
 
@@ -41,7 +42,13 @@ export function parseChangelog(markdown: string): Changelog {
   const finish = () => {
     if (current) releases.push({ version: current.version, date: current.date, body: current.lines.join("\n").trim() });
   };
+  let fenced = false; // inside a fenced code block, no line is structure
   for (const line of markdown.split(/\r?\n/)) {
+    if (/^\s*(```|~~~)/.test(line)) fenced = !fenced;
+    if (fenced || /^\s*(```|~~~)/.test(line)) {
+      current?.lines.push(line);
+      continue;
+    }
     const link = LINK_DEFINITION.exec(line);
     if (link) {
       links.set(link[1], link[2]);
@@ -131,7 +138,18 @@ export function checkChangelog(markdown: string): string[] {
       problems.push(`${where}: needs the link reference "[${release.version}]: ${expected}"${actual ? ` (found ${actual})` : ""}`);
     }
   });
+  // The "changes merged since the latest release" link under the introduction compares from the newest tag.
+  const newest = releases[0]?.version;
+  for (const [, from] of markdown.matchAll(/\/compare\/v([\d.]+?)\.\.\.main\b/g)) {
+    if (newest && from !== newest) problems.push(`the compare link to main starts at v${from}, not at the newest release v${newest}`);
+  }
   return problems;
+}
+
+/** The month (`YYYY.M`) of an instant in Japan time. */
+export function jstMonth(now: Date): string {
+  const jst = new Date(now.getTime() + 9 * 3600 * 1000);
+  return `${jst.getUTCFullYear()}.${jst.getUTCMonth() + 1}`;
 }
 
 /**
@@ -140,10 +158,13 @@ export function checkChangelog(markdown: string): string[] {
  */
 export function unwrap(markdown: string): string {
   const out: string[] = [];
+  let fenced = false; // code blocks keep their lines
   for (const line of markdown.split("\n")) {
+    const fence = /^\s*(```|~~~)/.test(line);
     const prev = out.at(-1);
-    const continues = line.trim() !== "" && !/^\s*([-*+] |\d+\. |#|>|\||```)/.test(line);
-    if (continues && prev !== undefined && prev.trim() !== "" && !/^\s*(#|\||```)/.test(prev)) {
+    const continues = !fenced && !fence && line.trim() !== "" && !/^\s*([-*+] |\d+\. |#|>|\|)/.test(line);
+    if (fence) fenced = !fenced;
+    if (continues && prev !== undefined && prev.trim() !== "" && !/^\s*(#|\||```|~~~)/.test(prev)) {
       out[out.length - 1] = `${prev} ${line.trim()}`;
     } else {
       out.push(line);
@@ -161,9 +182,11 @@ export function releaseNotes(releases: Release[], i: number): string {
 
 if (import.meta.main) {
   const args = process.argv.slice(2);
+  const thisMonth = args[0] === "--this-month";
+  if (thisMonth) args.shift();
   const notesFile = args[0] === "--notes" ? args[1] : undefined;
   if (args.length !== (notesFile ? 2 : 0)) {
-    console.error("usage: node scripts/changelog.ts [--notes <file>]");
+    console.error("usage: node scripts/changelog.ts [--this-month] [--notes <file>]");
     process.exit(2);
   }
   const markdown = await readFile(join(import.meta.dirname, "../CHANGELOG.md"), "utf8");
@@ -173,6 +196,12 @@ if (import.meta.main) {
     process.exit(1);
   }
   const { releases } = parseChangelog(markdown);
+  // A release PR merged in a later month than it was written in must get that month's version first.
+  const month = jstMonth(new Date());
+  if (thisMonth && !releases[0].version.startsWith(`${month}.`)) {
+    console.error(`CHANGELOG.md: the newest release ${releases[0].version} is not of this month (${month}, Japan time)`);
+    process.exit(1);
+  }
   if (notesFile) await writeFile(notesFile, releaseNotes(releases, 0));
   console.log(releases[0].version);
 }

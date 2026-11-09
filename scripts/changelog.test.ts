@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { test } from "node:test";
-import { checkChangelog, parseChangelog, releaseNotes, REPO_URL, unwrap } from "./changelog.ts";
+import { checkChangelog, jstMonth, parseChangelog, releaseNotes, REPO_URL, unwrap } from "./changelog.ts";
 
 const head = "# Changelog\n\nIntro.\n\n";
 
@@ -91,4 +91,28 @@ test("release notes join wrapped lines, since GitHub shows every line break", ()
     unwrap("Intro line one\nand two.\n\n### Added\n\n- Item one\n  continued. (#1)\n- Item two. (#2)\n"),
     "Intro line one and two.\n\n### Added\n\n- Item one continued. (#1)\n- Item two. (#2)\n",
   );
+});
+
+test("the compare link to main must start at the newest release", () => {
+  const md = changelog({ version: "2026.11.1", date: "2026-11-20" }, { version: "2026.11.0", date: "2026-11-09" });
+  const current = md.replace("Intro.", `Intro: ${REPO_URL}/compare/v2026.11.1...main.`);
+  assert.deepEqual(checkChangelog(current), []);
+  const stale = md.replace("Intro.", `Intro: ${REPO_URL}/compare/v2026.11.0...main.`);
+  assert.match(checkChangelog(stale).join("\n"), /starts at v2026\.11\.0/);
+});
+
+test("lines in fenced code blocks are not structure", () => {
+  const body = "### Added\n\n- Example:\n\n  ```\n## not a heading\n[x]: https://example.com/\n  ```";
+  const md = changelog({ version: "2026.11.0", date: "2026-11-09", body });
+  assert.deepEqual(checkChangelog(md), []);
+  assert.equal(parseChangelog(md).releases[0].body, body);
+});
+
+test("the month of an instant is taken in Japan time", () => {
+  assert.equal(jstMonth(new Date("2026-11-30T14:59:59Z")), "2026.11");
+  assert.equal(jstMonth(new Date("2026-11-30T15:00:00Z")), "2026.12");
+});
+
+test("release notes keep the lines of code blocks", () => {
+  assert.equal(unwrap("- A:\n\n  ```\n  one\n  two\n  ```\n"), "- A:\n\n  ```\n  one\n  two\n  ```\n");
 });

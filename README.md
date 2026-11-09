@@ -365,13 +365,16 @@ smaller changes have piled up. Changes that would all be left out of the changel
    "Changes merged since the latest release" compare link under the introduction. `node scripts/changelog.ts` checks
    the file (`npm test` does too).
 3. Open a pull request titled `Release YYYY.M.N` that changes only CHANGELOG.md. The Publish workflow ignores it,
-   so the merge deploys nothing new. If the date passes before it merges, update the date (and the version, if the
-   month changed).
+   so the merge deploys nothing new. Right before merging, run the command of step 1 again: add entries for anything
+   merged in the meantime (above all a **Breaking:** change), or hold other merges until the release PR is in. If the
+   date has passed, update it (and the version, if the month changed: the workflow refuses a version of an earlier
+   month).
 4. Merge it. `.github/workflows/release.yml` checks CHANGELOG.md, then creates the tag `vYYYY.M.N` on the merge
    commit and a GitHub Release titled `YYYY.M.N` whose notes are the new section (with its lines joined, since
    GitHub shows every line break) and a link to the full diff. It does nothing if that release already exists; if
    it failed, fix CHANGELOG.md in another pull request, or run it by hand (Actions → Release → Run workflow), which
-   creates the newest version's release at `main`'s head.
+   creates the newest version's release at the commit that last changed CHANGELOG.md, even if other pull requests
+   have merged since.
 
 Tags are never moved or deleted. A mistake in published notes is fixed in CHANGELOG.md by a pull request and by
 editing the GitHub Release by hand; a mistake in the code is fixed in the next release.
