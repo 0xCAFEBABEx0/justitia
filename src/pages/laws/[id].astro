@@ -19,6 +19,7 @@ import { feedFile, feedUrl } from "../../lib/feeds.ts";
 import { shareToolsHtml } from "../../lib/share.ts";
 import { isStaged } from "../../lib/new-laws.ts";
 import { lastTextBeforeRepeal, REPEAL_WAY_LABELS } from "../../lib/repealed-laws.ts";
+import { jsonLdText, legislation } from "../../lib/seo.ts";
 import PageHeader from "../../components/PageHeader.astro";
 import StatusBadge from "../../components/StatusBadge.astro";
 
@@ -62,6 +63,18 @@ const citeAsOf =
 const calendarUrl = law.status === "repealed" ? null : feedUrl(DATA_BASE, feedFile.law(law.id, "ics"));
 const rssUrl = law.status === "repealed" ? null : feedUrl(DATA_BASE, feedFile.law(law.id, "xml"));
 const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => r.id)].join(",")}`;
+const legislationLd = jsonLdText(
+  legislation({
+    url: new URL(`/laws/${law.id}/`, Astro.site).href,
+    title: law.title,
+    num: law.num,
+    abbrev: law.abbrev,
+    typeLabel: typeLabel(law.dir),
+    status: law.status,
+    lastAmended: latest?.enforced ?? null,
+    source,
+  }),
+);
 ---
 <Base title={pageTitle} description={description} feed={rssUrl ? { title: `${law.title}の改正（${SITE_NAME}）`, href: rssUrl } : undefined}>
   <PageHeader
@@ -81,6 +94,7 @@ const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => 
       {repeal && <span>廃止：{repeal.enforced ? `${jpDate(repeal.enforced)} 施行` : "施行日未定"}（{repeal.amendmentLawNum}）</span>}
     </div>
   </PageHeader>
+  <script is:inline type="application/ld+json" set:html={legislationLd} />
   <div class="-mt-2 mb-4 flex flex-wrap gap-2 print:hidden" data-share-title={law.title}>
     {beforeRepealUrl && <a class="btn btn-sm btn-primary" href={beforeRepealUrl}>廃止直前の条文</a>}
     {revisions.length > 0 && <a class:list={["btn btn-sm btn-primary", { "btn-soft": beforeRepealUrl }]} href={`/versions/?law=${law.id}`}>過去・将来の条文と比較</a>}
@@ -111,50 +125,10 @@ const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => 
   {rendered && <p class="-mt-2 mb-4 text-xs text-base-content/65 print:hidden">条の見出しを押すと、その条へのリンクや引用文をコピーできます。</p>}
 
   <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px] print:block">
-    <article class="law-text min-w-0" data-law-text data-cite-law={law.title} data-cite-num={law.num} data-cite-asof={citeAsOf}>
-      {rendered ? (
-        <Fragment set:html={rendered.html} />
-      ) : law.status === "repealed" ? (
-        <div class="card card-border bg-base-100">
-          <div class="card-body gap-2 p-5">
-            <h2 class="card-title flex-wrap text-base">
-              {repeal?.enforced ? `${jpDate(repeal.enforced)}に廃止されました` : "この法令は廃止されています"}
-              {repeal && <span class="badge badge-ghost badge-sm whitespace-nowrap font-normal">{REPEAL_WAY_LABELS[repeal.way]}</span>}
-            </h2>
-            {repeal && (
-              <dl class="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[auto_minmax(0,1fr)]">
-                {repeal.newLaw ? (
-                  <>
-                    <dt class="text-base-content/70">新しい法令</dt>
-                    <dd><a class="link link-primary" href={`/laws/${repeal.newLaw.id}/`}>{repeal.newLaw.title}</a><span class="text-xs text-base-content/65">（{repeal.amendmentLawNum}）</span>の施行により廃止・<a class="link" href={`${amendmentUrl(repeal.amendment)}${anchor}`}>施行時の変更</a></dd>
-                  </>
-                ) : (
-                  <>
-                    <dt class="text-base-content/70">廃止した法令</dt>
-                    <dd><a class="link link-primary" href={`${amendmentUrl(repeal.amendment)}${anchor}`}>{repeal.amendmentTitle}</a><span class="text-xs text-base-content/65">（{repeal.amendmentLawNum}）</span></dd>
-                  </>
-                )}
-                {repeal.alsoRepeals > 0 && (
-                  <>
-                    <dt class="text-base-content/70">同時に廃止</dt>
-                    <dd>ほか {repeal.alsoRepeals} 法令（<a class="link" href={amendmentUrl(repeal.amendment)}>施行時の変更</a>）</dd>
-                  </>
-                )}
-              </dl>
-            )}
-            <p class="text-sm text-base-content/70">
-              {beforeRepealUrl ? <>廃止される前の条文は<a class="link link-primary" href={beforeRepealUrl}>廃止直前の条文</a>で見られます。</> : "houritsu には廃止される前の条文がありません。"}
-              廃止までの改正履歴を<span class="lg:hidden">下</span><span class="hidden lg:inline">右</span>に表示しています。
-            </p>
-            <p class="text-xs"><a class="link" href="/repealed/">廃止された法令の一覧</a></p>
-          </div>
-        </div>
-      ) : (
-        <p class="text-base-content/70">この法令はまだ施行されていません。施行予定の改正を右に表示しています。</p>
-      )}
-    </article>
-
-    <aside class="flex flex-col gap-4 text-sm print:hidden lg:sticky lg:top-[4.5rem] lg:max-h-[calc(100vh-5.5rem)] lg:overflow-auto">
+    {/* The history comes before the text in the HTML, so that search engines see it on long laws
+         (Googlebot reads the first 2 MB of a page); it is still shown after the text on narrow
+         screens and to the right on wide ones. */}
+    <aside class="order-last flex flex-col gap-4 text-sm print:hidden lg:sticky lg:order-none lg:col-start-2 lg:row-start-1 lg:top-[4.5rem] lg:max-h-[calc(100vh-5.5rem)] lg:overflow-auto">
       <section class="card card-border bg-base-100">
         <div class="card-body p-4">
           <h2 class="card-title text-base">改正履歴（{revisions.length} 件）</h2>
@@ -206,5 +180,48 @@ const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => 
         </details>
       )}
     </aside>
+    <article class="law-text min-w-0 lg:col-start-1 lg:row-start-1" data-law-text data-cite-law={law.title} data-cite-num={law.num} data-cite-asof={citeAsOf}>
+      {rendered ? (
+        <Fragment set:html={rendered.html} />
+      ) : law.status === "repealed" ? (
+        <div class="card card-border bg-base-100">
+          <div class="card-body gap-2 p-5">
+            <h2 class="card-title flex-wrap text-base">
+              {repeal?.enforced ? `${jpDate(repeal.enforced)}に廃止されました` : "この法令は廃止されています"}
+              {repeal && <span class="badge badge-ghost badge-sm whitespace-nowrap font-normal">{REPEAL_WAY_LABELS[repeal.way]}</span>}
+            </h2>
+            {repeal && (
+              <dl class="grid gap-x-4 gap-y-1 text-sm sm:grid-cols-[auto_minmax(0,1fr)]">
+                {repeal.newLaw ? (
+                  <>
+                    <dt class="text-base-content/70">新しい法令</dt>
+                    <dd><a class="link link-primary" href={`/laws/${repeal.newLaw.id}/`}>{repeal.newLaw.title}</a><span class="text-xs text-base-content/65">（{repeal.amendmentLawNum}）</span>の施行により廃止・<a class="link" href={`${amendmentUrl(repeal.amendment)}${anchor}`}>施行時の変更</a></dd>
+                  </>
+                ) : (
+                  <>
+                    <dt class="text-base-content/70">廃止した法令</dt>
+                    <dd><a class="link link-primary" href={`${amendmentUrl(repeal.amendment)}${anchor}`}>{repeal.amendmentTitle}</a><span class="text-xs text-base-content/65">（{repeal.amendmentLawNum}）</span></dd>
+                  </>
+                )}
+                {repeal.alsoRepeals > 0 && (
+                  <>
+                    <dt class="text-base-content/70">同時に廃止</dt>
+                    <dd>ほか {repeal.alsoRepeals} 法令（<a class="link" href={amendmentUrl(repeal.amendment)}>施行時の変更</a>）</dd>
+                  </>
+                )}
+              </dl>
+            )}
+            <p class="text-sm text-base-content/70">
+              {beforeRepealUrl ? <>廃止される前の条文は<a class="link link-primary" href={beforeRepealUrl}>廃止直前の条文</a>で見られます。</> : "houritsu には廃止される前の条文がありません。"}
+              廃止までの改正履歴を<span class="lg:hidden">下</span><span class="hidden lg:inline">右</span>に表示しています。
+            </p>
+            <p class="text-xs"><a class="link" href="/repealed/">廃止された法令の一覧</a></p>
+          </div>
+        </div>
+      ) : (
+        <p class="text-base-content/70">この法令はまだ施行されていません。施行予定の改正を右に表示しています。</p>
+      )}
+    </article>
+
   </div>
 </Base>

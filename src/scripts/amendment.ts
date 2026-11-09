@@ -216,15 +216,40 @@ function headHtml(a: Amendment): string {
   </div>`;
 }
 
+/** Adds or replaces a <head> element, such as the robots meta tag or the canonical link. */
+function setHead(tag: "meta" | "link", match: Record<string, string>, attrs: Record<string, string>): void {
+  const selector = `${tag}${Object.entries(match).map(([k, v]) => `[${k}="${v}"]`).join("")}`;
+  let el = document.head.querySelector(selector);
+  if (!el) {
+    el = document.createElement(tag);
+    for (const [k, v] of Object.entries(match)) el.setAttribute(k, v);
+    document.head.append(el);
+  }
+  for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+}
+
+/**
+ * The page is the same HTML for every amendment, so search engines learn which address shows
+ * which amendment only from what this script sets: the title, the description and the canonical
+ * address (Google renders the page and reads them). An address with no amendment behind it gets
+ * noindex instead, so it is not indexed as an empty page (a "soft 404").
+ */
+function noindex(): void {
+  setHead("meta", { name: "robots" }, { content: "noindex" });
+}
+
 export async function renderAmendmentPage(root: HTMLElement): Promise<void> {
   const key = new URLSearchParams(location.search).get("k");
   if (!key || !/^[0-9A-Za-z_-]+$/.test(key)) {
+    noindex();
     root.innerHTML = `<p class="${NOTE}">改正が指定されていません。<a class="link link-primary" href="/timeline/">改正の年表</a>から選んでください。</p>`;
     return;
   }
   let a: Amendment;
   try {
     const res = await fetch(dataUrl(root, `amendments/${key}.json`));
+    // Only a missing file: a network error or a 5xx says nothing about the amendment.
+    if (res.status === 404) noindex();
     if (!res.ok) throw new Error(String(res.status));
     a = (await res.json()) as Amendment;
   } catch {
@@ -232,6 +257,11 @@ export async function renderAmendmentPage(root: HTMLElement): Promise<void> {
     return;
   }
   document.title = `${a.title}（${jpDate(a.enforced)}施行） | ${SITE_NAME}`;
+  const lawCount = a.files.length;
+  setHead("meta", { name: "description" }, {
+    content: `${a.title}（${a.amendmentLawNum}）${a.enforced ? `の${jpDate(a.enforced)}の施行` : ""}で変わった${lawCount > 1 ? `${lawCount} 法令の` : ""}条文を、改正前と改正後の新旧対照で見られます。`,
+  });
+  setHead("link", { rel: "canonical" }, { href: `${location.origin}/amendment/?k=${encodeURIComponent(key)}` });
 
   let view: View = "side";
   try {

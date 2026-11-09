@@ -1,12 +1,15 @@
 ---
 // Breadcrumbs, the page heading and a line under it. The heading can hold extra markup (a badge)
-// through the "badge" slot; the line under it is the default slot.
+// through the "badge" slot; the line under it is the default slot. The breadcrumbs are also given
+// to search engines as a schema.org BreadcrumbList.
+import { breadcrumbList, jsonLdText } from "../lib/seo.ts";
 
 interface Props {
   title: string;
   crumbs?: { href: string; label: string }[];
 }
 const { title, crumbs = [] } = Astro.props;
+const ld = crumbs.length > 0 && Astro.site ? jsonLdText(breadcrumbList(Astro.site, crumbs, title)) : null;
 ---
 <header class="mb-5">
   {crumbs.length > 0 && (
@@ -14,6 +17,7 @@ const { title, crumbs = [] } = Astro.props;
       <ul>{crumbs.map((c) => <li><a href={c.href}>{c.label}</a></li>)}</ul>
     </div>
   )}
+  {ld && <script is:inline type="application/ld+json" set:html={ld} />}
   <h1 class="text-2xl leading-snug font-bold sm:text-3xl" data-page-title>{title}<slot name="badge" /></h1>
   {Astro.slots.has("default") && <div class="mt-1.5 text-sm text-base-content/70"><slot /></div>}
 </header>
