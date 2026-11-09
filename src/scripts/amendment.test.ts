@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Amendment, BlockChange } from "../../scripts/extract/types.ts";
-import { amendmentDescription, amendmentStaticHtml } from "./amendment.ts";
+import { amendmentDescription, amendmentStaticHtml, legacyAmendmentPath } from "./amendment.ts";
 
 const block = (n: number): BlockChange =>
   ({
@@ -55,4 +55,11 @@ test("amendmentDescription names the amending law and the day it came into force
     amendmentDescription(amendment(1)),
     "民法の一部を改正する法律（平成二十九年法律第四十四号）の2020年4月1日の施行で変わった条文を、改正前と改正後の新旧対照で見られます。",
   );
+});
+
+test("legacyAmendmentPath forwards /amendment/?k=<key> to the static page, keeping the fragment", () => {
+  assert.equal(legacyAmendmentPath("?k=429AC0000000044_20200401", "#law-129AC0000000089"), "/amendment/429AC0000000044_20200401/#law-129AC0000000089");
+  assert.equal(legacyAmendmentPath("?k=429AC0000000044_20200401", ""), "/amendment/429AC0000000044_20200401/");
+  assert.equal(legacyAmendmentPath("", ""), null);
+  assert.equal(legacyAmendmentPath("?k=../x", ""), null);
 });

@@ -307,6 +307,15 @@ function storeView(view: View): void {
 }
 
 /**
+ * Where /amendment/?k=<key> (the address the site linked before the static pages) forwards to: /amendment/<key>/
+ * with the same #fragment, or null when the query has no well-formed key.
+ */
+export function legacyAmendmentPath(search: string, hash: string): string | null {
+  const k = new URLSearchParams(search).get("k");
+  return k && /^[0-9A-Za-z_-]+$/.test(k) ? `/amendment/${k}/${hash}` : null;
+}
+
+/**
  * Renders the amendment page. On the static page /amendment/<key>/ (root has data-key), the content is already
  * there: when it holds every block and the side-by-side view is wanted, only the view switch needs the data, which
  * is fetched when it is used. Otherwise the amendment is fetched and rendered again. /amendment/?k=<key> (no
@@ -316,9 +325,9 @@ function storeView(view: View): void {
 export async function renderAmendmentPage(root: HTMLElement, chosenView?: View): Promise<void> {
   const key = root.dataset.key;
   if (!key) {
-    const k = new URLSearchParams(location.search).get("k");
-    if (k && /^[0-9A-Za-z_-]+$/.test(k)) {
-      location.replace(`/amendment/${k}/${location.hash}`);
+    const to = legacyAmendmentPath(location.search, location.hash);
+    if (to) {
+      location.replace(to);
       return;
     }
     noindex();
@@ -343,7 +352,15 @@ export async function renderAmendmentPage(root: HTMLElement, chosenView?: View):
     if (!res.ok) throw new Error(String(res.status));
     a = (await res.json()) as Amendment;
   } catch {
-    root.querySelectorAll("[data-rest]").forEach((p) => (p.textContent = "残りの差分を読み込めませんでした。ページを再読み込みしてください。"));
+    const rest = root.querySelectorAll("[data-rest]");
+    rest.forEach((p) => (p.textContent = "残りの差分を読み込めませんでした。ページを再読み込みしてください。"));
+    if (rest.length === 0) {
+      // A complete page whose inline view could not load: say so under the view switch, keeping the diffs shown.
+      root.querySelector("[data-load-error]")?.remove();
+      root
+        .querySelector('[role="group"]')
+        ?.insertAdjacentHTML("afterend", `<p class="${NOTE}" role="alert" data-load-error>インライン表示を読み込めませんでした。ページを再読み込みしてください。</p>`);
+    }
     return;
   }
 
