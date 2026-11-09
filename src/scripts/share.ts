@@ -97,6 +97,34 @@ function closeMenus(except?: Element | null): void {
   });
 }
 
+/** The space kept between a menu and the edge of the window, in pixels. */
+const MENU_MARGIN = 8;
+
+/**
+ * Keeps an open menu inside the window. A menu opens under its button, from the button's left edge
+ * (or its right edge with dropdown-end), but the buttons wrap onto new lines at different places
+ * on different screens and laws, so a menu near the right edge of a narrow screen would run off it.
+ * The menu is moved sideways just enough to fit. The size and place are read without transforms
+ * (offsetLeft / offsetWidth), so the opening animation's scale does not change the result.
+ */
+function fitMenu(details: HTMLDetailsElement): void {
+  const menu = details.querySelector<HTMLElement>(".dropdown-content");
+  if (!menu) return;
+  menu.style.translate = "";
+  if (!details.open) return;
+  const width = document.documentElement.clientWidth;
+  const left = details.getBoundingClientRect().left + menu.offsetLeft;
+  const right = left + menu.offsetWidth;
+  let shift = 0;
+  if (right > width - MENU_MARGIN) shift = width - MENU_MARGIN - right;
+  if (left + shift < MENU_MARGIN) shift = MENU_MARGIN - left;
+  if (shift !== 0) menu.style.translate = `${Math.round(shift)}px 0`;
+}
+
+function fitOpenMenus(): void {
+  document.querySelectorAll<HTMLDetailsElement>(`:is(${MENU})[open]`).forEach(fitMenu);
+}
+
 /** The plain text of a law text block: paragraphs and items on their own lines, ruby in brackets. */
 function blockBody(block: HTMLElement): string {
   const clone = block.cloneNode(true) as HTMLElement;
@@ -246,6 +274,15 @@ function onClick(e: MouseEvent): void {
 
 export function initShare(): void {
   document.addEventListener("click", onClick);
+  // "toggle" does not bubble, so it is caught on the way down.
+  document.addEventListener(
+    "toggle",
+    (e) => {
+      if (e.target instanceof HTMLDetailsElement && e.target.matches(MENU)) fitMenu(e.target);
+    },
+    true,
+  );
+  addEventListener("resize", fitOpenMenus);
   document.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     const open = document.querySelector<HTMLDetailsElement>(`:is(${MENU})[open]`);
