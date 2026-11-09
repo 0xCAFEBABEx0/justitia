@@ -21,6 +21,7 @@ import { isStaged } from "../../lib/new-laws.ts";
 import { lastTextBeforeRepeal, REPEAL_WAY_LABELS } from "../../lib/repealed-laws.ts";
 import { jsonLdText, legislation } from "../../lib/seo.ts";
 import { isUnamended } from "../../lib/stats.ts";
+import { termIndex, termUrl } from "../../lib/term-index.ts";
 import { badgeClass } from "../../lib/badges.ts";
 import PageHeader from "../../components/PageHeader.astro";
 import StatusBadge from "../../components/StatusBadge.astro";
@@ -66,6 +67,9 @@ const citeAsOf =
 // gets none.
 const calendarUrl = law.status === "repealed" ? null : feedUrl(DATA_BASE, feedFile.law(law.id, "ics"));
 const rssUrl = law.status === "repealed" ? null : feedUrl(DATA_BASE, feedFile.law(law.id, "xml"));
+// The terms this law defines that have a page on /terms/, the most widely defined first.
+const definedTerms = law.status === "in_force" ? (termIndex().byLaw.get(law.id) ?? []) : [];
+const TERMS_SHOWN = 20;
 const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => r.id)].join(",")}`;
 const legislationLd = jsonLdText(
   legislation({
@@ -183,6 +187,25 @@ const legislationLd = jsonLdText(
             </ul>
           </div>
         </details>
+      )}
+      {definedTerms.length > 0 && (
+        <section class="card card-border bg-base-100">
+          <div class="card-body gap-2 p-4">
+            <h2 class="card-title text-base">この法令が定義している用語</h2>
+            <p class="text-xs text-base-content/65">ほかの法令での定義と比べられます。</p>
+            <ul class="flex flex-wrap gap-x-3 gap-y-1.5">
+              {definedTerms.slice(0, TERMS_SHOWN).map((t) => <li><a class="link link-primary" href={termUrl(t)}>{t}</a></li>)}
+            </ul>
+            {definedTerms.length > TERMS_SHOWN && (
+              <details>
+                <summary class="cursor-pointer text-primary">ほか {definedTerms.length - TERMS_SHOWN} 語</summary>
+                <ul class="mt-1.5 flex flex-wrap gap-x-3 gap-y-1.5">
+                  {definedTerms.slice(TERMS_SHOWN).map((t) => <li><a class="link link-primary" href={termUrl(t)}>{t}</a></li>)}
+                </ul>
+              </details>
+            )}
+          </div>
+        </section>
       )}
     </aside>
     <article class="law-text min-w-0 lg:col-start-1 lg:row-start-1" data-law-text data-cite-law={law.title} data-cite-num={law.num} data-cite-asof={citeAsOf}>
