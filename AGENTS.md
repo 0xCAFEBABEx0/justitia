@@ -122,6 +122,10 @@ local `houritsu/`, `data/` and `dist/` copies when you are done.
 13. **TypeScript runs without a build step.** Node's type stripping only accepts erasable syntax (`erasableSyntaxOnly`):
     no enums, namespaces or parameter properties. Tests use `node:test` and `node:assert`; do not add a test framework.
 14. **Code shipped to the browser must be AGPL-3.0-compatible.** The repository is `AGPL-3.0-only`.
+15. **Ask the owner before naming things.** Before a PR introduces a new name or naming convention (a Worker, bucket,
+    route, R2 key prefix, environment variable, workflow, file family and the like), propose the name to the owner and
+    wait for an answer. Renaming a Cloudflare resource later means a new resource, a Terraform apply and deleting the
+    old one. The owner prefers short names tied to the project (`justitia-amendments-1`), not descriptive ones.
 
 ## Pull requests
 
