@@ -10,7 +10,7 @@ import { jpDate, jstDate, meta } from "../lib/data.ts";
 interface Props {
   title?: string;
   description?: string;
-  nav?: "laws" | "new" | "upcoming" | "repealed" | "timeline" | "graph" | "stats" | "search" | "about";
+  nav?: "laws" | "new" | "upcoming" | "repealed" | "timeline" | "graph" | "stats" | "terms" | "search" | "about";
   narrow?: boolean;
   /**
    * Whether this URL (without its query string) is the page's address. False for pages whose
@@ -33,6 +33,7 @@ const NAV = [
   { key: "stats", href: "/stats/", label: "統計" },
   { key: "search", href: "/search/", label: "全文検索" },
   // Not in the header row (it does not fit beside the search box at 1280px); in the menu, and the footer links to it.
+  { key: "terms", href: "/terms/", label: "法令用語の定義集", menuOnly: true },
   { key: "about", href: "/about/", label: "このサイトについて", menuOnly: true },
 ] as const;
 const fullTitle = title ? `${title} | ${SITE_NAME}` : `${SITE_NAME} — ${SITE_TAGLINE}`;

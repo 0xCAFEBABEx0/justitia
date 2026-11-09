@@ -1,0 +1,113 @@
+// The terms on the /terms/ pages, from the definitions scanLaws finds (see terms.ts): every term that
+// at least MIN_LAWS laws in force define, with each law's definition.
+
+import { laws, lawUrl, TYPE_ORDER, type LawSummary } from "./data.ts";
+import { listTitle, scanLaws } from "./stats.ts";
+import type { Definition } from "./terms.ts";
+
+/** A term gets a page when this many laws in force define it. */
+export const MIN_LAWS = 5;
+
+export interface TermLaw {
+  id: string;
+  title: string;
+  dir: string;
+  def: Definition;
+  /** The law page, at the article with the definition. */
+  href: string;
+  /** The article as the law page heads it: 第二条. */
+  article: string;
+}
+
+export interface Term {
+  term: string;
+  /** The laws that define it: 憲法 and 法律 first, then 政令 and the rest, the most cited first within a type. */
+  laws: TermLaw[];
+  /** How many of them are 法律 (or the constitution). */
+  acts: number;
+}
+
+/** The URL of a term's page. */
+export function termUrl(term: string): string {
+  return `/terms/${encodeURIComponent(term)}/`;
+}
+
+/** The article of a block key, as the law page heads it: 「本則|第二条」 → 第二条, 「本則|第一章|第二条#2」 → 第二条. */
+export function articleLabel(block: string): string {
+  return (block.split("|").pop() ?? "").replace(/#\d+$/, "");
+}
+
+const isAct = (l: { dir: string }) => l.dir === "act" || l.dir === "constitution";
+
+interface TermIndex {
+  terms: Term[];
+  byTerm: Map<string, Term>;
+  /** For each law, the terms with a page that it defines, the most widely defined first. */
+  byLaw: Map<string, string[]>;
+}
+
+let cache: TermIndex | null = null;
+/** Every term with a page, the most widely defined first. */
+export function termIndex(): TermIndex {
+  if (cache) return cache;
+  const scan = scanLaws();
+  const byId = new Map<string, LawSummary>(laws().map((l) => [l.id, l]));
+  const cited = (id: string) => scan.citedBy.get(id)?.length ?? 0;
+  const rank = (l: LawSummary) => TYPE_ORDER.indexOf(l.dir);
+  const terms: Term[] = [];
+  for (const [term, uses] of scan.definitions) {
+    if (uses.length < MIN_LAWS) continue;
+    const list = uses
+      .map(({ id, def }) => ({ law: byId.get(id)!, def }))
+      .sort((a, b) => rank(a.law) - rank(b.law) || cited(b.law.id) - cited(a.law.id) || (a.law.id < b.law.id ? -1 : 1))
+      .map(({ law, def }) => ({
+        id: law.id,
+        title: listTitle(law.title, law.num),
+        dir: law.dir,
+        def,
+        href: `${lawUrl(law.id)}#${encodeURIComponent(def.block)}`,
+        article: articleLabel(def.block),
+      }));
+    terms.push({ term, laws: list, acts: list.filter(isAct).length });
+  }
+  terms.sort((a, b) => b.laws.length - a.laws.length || b.acts - a.acts || (a.term < b.term ? -1 : 1));
+  const byLaw = new Map<string, string[]>();
+  for (const t of terms) {
+    for (const l of t.laws) {
+      const list = byLaw.get(l.id);
+      if (list) list.push(t.term);
+      else byLaw.set(l.id, [t.term]);
+    }
+  }
+  cache = { terms, byTerm: new Map(terms.map((t) => [t.term, t])), byLaw };
+  return cache;
+}
+
+/** A term's laws grouped by the wording of their definitions, the group with the first law first. */
+export function definitionGroups(t: Term): { def: Definition; laws: TermLaw[] }[] {
+  const groups = new Map<string, { def: Definition; laws: TermLaw[] }>();
+  for (const l of t.laws) {
+    const key = `${l.def.text}\n${(l.def.items ?? []).join("\n")}`;
+    const g = groups.get(key);
+    if (g) g.laws.push(l);
+    else groups.set(key, { def: l.def, laws: [l] });
+  }
+  return [...groups.values()];
+}
+
+/**
+ * Other terms defined by the same laws (at least two in common). A term that many laws define is
+ * weighed down (laws in common / √its laws), so that terms defined only alongside this one come first.
+ */
+export function relatedTerms(t: Term, limit: number): string[] {
+  const { byLaw, byTerm } = termIndex();
+  const shared = new Map<string, number>();
+  for (const l of t.laws) for (const other of byLaw.get(l.id) ?? []) if (other !== t.term) shared.set(other, (shared.get(other) ?? 0) + 1);
+  const score = (term: string, n: number) => n / Math.sqrt(byTerm.get(term)?.laws.length ?? 1);
+  return [...shared]
+    .filter(([, n]) => n >= 2)
+    .map(([term, n]) => ({ term, s: score(term, n) }))
+    .sort((a, b) => b.s - a.s || (a.term < b.term ? -1 : 1))
+    .slice(0, limit)
+    .map((r) => r.term);
+}

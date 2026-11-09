@@ -1,0 +1,109 @@
+---
+// /terms/<用語>/: how each law that defines a term defines it, quoted from the text, with links to
+// the articles. The terms are those of termIndex (src/lib/term-index.ts).
+import Base from "../../layouts/Base.astro";
+import PageHeader from "../../components/PageHeader.astro";
+import TermsNote from "../../components/TermsNote.astro";
+import { typeLabel } from "../../lib/data.ts";
+import { renderInline } from "../../lib/lawtext.ts";
+import { jsonLdText } from "../../lib/seo.ts";
+import { definitionGroups, relatedTerms, termIndex, termUrl, type Term } from "../../lib/term-index.ts";
+
+export function getStaticPaths() {
+  return termIndex().terms.map((t) => ({ params: { term: t.term }, props: { t } }));
+}
+
+interface Props {
+  t: Term;
+}
+const { t } = Astro.props;
+const groups = definitionGroups(t);
+const related = relatedTerms(t, 12);
+const n = t.laws.length;
+const first = t.laws[0];
+// The definition quoted in the description: the first law's, cut to fit a search result.
+const plain = (s: string) => s.replace(/<rt>[^<]*<\/rt>|<[^>]+>/g, "");
+const quote = plain(first.def.text);
+const short = quote.length > 50 ? `${quote.slice(0, 50)}…` : quote;
+const title = `「${t.term}」の定義とは？法令ごとの意味の違い（${n}件）`;
+const description = `「${t.term}」は${n.toLocaleString()}件の法令で定義されています。${first.title}${first.article ? `${first.article}` : ""}では「${short}」。法令ごとの定義を条文から引用して比べられます。`;
+const site = Astro.site ?? "https://anisotro.pics";
+const ld = jsonLdText({
+  "@context": "https://schema.org",
+  "@type": "DefinedTerm",
+  name: t.term,
+  description: quote,
+  url: new URL(termUrl(t.term), site).href,
+  inDefinedTermSet: { "@type": "DefinedTermSet", name: "法令用語の定義集", url: new URL("/terms/", site).href },
+});
+const FORMS = ["「○○」とは、…をいう", "次の各号に掲げる用語の意義（定義の条の各号）", "…（以下「○○」という。）", "○○（…をいう。以下同じ。）"];
+---
+<Base title={title} description={description} nav="terms">
+  <PageHeader title={`「${t.term}」の定義`} crumbs={[{ href: "/terms/", label: "法令用語の定義集" }]}>
+    「{t.term}」という言葉は、<b>{n.toLocaleString()} 件</b>の現行法令（うち法律 {t.acts.toLocaleString()} 件）が、それぞれの法令の中での意味を定めています。{groups.length > 1 ? <>定義の書き方は {groups.length.toLocaleString()} 通りあります。</> : <>どの法令も同じ書き方で定義しています。</>}法令ごとの定義を、条文から引用して並べました。
+  </PageHeader>
+  <script is:inline type="application/ld+json" set:html={ld} />
+  <TermsNote />
+
+  <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_300px]">
+    <div class="min-w-0">
+      <h2 class="mb-3 text-xl font-bold">法令ごとの定義</h2>
+      <ol class="flex flex-col gap-4">
+        {groups.map((g) => (
+          <li class="card card-border bg-base-100">
+            <div class="card-body gap-3 p-5">
+              <blockquote class="border-l-4 border-primary/40 pl-3 leading-relaxed">
+                <p><Fragment set:html={renderInline(g.def.text)} />{g.def.items ? "。" : ""}</p>
+                {g.def.items && (
+                  <ul class="mt-2 flex flex-col gap-1 text-sm">
+                    {g.def.items.map((item) => <li set:html={renderInline(item)} />)}
+                  </ul>
+                )}
+              </blockquote>
+              <div class="text-sm">
+                <span class="text-base-content/65">{g.laws.length > 1 ? `この定義の法令（${g.laws.length.toLocaleString()} 件）` : "この定義の法令"}：</span>
+                <ul class="mt-1 flex flex-col gap-1">
+                  {g.laws.map((l) => (
+                    <li>
+                      <a class="link link-primary" href={l.href}>{l.title}{l.article && ` ${l.article}`}</a>
+                      <span class="ml-1 text-xs text-base-content/65">{typeLabel(l.dir)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+
+    <aside class="flex flex-col gap-4 text-sm">
+      <section class="card card-border bg-base-100">
+        <div class="card-body gap-2 p-5">
+          <h2 class="card-title text-base">法令の「定義」とは</h2>
+          <p class="text-base-content/70">法令は、よく使う言葉の意味を条文で決めてから使います。同じ「{t.term}」でも、法令ごとに範囲が違うことがあります。法令を読むときは、その法令の定義を確かめてください。</p>
+        </div>
+      </section>
+      <section class="card card-border bg-base-100">
+        <div class="card-body gap-2 p-5">
+          <h2 class="card-title text-base">集め方</h2>
+          <p class="text-base-content/70">本則の条文から、次の書き方で定義している箇所をプログラムで抜き出しています。附則の定義は含みません。</p>
+          <ul class="list-disc pl-5 text-base-content/70">
+            {FORMS.map((f) => <li>{f}</li>)}
+          </ul>
+        </div>
+      </section>
+      {related.length > 0 && (
+        <section class="card card-border bg-base-100">
+          <div class="card-body gap-2 p-5">
+            <h2 class="card-title text-base">同じ法令で定義されている用語</h2>
+            <ul class="flex flex-wrap gap-x-3 gap-y-1.5">
+              {related.map((r) => <li><a class="link link-primary" href={termUrl(r)}>{r}</a></li>)}
+            </ul>
+          </div>
+        </section>
+      )}
+      <a class="link link-primary" href="/terms/">法令用語の定義集 →</a>
+    </aside>
+  </div>
+</Base>

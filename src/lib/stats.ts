@@ -7,6 +7,7 @@ import { splitBlocks } from "../../scripts/extract/blocks.ts";
 import { readLawFile } from "./lawtext.ts";
 import { isStaged } from "./new-laws.ts";
 import { COMPANIES, companyMatcher } from "./companies.ts";
+import { lawDefinitions, type Definition } from "./terms.ts";
 
 /** The eras of e-Gov law IDs: the first digit of an ID is the era of the law's number. */
 export const ERAS = [
@@ -277,11 +278,13 @@ export interface LawScan {
   cites: Map<string, number>;
   /** For each entry of COMPANIES, in the same order, the laws in force that name it. */
   companies: string[][];
+  /** For each defined term, the laws in force that define it and how, in the order of laws.json. */
+  definitions: Map<string, { id: string; def: Definition }[]>;
 }
 
 let scanCache: LawScan | null = null;
 /**
- * Reads the text of every law in force from the houritsu clone once per build (about 10 seconds for
+ * Reads the text of every law in force from the houritsu clone once per build (about 20 seconds for
  * all laws) and measures it. Laws missing from the clone, as in a partial local build, are left out.
  *
  * - Citations: a law cites another when it has the other's law number, or for 日本国憲法, which is
@@ -289,6 +292,7 @@ let scanCache: LawScan | null = null;
  *   sides. The dated numbers in the headings of 附則 (「昭和二二年四月一六日法律第六一号」) name
  *   the laws that amended the law, not laws it cites, and do not match.
  * - Companies: a law names a company when the name occurs outside the titles of laws (companyMatcher).
+ * - Definitions: the terms each law defines in its main provisions (lawDefinitions).
  */
 export function scanLaws(): LawScan {
   if (scanCache) return scanCache;
@@ -305,10 +309,17 @@ export function scanLaws(): LawScan {
   const citedBy = new Map<string, string[]>();
   const cites = new Map<string, number>();
   const companies: string[][] = COMPANIES.map(() => []);
+  const definitions = new Map<string, { id: string; def: Definition }[]>();
   for (const l of inForce) {
     const doc = readLawFile(l.path);
     if (!doc) continue;
-    text.set(l.id, measureBlocks(splitBlocks(doc.body)));
+    const blocks = splitBlocks(doc.body);
+    text.set(l.id, measureBlocks(blocks));
+    for (const def of lawDefinitions(blocks)) {
+      const list = definitions.get(def.term);
+      if (list) list.push({ id: l.id, def });
+      else definitions.set(def.term, [{ id: l.id, def }]);
+    }
     const targets = new Set<string>();
     for (const n of lawNumbers(doc.body)) {
       const id = byNumber.get(n);
@@ -326,7 +337,7 @@ export function scanLaws(): LawScan {
       if (m(doc.body)) companies[i].push(l.id);
     });
   }
-  scanCache = { text, citedBy, cites, companies };
+  scanCache = { text, citedBy, cites, companies, definitions };
   return scanCache;
 }
 

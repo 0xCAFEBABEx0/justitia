@@ -10,13 +10,15 @@ import { lawLastmod } from "./src/lib/seo.ts";
 const NOT_IN_SITEMAP = ["/amendment/", "/versions/", "/404/"];
 // The static amendment pages, /amendment/<key>/ (served by the amendment Workers, see README).
 const AMENDMENT_PAGE = /^\/amendment\/[^/]+\/$/;
+// The pages of defined terms, /terms/<用語>/ (the list at /terms/ stays with the other pages).
+const TERM_PAGE = /^\/terms\/[^/]+\/$/;
 
 /**
  * Law pages get a lastmod (the day the text last changed, see lawLastmod) and their own sitemap
  * file, sitemap-laws-0.xml; the amendment pages are in sitemap-amendments-0.xml (no lastmod: an
- * amendment page changes only when houritsu corrects old text) and the other pages in
- * sitemap-pages-0.xml. sitemap-index.xml, the file submitted to Search Console, lists them with the
- * latest lastmod of each.
+ * amendment page changes only when houritsu corrects old text), the term pages in
+ * sitemap-terms-0.xml and the other pages in sitemap-pages-0.xml. sitemap-index.xml, the file
+ * submitted to Search Console, lists them with the latest lastmod of each.
  * @type {Map<string, string | undefined> | null}
  */
 let lawDates = null;
@@ -34,6 +36,11 @@ function lawPage(item) {
 /** @param {import("@astrojs/sitemap").SitemapItem} item */
 function amendmentPage(item) {
   return AMENDMENT_PAGE.test(new URL(item.url).pathname) ? item : undefined;
+}
+
+/** @param {import("@astrojs/sitemap").SitemapItem} item */
+function termPage(item) {
+  return TERM_PAGE.test(new URL(item.url).pathname) ? item : undefined;
 }
 
 /**
@@ -61,7 +68,7 @@ export default defineConfig({
   integrations: [
     sitemap({
       filter: (page) => !NOT_IN_SITEMAP.includes(new URL(page).pathname),
-      chunks: { laws: lawPage, amendments: amendmentPage },
+      chunks: { laws: lawPage, amendments: amendmentPage, terms: termPage },
     }),
   ],
   vite: { plugins: [woff2Only(), tailwindcss()], build: { chunkSizeWarningLimit: 2000 } },

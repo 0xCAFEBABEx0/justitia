@@ -1,0 +1,75 @@
+---
+// /terms/: every term with a page (termIndex), by how many laws define it, with a filter box.
+import Base from "../../layouts/Base.astro";
+import PageHeader from "../../components/PageHeader.astro";
+import TermsNote from "../../components/TermsNote.astro";
+import { MIN_LAWS, termIndex, termUrl } from "../../lib/term-index.ts";
+
+const { terms } = termIndex();
+const BANDS = [
+  { min: 50, label: "50 件以上の法令で定義" },
+  { min: 20, label: "20〜49 件の法令で定義" },
+  { min: 10, label: "10〜19 件の法令で定義" },
+  { min: MIN_LAWS, label: `${MIN_LAWS}〜9 件の法令で定義` },
+];
+const bands = BANDS.map((b, i) => ({
+  ...b,
+  terms: terms.filter((t) => t.laws.length >= b.min && (i === 0 || t.laws.length < BANDS[i - 1].min)),
+})).filter((b) => b.terms.length > 0);
+const examples = terms
+  .filter((t) => t.acts >= 3)
+  .slice(0, 6)
+  .map((t) => `「${t.term}」`)
+  .join("");
+const title = `法令用語の定義集：法律で定義された${terms.length.toLocaleString()}語の意味`;
+const description = `${examples}など、${MIN_LAWS}件以上の法令がそれぞれ意味を定めている言葉 ${terms.length.toLocaleString()} 語の一覧です。法令ごとの定義を条文から引用して比べられます。`;
+---
+<Base title={title} description={description} nav="terms">
+  <PageHeader title="法令用語の定義集">
+    法令は、よく使う言葉の意味を条文で定めてから使います。同じ言葉でも、法令によって意味が違うことがあります。{MIN_LAWS} 件以上の現行法令が定義している言葉 <b>{terms.length.toLocaleString()} 語</b>について、法令ごとの定義を集めました。
+  </PageHeader>
+  <TermsNote />
+
+  <label class="input mb-6 w-full max-w-md">
+    <svg class="h-4 w-4 opacity-60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" /></svg>
+    <input type="search" placeholder="用語を絞り込む（例：児童）" aria-label="用語を絞り込む" data-term-filter />
+  </label>
+
+  {bands.map((b) => (
+    <section class="mb-8" data-term-band>
+      <h2 class="mb-3 text-xl font-bold">{b.label}（<span data-term-count>{b.terms.length.toLocaleString()}</span> 語）</h2>
+      <ul class="flex flex-wrap gap-x-4 gap-y-2 rounded-box border border-base-300 bg-base-100 p-4">
+        {b.terms.map((t) => (
+          <li data-term={t.term}><a class="link link-primary" href={termUrl(t.term)}>{t.term}</a><span class="ml-0.5 text-xs text-base-content/65 tabular-nums">{t.laws.length}</span></li>
+        ))}
+      </ul>
+    </section>
+  ))}
+  <p class="hidden text-base-content/70" data-term-none>該当する用語はありません。<a class="link link-primary" href="/search/">全文検索</a>で条文を探せます。</p>
+
+  <script is:inline>
+    // Filters the lists as you type; without script every term is listed.
+    (() => {
+      const input = document.querySelector("[data-term-filter]");
+      if (!input) return;
+      const bands = [...document.querySelectorAll("[data-term-band]")];
+      const none = document.querySelector("[data-term-none]");
+      input.addEventListener("input", () => {
+        const q = input.value.trim();
+        let total = 0;
+        for (const band of bands) {
+          let shown = 0;
+          for (const li of band.querySelectorAll("[data-term]")) {
+            const hit = !q || li.dataset.term.includes(q);
+            li.hidden = !hit;
+            if (hit) shown++;
+          }
+          band.hidden = shown === 0;
+          band.querySelector("[data-term-count]").textContent = shown.toLocaleString();
+          total += shown;
+        }
+        none.classList.toggle("hidden", total > 0);
+      });
+    })();
+  </script>
+</Base>

@@ -106,14 +106,14 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | --- | --- |
 | `/` | Search, newly enacted laws (recent and upcoming), recent amendments, upcoming amendments, and a few counts (with the number of laws never amended, linking to `/stats/unamended/`) |
 | `/browse/`, `/browse/kana/<row>/`, `/browse/type/<type>/`, `/browse/category/<category>/` | Law lists |
-| `/laws/<law ID>/` | Law text (an anchor per heading), table of contents, amendment history, and the law's calendar (`.ics`) and RSS feed |
+| `/laws/<law ID>/` | Law text (an anchor per heading), table of contents, amendment history, the terms the law defines that have a `/terms/` page, and the law's calendar (`.ics`) and RSS feed |
 | `/amendment/<amendment key>/` | Old and new text of the articles an amendment changed (side by side, or inline), as a static page with its own title, description and structured data, served by the amendment Workers (see [Amendment Workers](#amendment-workers)). Like a law page, it has a row of actions (the amendment graph of the laws it changes, share, print), and under each changed law, links to its text after the change, the whole text compared with the revision before, and both revisions on e-Gov 法令検索 |
 | `/amendment/?k=<amendment key>` | The address the site linked before the static pages: its script forwards to `/amendment/<amendment key>/`, keeping the `#fragment` |
 | `/new/`, `/new/<year>/` | Newly enacted laws (a law whose file first appears in houritsu through the law itself), by year of entry into force, with a type filter. Later parts of a new law coming into force are labeled 段階施行, not 改正, across the site |
 | `/repealed/`, `/repealed/<year>/` | Repealed laws (a law whose file is deleted from houritsu's main branch; houritsu records repeals from 2017 on), by year and date of repeal, laid out like `/new/`, with type and "how it was repealed" filters: by a new law coming into force, by a law made to repeal it, or by another amending law. Each links the text in force just before the repeal. Repealed law pages show the same details |
 | `/upcoming/` | Amendments promulgated and not yet in force, by month of entry into force (with a countdown in days), then those without a date; a filter by category and law name; the calendar (`.ics`) and RSS feed of the whole site or of the chosen category to subscribe to (see [Calendars and RSS feeds](#calendars-and-rss-feeds)) |
 | `/timeline/`, `/timeline/<year>/` | Amendments by year of entry into force |
-| `/stats/` | 「法令の統計」: statistics over the laws in force, with the top five of each list below. Built at build time (`src/lib/stats.ts`) from the extracted data (every `laws/<id>.json`) and, for the length, katakana, cited and companies pages, from the law files in the houritsu clone (read once, about 15 seconds for all laws); each page says the date of the data, and has a note that the figures are counted by a program |
+| `/stats/` | 「法令の統計」: statistics over the laws in force, with the top five of each list below. Built at build time (`src/lib/stats.ts`) from the extracted data (every `laws/<id>.json`) and, for the length, katakana, cited and companies pages, from the law files in the houritsu clone (read once, about 20 seconds for all laws, shared with `/terms/`); each page says the date of the data, and has a note that the figures are counted by a program |
 | `/stats/unamended/` | Laws never amended since they were made according to e-Gov (frontmatter `amendment.law_id` null or `""`; houritsu's own history mostly starts in the 2000s, so it cannot tell), oldest first by era, with a type filter. Law pages of these laws get a 「制定以来改正なし」 badge linking here |
 | `/stats/oldest/` | The 300 oldest laws in force, by the year of their number (read from the law ID) |
 | `/stats/most-amended/` | Laws with the most amendments in force recorded in houritsu (the enactment and 段階施行 not counted; a first recorded revision made by another law is), and the most amended in the last year |
@@ -121,6 +121,8 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | `/stats/katakana/` | Laws whose main provisions are written in katakana (文語体), told by the particles between kanji (条ノ規定ハ against 条の規定は), oldest first by era, with e-Gov's date of the latest amendment |
 | `/stats/cited/` | The 100 laws cited by the most other laws in force, the Acts no law in force cites, and the laws that cite the most others. A law cites another when its text has the other's law number (法令番号); 日本国憲法, which laws cite without a number, is counted by its title |
 | `/stats/companies/` | Companies and bodies named in laws (`src/lib/companies.ts`): those with a law of their own (特殊会社 such as NTT and JT, NHK, 日本銀行) and some without, with the number of laws in force whose text has the name outside law titles, and the Acts naming each |
+| `/terms/` | 「法令用語の定義集」: the terms that at least 5 laws in force define (`MIN_LAWS` in `src/lib/term-index.ts`), by how many laws define them, with a filter box. Linked from the menu and the `/stats/` hub |
+| `/terms/<term>/` | How each law in force that defines the term defines it, quoted from the main provisions and grouped by wording, with links to the articles, and terms defined by the same laws. `src/lib/terms.ts` finds four forms: 「X」とは、…をいう (and the bracketless この法律で、X とは of older laws), the items of a glossary article (次の各号に掲げる用語の意義は…), …（以下「X」という。） and X（…をいう。以下同じ。）; the short name of a law or a body (独立行政法人通則法（…。以下「通則法」という。）, 独立行政法人国立病院機構（以下「機構」という。）) is not a definition. Law pages list the terms they define that have a page. Read in the same pass over the houritsu clone as the stats pages |
 | `/versions/?law=<law ID>&at=<amendment key or YYYY-MM-DD>[&from=<…>]` | The law's text at any revision, past or upcoming; with `from`, what changed between two revisions (like `git diff from..at`) |
 | `/search/?q=<words>` | Full-text search over the current law text, with links to the matching articles |
 | `/graph/?laws=<ID>,<ID>,…` | Amendment graph: one lane per law, with laws changed by the same amending law joined by a line (git-graph style) |
@@ -150,8 +152,9 @@ the name of this project and does not appear on the site.
   which `public/robots.txt` points to and Search Console has. It lists `sitemap-laws-0.xml`, the law pages with a
   `lastmod` (the day the latest amendment in force came into force, never later than the build date, and left out
   before 1970, which Search Console reports as an invalid date),
-  `sitemap-amendments-0.xml`, the static amendment pages, and `sitemap-pages-0.xml`, the other pages; the last two
-  have no `lastmod` (their content changes with the data, not on a date a page could state).
+  `sitemap-amendments-0.xml`, the static amendment pages, `sitemap-terms-0.xml`, the pages of defined terms
+  (`/terms/<term>/`), and `sitemap-pages-0.xml`, the other pages; the last three have no `lastmod` (their content
+  changes with the data, not on a date a page could state).
 
 ### Disclaimer
 

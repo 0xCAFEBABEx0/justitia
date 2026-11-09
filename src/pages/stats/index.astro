@@ -5,6 +5,7 @@ import StatsNote from "../../components/StatsNote.astro";
 import { buildDate, lawUrl, typeLabel } from "../../lib/data.ts";
 import { byAge, lawYearLabel, scanLaws, statLaws, yearsSince, type StatLaw } from "../../lib/stats.ts";
 import { COMPANIES } from "../../lib/companies.ts";
+import { termIndex, termUrl } from "../../lib/term-index.ts";
 
 const today = buildDate();
 const all = statLaws(today);
@@ -79,6 +80,13 @@ const SECTIONS: { href: string; title: string; desc: string; rows: Row[]; more: 
     desc: "法律で設立された会社・団体の名前が出てくる法令の数です。",
     rows: companies.slice(0, 5).map(({ c, n }) => ({ href: "/stats/companies/", label: c.short ? `${c.name}（${c.short}）` : c.name, sub: c.law ?? "", n: n.toLocaleString(), unit: "件" })),
     more: "会社・団体をすべて見る",
+  },
+  {
+    href: "/terms/",
+    title: "多くの法令が定義している用語",
+    desc: "それぞれの法令が条文で意味を定めている言葉です。",
+    rows: termIndex().terms.slice(0, 5).map((t) => ({ href: termUrl(t.term), label: t.term, sub: `うち法律 ${t.acts.toLocaleString()} 件`, n: t.laws.length.toLocaleString(), unit: "件" })),
+    more: "法令用語の定義集を見る",
   },
 ];
 const TILES = [
