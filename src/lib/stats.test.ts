@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { splitBlocks } from "../../scripts/extract/blocks.ts";
-import { articleSpan, branchedSpan, byAge, isUnamended, kanjiNumber, lastAmended, lawYear, lawYearLabel, listTitle, measureBlocks, statLaw, yearBefore, yearsSince, type StatLaw } from "./stats.ts";
+import { articleSpan, branchedSpan, byAge, isUnamended, kanjiNumber, lastAmended, lawNumbers, lawYear, lawYearLabel, listTitle, measureBlocks, statLaw, yearBefore, yearsSince, type StatLaw } from "./stats.ts";
 import type { LawDetail, LawRevision } from "../../scripts/extract/types.ts";
 
 test("lawYear reads the era and year from a law ID", () => {
@@ -178,3 +178,12 @@ test("measureBlocks tells katakana laws from their particles, text under the tit
 国又は公共団体の公権力の行使に当る公務員が、その職務を行うについて、故意又は過失によつて違法に他人に損害を加えたときは、国又は公共団体が、これを賠償する責に任ずる。
 `)).katakana, false);
 });
+
+test("lawNumbers finds cited law numbers", () => {
+  const n = lawNumbers("地方自治法（昭和二十二年法律第六十七号）及び同法施行令（昭和二十二年政令第十六号）並びに平成十二年厚生省令第百二十七号");
+  assert.deepEqual([...n], ["昭和二十二年法律第六十七号", "昭和二十二年政令第十六号", "平成十二年厚生省令第百二十七号"]);
+  // a year that is not a law number does not swallow the number after it
+  assert.deepEqual([...lawNumbers("平成十年から平成元年法律第二十七号の")], ["平成元年法律第二十七号"]);
+  assert.equal(lawNumbers("昭和二十年八月十五日").size, 0);
+});
+

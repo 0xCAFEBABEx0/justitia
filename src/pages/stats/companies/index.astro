@@ -1,0 +1,111 @@
+---
+import Base from "../../../layouts/Base.astro";
+import PageHeader from "../../../components/PageHeader.astro";
+import StatsNote from "../../../components/StatsNote.astro";
+import StatsLinks from "../../../components/StatsLinks.astro";
+import { laws, lawUrl } from "../../../lib/data.ts";
+import { COMPANIES, type Company } from "../../../lib/companies.ts";
+import { listTitle, scanLaws } from "../../../lib/stats.ts";
+
+/** Laws named inline under each company; the rest are behind 「ほか N 件」. */
+const SHOWN = 5;
+
+const scan = scanLaws();
+const inForce = laws().filter((l) => l.status === "in_force" && scan.text.has(l.id));
+const byId = new Map(inForce.map((l) => [l.id, l]));
+const byTitle = new Map(inForce.map((l) => [l.title, l]));
+const citedCount = (id: string) => scan.citedBy.get(id)?.length ?? 0;
+
+interface Row {
+  company: Company;
+  /** Laws in force that name it. */
+  count: number;
+  /** The Acts among them, the most cited first, without the company's own law. */
+  acts: { id: string; title: string }[];
+  actCount: number;
+  law: { id: string; title: string } | null;
+}
+const rows: Row[] = COMPANIES.map((company, i) => {
+  const ids = scan.companies[i].filter((id) => byId.has(id));
+  const own = company.law ? byTitle.get(company.law) : undefined;
+  const actIds = ids.filter((id) => byId.get(id)!.dir === "act");
+  return {
+    company,
+    count: ids.length,
+    actCount: actIds.length,
+    acts: actIds
+      .filter((id) => id !== own?.id)
+      .sort((a, b) => citedCount(b) - citedCount(a) || (a < b ? -1 : 1))
+      .map((id) => ({ id, title: listTitle(byId.get(id)!.title, byId.get(id)!.num) })),
+    law: own ? { id: own.id, title: own.title } : null,
+  };
+})
+  .filter((r) => r.count > 0)
+  .sort((a, b) => b.count - a.count);
+const withLaw = rows.filter((r) => r.company.law);
+const withoutLaw = rows.filter((r) => !r.company.law);
+const max = rows[0]?.count ?? 1;
+const label = (c: Company) => (c.short ? `${c.name}（${c.short}）` : c.name);
+const top = withLaw[0];
+const title = "特定の会社を名指しする法律：NTT・JT・NHKなどが登場する法令の数";
+const description = `NTT、JT、NHK、日本郵便など、法律で設立された会社や団体の名前が出てくる現行法令の数のランキングです。${top ? `最も多いのは${label(top.company)}（${top.count.toLocaleString()}件）。` : ""}専用の法律がないのに法令に名前が出てくる会社も並べました。`;
+---
+<Base title={title} description={description} nav="stats">
+  <PageHeader title={title} crumbs={[{ href: "/stats/", label: "法令の統計" }]}>
+    法律の中には、特定の会社や団体を名指しするものがあります。NTT や JT のように法律で設立された会社（特殊会社）や、NHK・日本銀行などの法人について、その名前が出てくる現行の法令を数えました。{top && <>最も多いのは<b>{label(top.company)}</b>（{top.count.toLocaleString()} 件）です。</>}
+  </PageHeader>
+  <StatsNote />
+
+  <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div class="min-w-0">
+      {[
+        { heading: "根拠法のある会社・団体", lead: null, items: withLaw },
+        { heading: "根拠法のない会社", lead: "その会社のための法律はない（または廃止された）のに、税の特例や経過措置などで名前が出てくる会社です。", items: withoutLaw },
+      ].filter((s) => s.items.length > 0).map((s) => (
+        <section class="mb-8">
+          <h2 class="mb-3 text-xl font-bold">{s.heading}（{s.items.length} 件）</h2>
+          {s.lead && <p class="-mt-1 mb-3 text-sm text-base-content/70">{s.lead}</p>}
+          <ol class="list rounded-box border border-base-300 bg-base-100">
+            {s.items.map((r) => (
+              <li class="list-row block py-4">
+                <h3 class="font-bold">{r.company.name}{r.company.short && <span class="font-normal text-base-content/70">（{r.company.short}）</span>}</h3>
+                <div class="mt-1 text-sm"><b class="text-lg tabular-nums">{r.count.toLocaleString()}</b> 件の法令に登場<span class="text-xs text-base-content/65">（うち法律 {r.actCount.toLocaleString()} 件）</span></div>
+                <div class="mt-1.5 h-1.5 max-w-sm rounded-full bg-base-200" aria-hidden="true"><div class="h-full rounded-full bg-primary" style={`width: ${Math.max(2, Math.round((r.count / max) * 100))}%`} /></div>
+                {r.law && <div class="mt-2 text-sm">根拠法：<a class="link link-primary" href={lawUrl(r.law.id)}>{r.law.title}</a></div>}
+                {r.acts.length > 0 && (
+                  <div class="mt-1 text-sm text-base-content/70">
+                    {r.law ? "ほかに登場する法律" : "登場する法律"}：{r.acts.slice(0, SHOWN).map((a, i) => <>{i > 0 && "・"}<a class="link" href={lawUrl(a.id)}>{a.title}</a></>)}
+                    {r.acts.length > SHOWN && (
+                      <details class="mt-1">
+                        <summary class="cursor-pointer text-primary">ほか {(r.acts.length - SHOWN).toLocaleString()} 件の法律</summary>
+                        <p class="mt-1">{r.acts.slice(SHOWN).map((a, i) => <>{i > 0 && "・"}<a class="link" href={lawUrl(a.id)}>{a.title}</a></>)}</p>
+                      </details>
+                    )}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ol>
+        </section>
+      ))}
+    </div>
+
+    <aside class="flex flex-col gap-4 text-sm">
+      <section class="card card-border bg-base-100">
+        <div class="card-body gap-2 p-5">
+          <h2 class="card-title text-base">根拠法とは</h2>
+          <p class="text-base-content/70">その会社・団体を設立し、事業や役員、株式の扱いを定めている法律です。たとえば NTT は日本電信電話株式会社等に関する法律（NTT法）、NHK は放送法が根拠法です。</p>
+        </div>
+      </section>
+      <section class="card card-border bg-base-100">
+        <div class="card-body gap-2 p-5">
+          <h2 class="card-title text-base">数え方</h2>
+          <p class="text-base-content/70">現行の法令の条文（附則を含む）に、会社・団体の正式な名前が出てくる法令を数えています。根拠法そのものも含みます。</p>
+          <p class="text-base-content/70">「日本電信電話株式会社等に関する法律」のように、法令の題名の一部として出てくるだけの場合は数えません。「東日本電信電話株式会社」の中の「日本電信電話株式会社」も数えません。</p>
+          <p class="text-base-content/70">高速道路会社は、東日本・中日本・西日本高速道路、首都高速道路、阪神高速道路、本州四国連絡高速道路の6社のどれかが出てくる法令の数です。</p>
+        </div>
+      </section>
+      <StatsLinks current="/stats/companies/" />
+    </aside>
+  </div>
+</Base>

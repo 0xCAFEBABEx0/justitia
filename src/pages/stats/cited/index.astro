@@ -1,0 +1,85 @@
+---
+import Base from "../../../layouts/Base.astro";
+import PageHeader from "../../../components/PageHeader.astro";
+import StatsNote from "../../../components/StatsNote.astro";
+import StatsLinks from "../../../components/StatsLinks.astro";
+import StatLawList from "../../../components/StatLawList.astro";
+import TypeFilter from "../../../components/TypeFilter.astro";
+import { buildDate, lawUrl, typeLabel } from "../../../lib/data.ts";
+import { byAge, scanLaws, statLaws, type StatLaw } from "../../../lib/stats.ts";
+
+/** Laws in each list. */
+const LIMIT = 100;
+const LIMIT_SIDE = 10;
+
+const today = buildDate();
+const scan = scanLaws();
+const measured = statLaws(today).filter((l) => scan.text.has(l.id));
+const dirOf = new Map(measured.map((l) => [l.id, l.dir]));
+const citers = (l: StatLaw) => scan.citedBy.get(l.id) ?? [];
+const byId = (a: StatLaw, b: StatLaw) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+const isAct = (l: StatLaw) => l.dir === "act";
+const cited = measured.filter((l) => citers(l).length > 0).sort((a, b) => citers(b).length - citers(a).length || byId(a, b)).slice(0, LIMIT);
+const acts = measured.filter(isAct);
+const uncited = acts.filter((l) => citers(l).length === 0).sort(byAge);
+const citing = measured.filter((l) => (scan.cites.get(l.id) ?? 0) > 0).sort((a, b) => scan.cites.get(b.id)! - scan.cites.get(a.id)! || byId(a, b)).slice(0, LIMIT_SIDE);
+const top = cited[0];
+
+const count = (l: StatLaw) => ({ n: citers(l).length.toLocaleString(), unit: "件" });
+const byActs = (l: StatLaw) => `うち法律 ${citers(l).filter((id) => dirOf.get(id) === "act").length.toLocaleString()}件`;
+const title = "最も引用されている法律は？法令の被引用数ランキング";
+const description = `ほかの法令から最も多く引用されている法令は${top ? `${top.title}（${citers(top).length.toLocaleString()}件）` : ""}。引用される数のランキングと、どの法令からも引用されていない法律 ${uncited.length.toLocaleString()} 件の一覧です。`;
+---
+<Base title={title} description={description} nav="stats">
+  <PageHeader title={title} crumbs={[{ href: "/stats/", label: "法令の統計" }]}>
+    {top && <>ほかの法令から最も多く引用されているのは<b>{top.title}</b>（{citers(top).length.toLocaleString()} 件）です。</>}一方、法律 {acts.length.toLocaleString()} 件のうち <b>{uncited.length.toLocaleString()} 件</b>は、どの法令からも引用されていません。
+  </PageHeader>
+  <StatsNote />
+
+  <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div class="min-w-0">
+      <section class="mb-8" data-type-filter-root>
+        <h2 class="mb-3 text-xl font-bold">よく引用される法令（上位 {cited.length} 件）</h2>
+        <TypeFilter dirs={cited.map((l) => l.dir)} />
+        <StatLawList items={cited} fig={count} note={byActs} ranked />
+      </section>
+      {uncited.length > 0 && (
+        <section>
+          <h2 class="mb-3 text-xl font-bold">どの法令からも引用されていない法律（{uncited.length.toLocaleString()} 件）</h2>
+          <StatLawList items={uncited} markUnamended />
+        </section>
+      )}
+    </div>
+
+    <aside class="flex flex-col gap-4 text-sm">
+      {citing.length > 0 && (
+        <section class="card card-border bg-base-100">
+          <div class="card-body gap-2 p-5">
+            <h2 class="card-title text-base">ほかの法令を多く引用している法令</h2>
+            <p class="text-xs text-base-content/65">条文の中で引用しているほかの法令の数です。</p>
+            <ol class="list">
+              {citing.map((l, i) => (
+                <li class="list-row items-baseline px-0 py-2">
+                  <span class="w-5 text-right text-xs tabular-nums text-base-content/65" aria-hidden="true">{i + 1}</span>
+                  <div class="list-col-grow min-w-0">
+                    <a class="link link-hover font-bold text-primary" href={lawUrl(l.id)}>{l.title}</a>
+                    <div class="text-xs text-base-content/65">{typeLabel(l.dir)}</div>
+                  </div>
+                  <span class="shrink-0 text-right tabular-nums"><b>{scan.cites.get(l.id)!.toLocaleString()}</b><span class="ml-0.5 text-xs text-base-content/65">件</span></span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+      )}
+      <section class="card card-border bg-base-100">
+        <div class="card-body gap-2 p-5">
+          <h2 class="card-title text-base">数え方</h2>
+          <p class="text-base-content/70">現行の法令の条文（附則を含む）に、ほかの現行法令の法令番号（「昭和二十二年法律第六十七号」など）が出てくれば、その法令を引用していると数えます。日本国憲法は法令番号を付けずに引用されるため、題名で数えます。</p>
+          <p class="text-base-content/70">同じ法令を何度引用していても1件です。法令番号を付けずに題名だけで引用している場合は数えていません。</p>
+        </div>
+      </section>
+      <StatsLinks current="/stats/cited/" />
+    </aside>
+  </div>
+</Base>

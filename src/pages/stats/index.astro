@@ -3,25 +3,33 @@ import Base from "../../layouts/Base.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import StatsNote from "../../components/StatsNote.astro";
 import { buildDate, lawUrl, typeLabel } from "../../lib/data.ts";
-import { byAge, lawYearLabel, statLaws, textStats, yearsSince, type StatLaw } from "../../lib/stats.ts";
+import { byAge, lawYearLabel, scanLaws, statLaws, yearsSince, type StatLaw } from "../../lib/stats.ts";
+import { COMPANIES } from "../../lib/companies.ts";
 
 const today = buildDate();
 const all = statLaws(today);
 const unamended = all.filter((l) => l.unamended).sort(byAge);
 const unamendedActs = unamended.filter((l) => l.dir === "act" || l.dir === "constitution");
 const oldest = all.filter((l) => l.year).sort(byAge);
-const text = textStats();
+const scan = scanLaws();
+const text = scan.text;
 const longest = all.filter((l) => text.has(l.id)).sort((a, b) => text.get(b.id)!.chars - text.get(a.id)!.chars || (a.id < b.id ? -1 : 1));
 const katakana = all.filter((l) => text.get(l.id)?.katakana).sort(byAge);
 const katakanaActs = katakana.filter((l) => l.dir === "act" || l.dir === "constitution");
+const citers = (l: StatLaw) => scan.citedBy.get(l.id)?.length ?? 0;
+const mostCited = all.filter((l) => text.has(l.id) && citers(l) > 0).sort((a, b) => citers(b) - citers(a) || (a.id < b.id ? -1 : 1));
+const companies = COMPANIES.map((c, i) => ({ c, n: scan.companies[i].length })).filter((r) => r.c.law && r.n > 0).sort((a, b) => b.n - a.n);
 const mostAmended = all.filter((l) => l.amendments > 0).sort((a, b) => b.amendments - a.amendments || (a.id < b.id ? -1 : 1));
 
 interface Row {
-  law: StatLaw;
+  href: string;
+  label: string;
+  sub: string;
   n: string | null;
   unit: string;
 }
-const ago = (l: StatLaw): Row => ({ law: l, n: yearsSince(l.year, today)?.toLocaleString() ?? null, unit: "年" });
+const lawRow = (l: StatLaw, n: string | null, unit = ""): Row => ({ href: lawUrl(l.id), label: l.title, sub: `${typeLabel(l.dir)}${l.year ? `・${lawYearLabel(l.year)}` : ""}`, n, unit });
+const ago = (l: StatLaw): Row => lawRow(l, yearsSince(l.year, today)?.toLocaleString() ?? null, "年");
 const SECTIONS: { href: string; title: string; desc: string; rows: Row[]; more: string }[] = [
   {
     href: "/stats/unamended/",
@@ -41,22 +49,36 @@ const SECTIONS: { href: string; title: string; desc: string; rows: Row[]; more: 
     href: "/stats/most-amended/",
     title: "改正回数が多い法律",
     desc: "houritsu に記録された改正の回数です（主に2000年代以降）。",
-    rows: mostAmended.slice(0, 5).map((l) => ({ law: l, n: l.amendments.toLocaleString(), unit: "回" })),
+    rows: mostAmended.slice(0, 5).map((l) => lawRow(l, l.amendments.toLocaleString(), "回")),
     more: "ランキングをすべて見る",
   },
   {
     href: "/stats/length/",
     title: "日本一長い法律",
     desc: "附則と別表を含む条文の文字数です。短い法律のランキングもあります。",
-    rows: longest.slice(0, 5).map((l) => ({ law: l, n: text.get(l.id)!.chars.toLocaleString(), unit: "字" })),
+    rows: longest.slice(0, 5).map((l) => lawRow(l, text.get(l.id)!.chars.toLocaleString(), "字")),
     more: "長い法律・短い法律を見る",
   },
   {
     href: "/stats/katakana/",
     title: "カタカナで書かれた法律",
     desc: `本則がカタカナの文語体で書かれた法令は ${katakana.length.toLocaleString()} 件。法律の古い順です。`,
-    rows: katakanaActs.slice(0, 5).map((l) => ({ law: l, n: null, unit: "" })),
+    rows: katakanaActs.slice(0, 5).map((l) => lawRow(l, null)),
     more: `すべて見る（${katakana.length.toLocaleString()} 件）`,
+  },
+  {
+    href: "/stats/cited/",
+    title: "最も引用されている法律",
+    desc: "ほかの法令の条文に法令番号で引用されている数です。",
+    rows: mostCited.slice(0, 5).map((l) => lawRow(l, citers(l).toLocaleString(), "件")),
+    more: "ランキングと引用されていない法律を見る",
+  },
+  {
+    href: "/stats/companies/",
+    title: "特定の会社を名指しする法律",
+    desc: "法律で設立された会社・団体の名前が出てくる法令の数です。",
+    rows: companies.slice(0, 5).map(({ c, n }) => ({ href: "/stats/companies/", label: c.short ? `${c.name}（${c.short}）` : c.name, sub: c.law ?? "", n: n.toLocaleString(), unit: "件" })),
+    more: "会社・団体をすべて見る",
   },
 ];
 const TILES = [
@@ -65,11 +87,11 @@ const TILES = [
   { n: oldest[0] ? yearsSince(oldest[0].year, today) ?? 0 : 0, label: "最も古い現行法令の年数（年）", href: "/stats/oldest/" },
 ];
 const title = "法令の統計";
-const description = `現行の法令 ${all.length.toLocaleString()} 件を、改正の回数や古さ、長さで比べた統計です。一度も改正されていない法律（${unamended.length.toLocaleString()} 件）、日本一古い法律、改正回数が多い法律、日本一長い法律のランキング、カタカナで書かれた法律の一覧など。`;
+const description = `現行の法令 ${all.length.toLocaleString()} 件を、改正の回数や古さ、長さ、引用の数で比べた統計です。一度も改正されていない法律（${unamended.length.toLocaleString()} 件）、日本一古い法律、改正回数が多い法律、日本一長い法律、最も引用されている法律のランキング、カタカナで書かれた法律や NTT・JT など特定の会社を名指しする法律の一覧など。`;
 ---
 <Base title={title} description={description} nav="stats">
   <PageHeader title={title}>
-    現行の法令 {all.length.toLocaleString()} 件を、改正の回数や古さ、長さで比べました。毎日のデータ更新で自動的に集計し直します。
+    現行の法令 {all.length.toLocaleString()} 件を、改正の回数や古さ、長さ、引用の数で比べました。毎日のデータ更新で自動的に集計し直します。
   </PageHeader>
   <StatsNote />
 
@@ -93,8 +115,8 @@ const description = `現行の法令 ${all.length.toLocaleString()} 件を、改
               <li class="list-row items-baseline px-0 py-2">
                 <span class="w-4 text-right text-xs tabular-nums text-base-content/65" aria-hidden="true">{i + 1}</span>
                 <div class="list-col-grow min-w-0">
-                  <a class="link link-hover font-bold text-primary" href={lawUrl(r.law.id)}>{r.law.title}</a>
-                  <div class="text-xs text-base-content/65">{typeLabel(r.law.dir)}{r.law.year && <>・{lawYearLabel(r.law.year)}</>}</div>
+                  <a class="link link-hover font-bold text-primary" href={r.href}>{r.label}</a>
+                  <div class="text-xs text-base-content/65">{r.sub}</div>
                 </div>
                 {r.n !== null && <span class="tabular-nums"><b>{r.n}</b><span class="ml-0.5 text-xs text-base-content/65">{r.unit}</span></span>}
               </li>
