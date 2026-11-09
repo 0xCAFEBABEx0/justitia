@@ -156,7 +156,11 @@ export function blockHtml(b: BlockChange, lawId: string, view: View, articleUrl?
   return `<section class="card card-border my-3 overflow-hidden bg-base-100"><header class="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-base-300 px-4 py-2 text-sm"><span class="${OP_BADGE[b.op]}">${OP[b.op]}</span>${heading}${link}${ctx}</header>${body}</section>`;
 }
 
-function fileHtml(f: FileChange, view: View, a: Amendment): string {
+/**
+ * One changed law. With `blocks`, only the blocks it returns are shown (the static page renders as many as fit
+ * its size budget, see amendmentStaticHtml).
+ */
+function fileHtml(f: FileChange, view: View, a: Amendment, blocks: BlockChange[] | undefined = f.blocks): string {
   const amendmentKey = a.key;
   const staged = isStaged(f.kind, f.lawId, a.amendmentLawId);
   const stats =
@@ -166,7 +170,8 @@ function fileHtml(f: FileChange, view: View, a: Amendment): string {
   if (f.kind === "amended") {
     body = (staged ? `<p class="${NOTE}">この法令自身の規定のうち、この日に施行された部分です（段階施行）。</p>` : "") +
       (f.blocks?.length
-      ? f.blocks.map((b) => blockHtml(b, f.lawId, view)).join("")
+      ? (blocks ?? []).map((b) => blockHtml(b, f.lawId, view)).join("") +
+        (blocks && blocks.length < f.blocks.length ? `<p class="${NOTE} my-3" data-rest>残り ${f.blocks.length - blocks.length} か所の差分を読み込んでいます…</p>` : "")
       : `<p class="${NOTE}">条文の変更はありません（e-Gov のデータ上の改訂のみ）。</p>`);
   } else if (f.kind === "repealed") {
     body = `<p class="${NOTE}">この改正で廃止されました。</p>`;
@@ -217,6 +222,41 @@ function headHtml(a: Amendment): string {
 }
 
 /** Adds or replaces a <head> element, such as the robots meta tag or the canonical link. */
+const utf8 = new TextEncoder();
+
+/**
+ * The amendment page's content as built into the static page /amendment/<key>/, in the side-by-side view.
+ * Googlebot reads only the first 2 MB of a page, and an amendment that changes dozens of laws runs to several MB,
+ * so blocks are rendered only while the content stays within `budget` bytes; `complete` says whether all were.
+ * In the browser, renderAmendmentPage then fetches the amendment and renders the rest.
+ */
+export function amendmentStaticHtml(a: Amendment, budget: number): { html: string; complete: boolean } {
+  const hasDiffs = a.files.some((f) => f.blocks?.some((b) => b.segments));
+  const parts = [headHtml(a), hasDiffs ? viewToggleHtml("side") : ""];
+  let used = parts.reduce((n, p) => n + utf8.encode(p).length, 0);
+  let complete = true;
+  for (const f of a.files) {
+    const blocks: BlockChange[] = [];
+    if (complete) {
+      for (const b of f.blocks ?? []) {
+        const size = utf8.encode(blockHtml(b, f.lawId, "side")).length;
+        if (used + size > budget) {
+          complete = false;
+          break;
+        }
+        blocks.push(b);
+        used += size;
+      }
+    } else if (f.blocks?.length) {
+      complete = false;
+    }
+    const html = fileHtml(f, "side", a, blocks);
+    used += utf8.encode(html).length - blocks.reduce((n, b) => n + utf8.encode(blockHtml(b, f.lawId, "side")).length, 0);
+    parts.push(html);
+  }
+  return { html: parts.join(""), complete };
+}
+
 function setHead(tag: "meta" | "link", match: Record<string, string>, attrs: Record<string, string>): void {
   const selector = `${tag}${Object.entries(match).map(([k, v]) => `[${k}="${v}"]`).join("")}`;
   let el = document.head.querySelector(selector);
@@ -238,37 +278,77 @@ function noindex(): void {
   setHead("meta", { name: "robots" }, { content: "noindex" });
 }
 
+/** Title, description and canonical link of /amendment/?k=<key>, which is one HTML file for every amendment. */
+function setPageHead(a: Amendment, key: string): void {
+  document.title = `${a.title}（${jpDate(a.enforced)}施行） | ${SITE_NAME}`;
+  setHead("meta", { name: "description" }, { content: amendmentDescription(a) });
+  setHead("link", { rel: "canonical" }, { href: `${location.origin}/amendment/?k=${encodeURIComponent(key)}` });
+}
+
+/** The meta description of an amendment's page. */
+export function amendmentDescription(a: Amendment): string {
+  const lawCount = a.files.length;
+  return `${a.title}（${a.amendmentLawNum}）${a.enforced ? `の${jpDate(a.enforced)}の施行` : ""}で変わった${lawCount > 1 ? `${lawCount} 法令の` : ""}条文を、改正前と改正後の新旧対照で見られます。`;
+}
+
+function storedView(): View {
+  try {
+    if (localStorage.getItem(VIEW_KEY) === "inline") return "inline";
+  } catch {
+    /* storage unavailable */
+  }
+  return "side";
+}
+
+function storeView(view: View): void {
+  try {
+    localStorage.setItem(VIEW_KEY, view);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
+ * Renders the amendment page. On the static page /amendment/<key>/ (root has data-key), the content is already
+ * there: when it holds every block and the side-by-side view is wanted, only the view switch needs the data, which
+ * is fetched when it is used. Otherwise the amendment is fetched and rendered, as on /amendment/?k=<key>.
+ */
 export async function renderAmendmentPage(root: HTMLElement): Promise<void> {
-  const key = new URLSearchParams(location.search).get("k");
+  const staticKey = root.dataset.key;
+  const key = staticKey ?? new URLSearchParams(location.search).get("k");
   if (!key || !/^[0-9A-Za-z_-]+$/.test(key)) {
     noindex();
     root.innerHTML = `<p class="${NOTE}">改正が指定されていません。<a class="link link-primary" href="/timeline/">改正の年表</a>から選んでください。</p>`;
+    return;
+  }
+  let view = storedView();
+  if (staticKey && root.dataset.complete === "true" && view === "side") {
+    root.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((btn) =>
+      btn.addEventListener("click", () => {
+        if (btn.dataset.view === "side") return;
+        storeView("inline");
+        root.dataset.complete = "false";
+        void renderAmendmentPage(root);
+      }),
+    );
     return;
   }
   let a: Amendment;
   try {
     const res = await fetch(dataUrl(root, `amendments/${key}.json`));
     // Only a missing file: a network error or a 5xx says nothing about the amendment.
-    if (res.status === 404) noindex();
+    if (res.status === 404 && !staticKey) noindex();
     if (!res.ok) throw new Error(String(res.status));
     a = (await res.json()) as Amendment;
   } catch {
+    if (staticKey) {
+      root.querySelectorAll("[data-rest]").forEach((p) => (p.textContent = "残りの差分を読み込めませんでした。ページを再読み込みしてください。"));
+      return;
+    }
     root.innerHTML = `<p class="${NOTE}">改正「${esc(key)}」が見つかりませんでした。</p>`;
     return;
   }
-  document.title = `${a.title}（${jpDate(a.enforced)}施行） | ${SITE_NAME}`;
-  const lawCount = a.files.length;
-  setHead("meta", { name: "description" }, {
-    content: `${a.title}（${a.amendmentLawNum}）${a.enforced ? `の${jpDate(a.enforced)}の施行` : ""}で変わった${lawCount > 1 ? `${lawCount} 法令の` : ""}条文を、改正前と改正後の新旧対照で見られます。`,
-  });
-  setHead("link", { rel: "canonical" }, { href: `${location.origin}/amendment/?k=${encodeURIComponent(key)}` });
-
-  let view: View = "side";
-  try {
-    if (localStorage.getItem(VIEW_KEY) === "inline") view = "inline";
-  } catch {
-    /* storage unavailable */
-  }
+  if (!staticKey) setPageHead(a, key);
 
   const hasDiffs = a.files.some((f) => f.blocks?.some((b) => b.segments));
   const render = () => {
@@ -278,17 +358,15 @@ export async function renderAmendmentPage(root: HTMLElement): Promise<void> {
     root.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((btn) =>
       btn.addEventListener("click", () => {
         view = btn.dataset.view as View;
-        try {
-          localStorage.setItem(VIEW_KEY, view);
-        } catch {
-          /* ignore */
-        }
+        storeView(view);
         const y = scrollY;
         render();
         scrollTo(0, y);
       }),
     );
   };
+  const y = scrollY;
   render();
-  if (location.hash) document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();
+  if (staticKey) scrollTo(0, y);
+  else if (location.hash) document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();
 }

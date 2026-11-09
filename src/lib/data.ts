@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type {
+  Amendment,
   AmendmentSummary,
   FileChangeKind,
   LawDetail,
@@ -11,7 +12,7 @@ import { collectNewLaws, type NewLaw } from "./new-laws.ts";
 import { collectRepealedLaws, type RepealedLaw } from "./repealed-laws.ts";
 import { DATA_DIR } from "./site.ts";
 
-export type { AmendmentSummary, FileChangeKind, LawDetail, LawSummary, Meta, NewLaw, RepealedLaw };
+export type { Amendment, AmendmentSummary, FileChangeKind, LawDetail, LawSummary, Meta, NewLaw, RepealedLaw };
 
 function readJson<T>(...parts: string[]): T {
   return JSON.parse(readFileSync(join(DATA_DIR, ...parts), "utf8")) as T;
@@ -75,6 +76,23 @@ export function timelineYears(): string[] {
 
 export function timeline(year: string): AmendmentSummary[] {
   return readJson<AmendmentSummary[]>("timeline", `${year}.json`);
+}
+
+/**
+ * Amendments that get a static page (/amendment/<key>/): all of them, or with JUSTITIA_ONLY_LAWS, those that
+ * change one of the listed laws.
+ */
+export function pageAmendments(): AmendmentSummary[] {
+  const all = timelineYears().flatMap((y) => timeline(y));
+  const only = process.env.JUSTITIA_ONLY_LAWS;
+  if (!only) return all;
+  const ids = new Set(only.split(",").map((s) => s.trim()));
+  return all.filter((a) => a.laws.some((l) => ids.has(l.id)));
+}
+
+/** One amendment with its diffs (amendments/<key>.json, the file the amendment page fetches). */
+export function amendment(key: string): Amendment {
+  return readJson<Amendment>("amendments", `${key}.json`);
 }
 
 let newLawsCache: NewLaw[] | null = null;

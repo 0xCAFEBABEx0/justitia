@@ -65,3 +65,33 @@ export function lawLastmod(lastAmended: string | null, dataDate: string): string
   if (!lastAmended || !/^\d{4}-\d{2}-\d{2}$/.test(lastAmended)) return undefined;
   return lastAmended > dataDate ? dataDate : lastAmended;
 }
+
+export interface AmendingLawFacts {
+  url: string;
+  title: string;
+  num: string;
+  promulgated: string | null;
+  enforced: string | null;
+  /** The laws it changed, with their pages on this site. */
+  changes: { title: string; num: string; url: string }[];
+}
+
+/**
+ * schema.org Legislation for an amendment page: the amending law, the day it was promulgated, and the laws it
+ * changed (legislationChanges).
+ */
+export function amendingLegislation(f: AmendingLawFacts): object {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Legislation",
+    "@id": `${f.url}#legislation`,
+    url: f.url,
+    name: f.title,
+    legislationIdentifier: f.num,
+    legislationJurisdiction: "JP",
+    inLanguage: "ja",
+    ...(f.promulgated ? { legislationDate: f.promulgated } : {}),
+    ...(f.enforced ? { legislationDateVersion: f.enforced } : {}),
+    legislationChanges: f.changes.map((c) => ({ "@type": "Legislation", name: c.title, legislationIdentifier: c.num, url: c.url })),
+  };
+}
