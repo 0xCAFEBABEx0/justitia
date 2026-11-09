@@ -61,11 +61,12 @@ export const COMPANIES: Company[] = [
 /**
  * A matcher for one company over the text of laws. Law titles that contain the name, such as
  * 「日本電信電話株式会社等に関する法律」, are taken out first, so a law that only cites such a title
- * does not count. 日本電信電話株式会社 does not match inside 東日本電信電話株式会社.
+ * does not count; a title that is the name itself (日本国憲法) is kept. 日本電信電話株式会社 does not
+ * match inside 東日本電信電話株式会社.
  */
 export function companyMatcher(company: Company, titles: Iterable<string>): (text: string) => boolean {
   const names = [company.name, ...(company.also ?? [])];
-  const strip = [...titles].filter((t) => names.some((n) => t.includes(n))).sort((a, b) => b.length - a.length);
+  const strip = [...titles].filter((t) => names.some((n) => t !== n && t.includes(n))).sort((a, b) => b.length - a.length);
   const re = new RegExp(names.map((n) => `(?<![東西])${n.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}`).join("|"));
   return (text) => {
     if (!names.some((n) => text.includes(n))) return false;

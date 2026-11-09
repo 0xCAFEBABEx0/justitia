@@ -285,7 +285,9 @@ let scanCache: LawScan | null = null;
  * all laws) and measures it. Laws missing from the clone, as in a partial local build, are left out.
  *
  * - Citations: a law cites another when it has the other's law number, or for 日本国憲法, which is
- *   always cited by title, its title. Only laws in force count, on both sides.
+ *   always cited by title, its title outside longer law titles. Only laws in force count, on both
+ *   sides. The dated numbers in the headings of 附則 (「昭和二二年四月一六日法律第六一号」) name
+ *   the laws that amended the law, not laws it cites, and do not match.
  * - Companies: a law names a company when the name occurs outside the titles of laws (companyMatcher).
  */
 export function scanLaws(): LawScan {
@@ -294,8 +296,11 @@ export function scanLaws(): LawScan {
   const inForce = all.filter((l) => l.status === "in_force");
   const byNumber = new Map<string, string | null>();
   for (const l of inForce) byNumber.set(l.num, byNumber.has(l.num) ? null : l.id);
+  const titles = new Set(all.map((l) => l.title));
   const constitution = inForce.find((l) => l.title === CONSTITUTION)?.id;
-  const matchers = COMPANIES.map((c) => companyMatcher(c, new Set(all.map((l) => l.title))));
+  // 「日本国憲法の改正手続に関する法律」 alone does not cite the constitution.
+  const citesConstitution = companyMatcher({ name: CONSTITUTION }, titles);
+  const matchers = COMPANIES.map((c) => companyMatcher(c, titles));
   const text = new Map<string, TextStats>();
   const citedBy = new Map<string, string[]>();
   const cites = new Map<string, number>();
@@ -309,7 +314,7 @@ export function scanLaws(): LawScan {
       const id = byNumber.get(n);
       if (id) targets.add(id);
     }
-    if (constitution && doc.body.includes(CONSTITUTION)) targets.add(constitution);
+    if (constitution && citesConstitution(doc.body)) targets.add(constitution);
     targets.delete(l.id);
     for (const id of targets) {
       const list = citedBy.get(id);

@@ -18,7 +18,7 @@ const measured = statLaws(today).filter((l) => scan.text.has(l.id));
 const dirOf = new Map(measured.map((l) => [l.id, l.dir]));
 const citers = (l: StatLaw) => scan.citedBy.get(l.id) ?? [];
 const byId = (a: StatLaw, b: StatLaw) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
-const isAct = (l: StatLaw) => l.dir === "act";
+const isAct = (l: StatLaw) => l.dir === "act" || l.dir === "constitution";
 const cited = measured.filter((l) => citers(l).length > 0).sort((a, b) => citers(b).length - citers(a).length || byId(a, b)).slice(0, LIMIT);
 const acts = measured.filter(isAct);
 const uncited = acts.filter((l) => citers(l).length === 0).sort(byAge);
@@ -26,7 +26,7 @@ const citing = measured.filter((l) => (scan.cites.get(l.id) ?? 0) > 0).sort((a, 
 const top = cited[0];
 
 const count = (l: StatLaw) => ({ n: citers(l).length.toLocaleString(), unit: "件" });
-const byActs = (l: StatLaw) => `うち法律 ${citers(l).filter((id) => dirOf.get(id) === "act").length.toLocaleString()}件`;
+const byActs = (l: StatLaw) => `うち法律 ${citers(l).filter((id) => dirOf.get(id) === "act" || dirOf.get(id) === "constitution").length.toLocaleString()}件`;
 const title = "最も引用されている法律は？法令の被引用数ランキング";
 const description = `ほかの法令から最も多く引用されている法令は${top ? `${top.title}（${citers(top).length.toLocaleString()}件）` : ""}。引用される数のランキングと、どの法令からも引用されていない法律 ${uncited.length.toLocaleString()} 件の一覧です。`;
 ---

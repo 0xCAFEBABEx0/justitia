@@ -11,8 +11,9 @@ import { listTitle, scanLaws } from "../../../lib/stats.ts";
 const SHOWN = 5;
 
 const scan = scanLaws();
-const inForce = laws().filter((l) => l.status === "in_force" && scan.text.has(l.id));
+const inForce = laws().filter((l) => l.status === "in_force");
 const byId = new Map(inForce.map((l) => [l.id, l]));
+// The 根拠法 link does not depend on the scan: in a partial build the law can be missing from the clone.
 const byTitle = new Map(inForce.map((l) => [l.title, l]));
 const citedCount = (id: string) => scan.citedBy.get(id)?.length ?? 0;
 
