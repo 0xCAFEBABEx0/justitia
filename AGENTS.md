@@ -27,7 +27,7 @@ follow how the code is written, and list every discrepancy you found in your fin
 
 ```
 scripts/extract/   houritsu git history → data/ (meta.json, laws.json, laws/, amendments/, timeline/, history/)
-scripts/           search index, data compression + R2 upload, local preview
+scripts/           search index, data compression + R2 upload, local preview, changelog check
 src/pages/         Astro pages (one file per URL pattern; see README "Pages")
 src/components/    shared list / header / badge components
 src/layouts/       Base.astro: <head>, header, drawer, footer (license + disclaimer)
@@ -36,7 +36,7 @@ src/scripts/       browser scripts for the client-rendered pages (amendment, ver
 src/styles/        global.css: daisyUI themes and the styles daisyUI does not cover (law text, diffs, graph)
 public/            static files copied to dist/ (_headers, favicons, og-image.png, robots.txt)
 infra/terraform/   envs/prod + modules/cloudflare_site (HCP Terraform state, local execution)
-.github/           publish workflow, Dependabot, importable ruleset for main
+.github/           publish and release workflows, Dependabot, importable ruleset for main
 ```
 
 Generated and ignored: `houritsu/` (clone), `data/` (extractor output), `dist/` (site build), `.astro/`.
@@ -130,4 +130,19 @@ local `houritsu/`, `data/` and `dist/` copies when you are done.
 - Other work may be in progress on other branches at the same time; keep each PR to one topic.
 - Update README.md (and `infra/README.md` for infrastructure) in the same PR when behavior, pages, commands or
   publishing change.
-- Pushes to `main` that change only Markdown, repository settings or `infra/` do not trigger the Publish workflow.
+- Pushes to `main` that change only Markdown, repository settings, `infra/` or the release workflow and its changelog
+  check do not trigger the Publish workflow.
+
+## Versions and releases
+
+Calendar versions `YYYY.M.N` (year and month of the release in Japan time, `N` from 0 within the month), tagged
+`vYYYY.M.N`; the full policy is in README.md, "Versioning and releases".
+
+- Do not edit `CHANGELOG.md` in a feature PR. Entries are written by a release PR from the PRs merged since the last
+  tag, so write PR titles and descriptions that say what changed for users. When a PR changes a public contract
+  (a page URL, a JSON file, field or key under `data.anisotro.pics`, a calendar or feed URL), say so in its
+  description; its changelog entry will start with **Breaking:**.
+- Cutting a release is the owner's decision. When asked, open a PR titled `Release YYYY.M.N` that changes only
+  `CHANGELOG.md` and passes `node scripts/changelog.ts`. The Release workflow creates the tag and the GitHub Release
+  when it merges; never create, move or delete tags or releases by hand.
+- `package.json`'s `version` is not the site's version; do not bump it.

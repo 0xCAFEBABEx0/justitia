@@ -1,0 +1,178 @@
+// Checks CHANGELOG.md and gives the release notes of its newest release, for the Release workflow
+// (.github/workflows/release.yml). See README, "Versioning and releases", for the rules it checks.
+//
+//   node scripts/changelog.ts                 check CHANGELOG.md; print the newest version
+//   node scripts/changelog.ts --notes <file>  also write the newest release's notes to <file>
+//
+// Exits with 1 and lists the problems when CHANGELOG.md breaks a rule.
+
+import { readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+
+export const REPO_URL = "https://github.com/0xCAFEBABEx0/justitia";
+
+/** Keep a Changelog 1.1.0's kinds of change, in the order they appear in a release. */
+export const SECTIONS = ["Added", "Changed", "Deprecated", "Removed", "Fixed", "Security"] as const;
+
+export interface Release {
+  /** `YYYY.M.N`, as in the heading (the tag is `v` + version). */
+  version: string;
+  /** `YYYY-MM-DD` (Japan time), as in the heading. */
+  date: string;
+  /** The Markdown under the heading, without link reference definitions, trimmed. */
+  body: string;
+}
+
+export interface Changelog {
+  releases: Release[]; // newest first, as in the file
+  links: Map<string, string>; // link reference definitions: label → URL
+  problems: string[];
+}
+
+const RELEASE_HEADING = /^## \[([^\]]+)\] - (\S+)$/;
+const LINK_DEFINITION = /^\[([^\]]+)\]:\s+(\S+)\s*$/;
+const VERSION = /^(\d{4})\.([1-9]|1[0-2])\.(0|[1-9]\d*)$/;
+
+export function parseChangelog(markdown: string): Changelog {
+  const releases: Release[] = [];
+  const links = new Map<string, string>();
+  const problems: string[] = [];
+  let current: { version: string; date: string; lines: string[] } | null = null;
+  const finish = () => {
+    if (current) releases.push({ version: current.version, date: current.date, body: current.lines.join("\n").trim() });
+  };
+  for (const line of markdown.split(/\r?\n/)) {
+    const link = LINK_DEFINITION.exec(line);
+    if (link) {
+      links.set(link[1], link[2]);
+      continue;
+    }
+    if (line.startsWith("## ")) {
+      finish();
+      const m = RELEASE_HEADING.exec(line);
+      if (!m) {
+        problems.push(`"${line}": a release heading is "## [YYYY.M.N] - YYYY-MM-DD"`);
+        current = null;
+        continue;
+      }
+      current = { version: m[1], date: m[2], lines: [] };
+      continue;
+    }
+    current?.lines.push(line);
+  }
+  finish();
+  return { releases, links, problems };
+}
+
+function isDate(date: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return false;
+  const d = new Date(`${date}T00:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === date;
+}
+
+/** The URL the link reference of `releases[i]` must point to: the compare view from the release before it. */
+export function releaseLink(releases: Release[], i: number): string {
+  const older = releases[i + 1];
+  const tag = `v${releases[i].version}`;
+  return older ? `${REPO_URL}/compare/v${older.version}...${tag}` : `${REPO_URL}/releases/tag/${tag}`;
+}
+
+/** Everything wrong with the changelog; empty when it follows the rules. */
+export function checkChangelog(markdown: string): string[] {
+  const { releases, links, problems } = parseChangelog(markdown);
+  if (releases.length === 0 && problems.length === 0) problems.push("no release heading (## [YYYY.M.N] - YYYY-MM-DD)");
+  releases.forEach((release, i) => {
+    const where = `[${release.version}]`;
+    const v = VERSION.exec(release.version);
+    if (!v) {
+      problems.push(`${where}: the version is YYYY.M.N (month without a leading zero, N from 0), such as 2026.11.0`);
+      return;
+    }
+    if (!isDate(release.date)) {
+      problems.push(`${where}: "${release.date}" is not a date (YYYY-MM-DD)`);
+      return;
+    }
+    const [year, month, n] = v.slice(1).map(Number);
+    const [dateYear, dateMonth] = release.date.split("-").map(Number);
+    if (year !== dateYear || month !== dateMonth) {
+      problems.push(`${where}: the version's year and month must be those of its date (${release.date})`);
+    }
+    // N counts the releases before this one in the same month, so versions go 2026.11.0, 2026.11.1, 2026.12.0.
+    const earlierInMonth = releases.slice(i + 1).filter((r) => {
+      const o = VERSION.exec(r.version);
+      return o !== null && Number(o[1]) === year && Number(o[2]) === month;
+    }).length;
+    if (n !== earlierInMonth) {
+      problems.push(`${where}: expected ${year}.${month}.${earlierInMonth} (N counts the earlier releases of the month, from 0)`);
+    }
+    const older = releases[i + 1];
+    if (older && isDate(older.date) && older.date > release.date) {
+      problems.push(`${where}: releases are listed newest first, but [${older.version}] (${older.date}) comes after it`);
+    }
+    if (releases.findIndex((r) => r.version === release.version) !== i) {
+      problems.push(`${where}: the version appears more than once`);
+    }
+
+    const headings = [...release.body.matchAll(/^### (.*)$/gm)].map((m) => m[1].trim());
+    let last = -1;
+    for (const heading of headings) {
+      const at = (SECTIONS as readonly string[]).indexOf(heading);
+      if (at < 0) problems.push(`${where}: "### ${heading}" is not one of ${SECTIONS.join(", ")}`);
+      else if (at <= last) problems.push(`${where}: "### ${heading}" is out of order or repeated (${SECTIONS.join(", ")})`);
+      else last = at;
+    }
+    if (headings.length === 0 || !/^- /m.test(release.body)) {
+      problems.push(`${where}: a release has at least one "### <kind of change>" section with "- " entries`);
+    }
+
+    const expected = releaseLink(releases, i);
+    const actual = links.get(release.version);
+    if (actual !== expected) {
+      problems.push(`${where}: needs the link reference "[${release.version}]: ${expected}"${actual ? ` (found ${actual})` : ""}`);
+    }
+  });
+  return problems;
+}
+
+/**
+ * Joins the lines of each paragraph and list item. CHANGELOG.md is wrapped at 120 columns, but GitHub shows every
+ * line break of a release's notes (as in comments), which would break sentences in the middle.
+ */
+export function unwrap(markdown: string): string {
+  const out: string[] = [];
+  for (const line of markdown.split("\n")) {
+    const prev = out.at(-1);
+    const continues = line.trim() !== "" && !/^\s*([-*+] |\d+\. |#|>|\||```)/.test(line);
+    if (continues && prev !== undefined && prev.trim() !== "" && !/^\s*(#|\||```)/.test(prev)) {
+      out[out.length - 1] = `${prev} ${line.trim()}`;
+    } else {
+      out.push(line);
+    }
+  }
+  return out.join("\n");
+}
+
+/** The notes of the GitHub Release for `releases[i]`: its changelog section and a link to the full diff. */
+export function releaseNotes(releases: Release[], i: number): string {
+  const older = releases[i + 1];
+  const full = older ? `\n\n**Full changelog**: ${releaseLink(releases, i)}` : "";
+  return `${unwrap(releases[i].body)}${full}\n`;
+}
+
+if (import.meta.main) {
+  const args = process.argv.slice(2);
+  const notesFile = args[0] === "--notes" ? args[1] : undefined;
+  if (args.length !== (notesFile ? 2 : 0)) {
+    console.error("usage: node scripts/changelog.ts [--notes <file>]");
+    process.exit(2);
+  }
+  const markdown = await readFile(join(import.meta.dirname, "../CHANGELOG.md"), "utf8");
+  const problems = checkChangelog(markdown);
+  if (problems.length > 0) {
+    for (const problem of problems) console.error(`CHANGELOG.md: ${problem}`);
+    process.exit(1);
+  }
+  const { releases } = parseChangelog(markdown);
+  if (notesFile) await writeFile(notesFile, releaseNotes(releases, 0));
+  console.log(releases[0].version);
+}
