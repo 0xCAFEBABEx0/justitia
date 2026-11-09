@@ -127,11 +127,16 @@ function listItems(lines: string[], base: number): string[] | undefined {
   return items;
 }
 
-/** The numbered items right after the line that ends at `from`; none if the line goes on. */
+/**
+ * The numbered items right after the line that ends at `from`, below that line when it is an item
+ * itself (「- 一 「X」とは、次に掲げる者をいう。」 takes its 「  - イ」 items, not 「- 二」); none if
+ * the line goes on.
+ */
 function itemsAfter(s: string, from: number): string[] | undefined {
   const eol = s.indexOf("\n", from);
   if (eol < 0 || !/^。?\s*$/.test(s.slice(from, eol))) return undefined;
-  return listItems(s.slice(eol + 1).split("\n"), 0);
+  const indent = /^( *)- /.exec(s.slice(s.lastIndexOf("\n", from - 1) + 1, eol));
+  return listItems(s.slice(eol + 1).split("\n"), indent ? indent[1].length + 2 : 0);
 }
 
 const CONJUNCTION = /^(?:又は|及び|並びに|若しくは|かつ)/;
@@ -194,7 +199,13 @@ export function definitionsIn(text: string, block: string): Definition[] {
     const end = definitionEnd(text, start);
     if (end < 0) continue;
     const def = text.slice(start, end).replace(/をいい$/, "をいう");
-    add(term, "toha", def, LIST.test(def) ? itemsAfter(text, end) : undefined);
+    let items: string[] | undefined;
+    if (LIST.test(def)) {
+      // The substance is in the items: without them (too many, or not found) the definition says nothing.
+      items = itemsAfter(text, end);
+      if (!items?.length) continue;
+    }
+    add(term, "toha", def, items);
   }
   // …（以下「X」という。）
   for (const m of text.matchAll(/以下(?:[^「」。（）]{0,20}において)?(?:単に)?「([^「」]{1,30})」という/g)) {
@@ -243,7 +254,7 @@ export function definitionsIn(text: string, block: string): Definition[] {
       let items: string[] | undefined;
       if (LIST.test(def)) {
         items = listItems(lines.slice(i + 1), 2);
-        if (!items) return; // too long to show
+        if (!items?.length) return; // too many to show, or none
       }
       add(m[1], "item", def, items);
     });

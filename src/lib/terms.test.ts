@@ -57,6 +57,13 @@ test("items of a definition that refers to them", () => {
   // nested items are kept, with the items after them
   const [n] = definitionsIn("この法律において「事業者」とは、次に掲げる者をいう。\n\n- 一 次のいずれかに該当する会社\n\n  - イ 株式会社\n\n  - ロ 合同会社\n\n- 二 個人", "本則|第二条");
   assert.deepEqual(n.items, ["一 次のいずれかに該当する会社", "  イ 株式会社", "  ロ 合同会社", "二 個人"]);
+  // a definition in an item takes the items below it, not the items after it
+  const inItem = definitionsIn("- 一 「事業者」とは、次に掲げる者をいう。\n\n  - イ 会社\n\n  - ロ 個人\n\n- 二 「消費者」とは、個人をいう。", "本則|第二条");
+  assert.deepEqual(inItem.map((d) => [d.term, d.items]), [["事業者", ["イ 会社", "ロ 個人"]], ["消費者", undefined]]);
+  // without its items (too many to show, or none found) a definition is left out
+  const many = Array.from({ length: 31 }, (_, i) => `- ${"一二三四五六七八九"[i % 9]} 者${i}`).join("\n\n");
+  assert.deepEqual(definitionsIn(`この法律において「事業者」とは、次に掲げる者をいう。\n\n${many}`, "本則|第二条"), []);
+  assert.deepEqual(definitionsIn("この法律において「事業者」とは、次に掲げる者をいう。\n\n２ 次の項。", "本則|第二条"), []);
 });
 
 test("markup other than ruby is taken out; the marker of an item too", () => {
