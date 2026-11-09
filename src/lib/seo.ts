@@ -56,13 +56,17 @@ export function legislation(f: LegislationFacts): object {
   };
 }
 
+/** Search Console reports a sitemap lastmod before 1970 as "Invalid date". */
+const EARLIEST_LASTMOD = "1970-01-01";
+
 /**
  * The sitemap's lastmod for a law page: the day its latest revision came into force, which is when
  * the text on the page last changed. Never later than the data (an amendment dated in the future
- * is not in force yet), and nothing when the law has no such date.
+ * is not in force yet), and nothing when the law has no such date or it is before 1970 (laws last
+ * amended in the Meiji to early Showa eras).
  */
 export function lawLastmod(lastAmended: string | null, dataDate: string): string | undefined {
-  if (!lastAmended || !/^\d{4}-\d{2}-\d{2}$/.test(lastAmended)) return undefined;
+  if (!lastAmended || !/^\d{4}-\d{2}-\d{2}$/.test(lastAmended) || lastAmended < EARLIEST_LASTMOD) return undefined;
   return lastAmended > dataDate ? dataDate : lastAmended;
 }
 

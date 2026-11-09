@@ -46,6 +46,12 @@ test("lawLastmod is the last amendment in force, capped at the data date", () =>
   assert.equal(lawLastmod("undetermined", "2026-11-09"), undefined);
 });
 
+test("lawLastmod leaves out dates before 1970, which Search Console rejects", () => {
+  assert.equal(lawLastmod("1969-12-31", "2026-11-09"), undefined);
+  assert.equal(lawLastmod("1872-11-09", "2026-11-09"), undefined);
+  assert.equal(lawLastmod("1970-01-01", "2026-11-09"), "1970-01-01");
+});
+
 test("amendingLegislation lists the laws the amendment changed", () => {
   const ld = amendingLegislation({
     url: "https://anisotro.pics/amendment/426AC0000000042_20160401/",

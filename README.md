@@ -140,7 +140,8 @@ the name of this project and does not appear on the site.
   favicons), `apple-touch-icon.png` (180 px) and `og-image.png` are rendered from it.
 - `@astrojs/sitemap` writes `sitemap-index.xml` (all pages except `/amendment/`, the versions page and the 404 page),
   which `public/robots.txt` points to and Search Console has. It lists `sitemap-laws-0.xml`, the law pages with a
-  `lastmod` (the day the latest amendment in force came into force, never later than the build date),
+  `lastmod` (the day the latest amendment in force came into force, never later than the build date, and left out
+  before 1970, which Search Console reports as an invalid date),
   `sitemap-amendments-0.xml`, the static amendment pages, and `sitemap-pages-0.xml`, the other pages; the last two
   have no `lastmod` (their content changes with the data, not on a date a page could state).
 
