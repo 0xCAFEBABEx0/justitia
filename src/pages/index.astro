@@ -6,9 +6,11 @@ import BrowseTabs from "../components/BrowseTabs.astro";
 import { buildDate, jpDate, jstDate, lawUrl, meta, newLaws, repealedLaws, timeline, timelineYears, typeLabel, type AmendmentSummary } from "../lib/data.ts";
 import { isUpcomingNewLaw } from "../lib/new-laws.ts";
 import { SITE_TAGLINE } from "../lib/site.ts";
+import { statLaws } from "../lib/stats.ts";
 
 const m = meta();
 const today = buildDate();
+const unamendedCount = statLaws(today).filter((l) => l.unamended).length;
 const thisYear = Number(today.slice(0, 4));
 // The latest enforced amendments come from this year and last year; the next upcoming ones
 // from this year and the next two.
@@ -105,6 +107,7 @@ const newThisYear = allNew.filter((l) => l.branch === "main" && l.enforced?.star
         <div class="stats stats-vertical">
           <div class="stat py-3"><div class="stat-title text-base-content/65">現行の法令</div><div class="stat-value text-2xl">{m.counts.lawsInForce.toLocaleString()}</div></div>
           <div class="stat py-3"><div class="stat-title text-base-content/65">廃止された法令</div><div class="stat-value text-2xl"><a class="link link-hover" href="/repealed/">{m.counts.lawsRepealed.toLocaleString()}</a></div></div>
+          <div class="stat py-3"><div class="stat-title text-base-content/65">一度も改正されていない法令</div><div class="stat-value text-2xl"><a class="link link-hover" href="/stats/unamended/">{unamendedCount.toLocaleString()}</a></div><div class="stat-desc"><a class="link text-base-content/65" href="/stats/">法令の統計を見る</a></div></div>
           <div class="stat py-3"><div class="stat-title text-base-content/65">{today.slice(0, 4)}年に施行された新しい法令</div><div class="stat-value text-2xl">{newThisYear.toLocaleString()}</div></div>
           <div class="stat py-3"><div class="stat-title text-base-content/65">改正</div><div class="stat-value text-2xl">{m.counts.amendments.toLocaleString()}</div><div class="stat-desc text-base-content/65">データ更新：{jpDate(jstDate(m.generatedAt))}</div></div>
         </div>

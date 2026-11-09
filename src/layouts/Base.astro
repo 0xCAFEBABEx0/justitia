@@ -10,7 +10,7 @@ import { jpDate, jstDate, meta } from "../lib/data.ts";
 interface Props {
   title?: string;
   description?: string;
-  nav?: "laws" | "new" | "upcoming" | "repealed" | "timeline" | "graph" | "search" | "about";
+  nav?: "laws" | "new" | "upcoming" | "repealed" | "timeline" | "graph" | "stats" | "search" | "about";
   narrow?: boolean;
   /**
    * Whether this URL (without its query string) is the page's address. False for pages whose
@@ -30,8 +30,10 @@ const NAV = [
   { key: "repealed", href: "/repealed/", label: "廃止された法令" },
   { key: "timeline", href: "/timeline/", label: "改正の年表" },
   { key: "graph", href: "/graph/", label: "改正のグラフ" },
+  { key: "stats", href: "/stats/", label: "統計" },
   { key: "search", href: "/search/", label: "全文検索" },
-  { key: "about", href: "/about/", label: "このサイトについて" },
+  // Not in the header row (it does not fit beside the search box at 1280px); in the menu, and the footer links to it.
+  { key: "about", href: "/about/", label: "このサイトについて", menuOnly: true },
 ] as const;
 const fullTitle = title ? `${title} | ${SITE_NAME}` : `${SITE_NAME} — ${SITE_TAGLINE}`;
 const desc = description ?? "日本の法令の条文と、いつ・どこが・どう改正されたかを、改正ごとの新旧対照で見られるサイトです。";
@@ -84,7 +86,7 @@ const ogImage = new URL("/og-image.png", Astro.site).href;
             <a class="mr-2 shrink-0 text-lg font-bold tracking-wide" href="/">Anisotro<span class="text-primary">pics</span></a>
             <nav class="hidden xl:block" aria-label="サイト">
               <ul class="menu menu-horizontal menu-sm gap-1 px-0">
-                {NAV.map((n) => (
+                {NAV.filter((n) => !("menuOnly" in n)).map((n) => (
                   <li><a class="aria-[current=page]:bg-primary/10 aria-[current=page]:font-bold aria-[current=page]:text-primary" href={n.href} aria-current={nav === n.key ? "page" : undefined}>{n.label}</a></li>
                 ))}
               </ul>

@@ -1,0 +1,92 @@
+---
+import Base from "../../../layouts/Base.astro";
+import PageHeader from "../../../components/PageHeader.astro";
+import StatsNote from "../../../components/StatsNote.astro";
+import StatLawList from "../../../components/StatLawList.astro";
+import TypeFilter from "../../../components/TypeFilter.astro";
+import { buildDate, TYPE_LABELS } from "../../../lib/data.ts";
+import { byAge, ERAS, statLaws, yearsSince } from "../../../lib/stats.ts";
+
+const today = buildDate();
+const all = statLaws(today);
+const items = all.filter((l) => l.unamended).sort(byAge);
+const oldest = items[0];
+const oldestAct = items.find((l) => l.dir === "act" || l.dir === "constitution");
+const eras = ERAS.map((e) => ({ ...e, items: items.filter((l) => l.year?.era === e.name) })).filter((e) => e.items.length > 0);
+const unknownYear = items.filter((l) => !l.year);
+
+// Counts by era and type, as on /new/. 憲法 and 勅令 are too few to get their own column.
+const COLUMNS = [
+  { label: TYPE_LABELS.act, dirs: ["act", "constitution"] },
+  { label: TYPE_LABELS["cabinet-order"], dirs: ["cabinet-order", "imperial-order"] },
+  { label: TYPE_LABELS["ministerial-ordinance"], dirs: ["ministerial-ordinance"] },
+  { label: TYPE_LABELS.rule, dirs: ["rule"] },
+];
+const counts = (list: typeof items) => [...COLUMNS.map((c) => list.filter((l) => c.dirs.includes(l.dir)).length), list.length];
+const acts = items.filter((l) => l.dir === "act" || l.dir === "constitution").length;
+const age = (l: (typeof items)[number]) => {
+  const n = yearsSince(l.year, today);
+  return n === null ? null : { n: n.toLocaleString(), unit: "年" };
+};
+const title = "一度も改正されていない法律の一覧";
+const description = `現行の法令 ${all.length.toLocaleString()} 件のうち、制定以来一度も改正されていない法令は ${items.length.toLocaleString()} 件（うち法律 ${acts.toLocaleString()} 件）。${oldest ? `最も古いのは${oldest.title}（${oldest.year?.year}年）。` : ""}古い順の一覧を、種別で絞り込めます。`;
+---
+<Base title={title} description={description} nav="stats">
+  <PageHeader title={title} crumbs={[{ href: "/stats/", label: "法令の統計" }]}>
+    現行の法令 {all.length.toLocaleString()} 件のうち、制定以来一度も改正されていないものは <b>{items.length.toLocaleString()} 件</b>（うち法律 {acts.toLocaleString()} 件）です。{oldest && <>最も古いのは{oldest.title}（{oldest.year?.year}年）{oldestAct && oldestAct !== oldest && <>、法律では{oldestAct.title}（{oldestAct.year?.year}年）</>}です。</>}政令・府省令・規則も含みます。
+  </PageHeader>
+  <StatsNote />
+
+  <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <section class="min-w-0" data-type-filter-root>
+      <TypeFilter dirs={items.map((l) => l.dir)} />
+      {eras.map((e) => (
+        <section class="mb-6" data-type-group>
+          <h2 class="mb-3 text-xl font-bold">{e.name}の法令（{e.items.length.toLocaleString()} 件）</h2>
+          <StatLawList items={e.items} fig={age} />
+        </section>
+      ))}
+      {unknownYear.length > 0 && (
+        <section class="mb-6" data-type-group>
+          <h2 class="mb-3 text-xl font-bold">制定年が分からない法令</h2>
+          <StatLawList items={unknownYear} />
+        </section>
+      )}
+    </section>
+
+    <aside class="flex flex-col gap-4 text-sm">
+      <section class="card card-border bg-base-100">
+        <div class="card-body p-5">
+          <h2 class="card-title text-base">時代と種別ごとの件数</h2>
+          <div class="overflow-x-auto">
+            <table class="table table-xs tabular-nums">
+              <thead>
+                <tr class="text-base-content/65"><th scope="col">時代</th>{COLUMNS.map((c) => <th scope="col" class="text-right">{c.label}</th>)}<th scope="col" class="text-right">計</th></tr>
+              </thead>
+              <tbody>
+                {eras.map((e) => (
+                  <tr>
+                    <th scope="row">{e.name}</th>
+                    {counts(e.items).map((n, i) => <td class:list={["text-right", { "font-bold": i === COLUMNS.length, "text-base-content/65": n === 0 }]}>{n.toLocaleString()}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      <section class="card card-border bg-base-100">
+        <div class="card-body gap-2 p-5">
+          <h2 class="card-title text-base">数え方</h2>
+          <p class="text-base-content/70">e-Gov 法令検索の現行の条文に、改正した法令が記録されていないものを数えています。右の数字は法令番号の年から数えた年数です。</p>
+          <p class="text-base-content/70">停止中の法令（陪審法など）も、廃止されていなければ現行の法令として数えています。</p>
+        </div>
+      </section>
+      <ul class="flex flex-col gap-2">
+        <li><a class="link link-primary" href="/stats/oldest/">日本一古い法律は？現行法令の古い順 →</a></li>
+        <li><a class="link link-primary" href="/stats/most-amended/">改正回数が多い法律ランキング →</a></li>
+        <li><a class="link link-primary" href="/stats/">法令の統計 →</a></li>
+      </ul>
+    </aside>
+  </div>
+</Base>

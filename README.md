@@ -104,7 +104,7 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 
 | URL | Contents |
 | --- | --- |
-| `/` | Search, newly enacted laws (recent and upcoming), recent amendments, upcoming amendments |
+| `/` | Search, newly enacted laws (recent and upcoming), recent amendments, upcoming amendments, and a few counts (with the number of laws never amended, linking to `/stats/unamended/`) |
 | `/browse/`, `/browse/kana/<row>/`, `/browse/type/<type>/`, `/browse/category/<category>/` | Law lists |
 | `/laws/<law ID>/` | Law text (an anchor per heading), table of contents, amendment history, and the law's calendar (`.ics`) and RSS feed |
 | `/amendment/<amendment key>/` | Old and new text of the articles an amendment changed (side by side, or inline), as a static page with its own title, description and structured data, served by the amendment Workers (see [Amendment Workers](#amendment-workers)). Like a law page, it has a row of actions (the amendment graph of the laws it changes, share, print), and under each changed law, links to its text after the change, the whole text compared with the revision before, and both revisions on e-Gov 法令検索 |
@@ -113,6 +113,10 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | `/repealed/`, `/repealed/<year>/` | Repealed laws (a law whose file is deleted from houritsu's main branch; houritsu records repeals from 2017 on), by year and date of repeal, laid out like `/new/`, with type and "how it was repealed" filters: by a new law coming into force, by a law made to repeal it, or by another amending law. Each links the text in force just before the repeal. Repealed law pages show the same details |
 | `/upcoming/` | Amendments promulgated and not yet in force, by month of entry into force (with a countdown in days), then those without a date; a filter by category and law name; the calendar (`.ics`) and RSS feed of the whole site or of the chosen category to subscribe to (see [Calendars and RSS feeds](#calendars-and-rss-feeds)) |
 | `/timeline/`, `/timeline/<year>/` | Amendments by year of entry into force |
+| `/stats/` | 「法令の統計」: statistics over the laws in force, with the top five of each list below. Built from the extracted data at build time (`src/lib/stats.ts`, which reads every `laws/<id>.json`); each page says the date of the data, and has a note that the figures are counted by a program |
+| `/stats/unamended/` | Laws never amended since they were made according to e-Gov (frontmatter `amendment.law_id` null or `""`; houritsu's own history mostly starts in the 2000s, so it cannot tell), oldest first by era, with a type filter. Law pages of these laws get a 「制定以来改正なし」 badge linking here |
+| `/stats/oldest/` | The 300 oldest laws in force, by the year of their number (read from the law ID) |
+| `/stats/most-amended/` | Laws with the most amendments in force recorded in houritsu (段階施行 not counted), and the most amended in the last year |
 | `/versions/?law=<law ID>&at=<amendment key or YYYY-MM-DD>[&from=<…>]` | The law's text at any revision, past or upcoming; with `from`, what changed between two revisions (like `git diff from..at`) |
 | `/search/?q=<words>` | Full-text search over the current law text, with links to the matching articles |
 | `/graph/?laws=<ID>,<ID>,…` | Amendment graph: one lane per law, with laws changed by the same amending law joined by a line (git-graph style) |

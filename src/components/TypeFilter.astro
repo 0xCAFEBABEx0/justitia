@@ -1,0 +1,32 @@
+---
+// Buttons that show only the laws of one type in the lists inside the element marked
+// data-type-filter-root (rows with data-type, groups with data-type-group that are hidden when
+// they have no row left). The same filter as on /new/<year>/.
+import { TYPE_ORDER, typeLabel } from "../lib/data.ts";
+
+interface Props {
+  /** Law types (directories, e.g. "act") of the rows, with duplicates. */
+  dirs: string[];
+}
+const { dirs } = Astro.props;
+const types = TYPE_ORDER.map((t) => ({ t, n: dirs.filter((d) => d === t).length })).filter((x) => x.n > 0);
+---
+<fieldset class="mb-3 flex flex-wrap items-center gap-2" data-type-filter>
+  <legend class="sr-only">種別で絞り込む</legend>
+  <input class="btn btn-sm" type="radio" name="type" value="" aria-label={`すべて ${dirs.length.toLocaleString()}`} checked />
+  {types.map((x) => <input class="btn btn-sm" type="radio" name="type" value={x.t} aria-label={`${typeLabel(x.t)} ${x.n.toLocaleString()}`} />)}
+</fieldset>
+
+<script>
+  for (const root of document.querySelectorAll<HTMLElement>("[data-type-filter-root]")) {
+    const apply = () => {
+      const type = root.querySelector<HTMLInputElement>("[data-type-filter] input:checked")?.value ?? "";
+      for (const li of root.querySelectorAll<HTMLElement>("li[data-type]")) li.hidden = !!type && li.dataset.type !== type;
+      for (const group of root.querySelectorAll<HTMLElement>("[data-type-group]")) {
+        group.hidden = !group.querySelector("li[data-type]:not([hidden])");
+      }
+    };
+    root.querySelector("[data-type-filter]")?.addEventListener("change", apply);
+    apply(); // the browser can restore a checked radio on back/forward
+  }
+</script>
