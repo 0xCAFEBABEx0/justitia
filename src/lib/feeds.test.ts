@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AmendmentSummary, LawSummary } from "../../scripts/extract/types.ts";
-import { byCategory, byLaw, calendarEvents, feedItems, RSS_MAX_ITEMS, feedUrl, foldLine, icsCalendar, icsText, lawNames, rfc822, rssFeed, xmlText } from "./feeds.ts";
+import { byCategory, byLaw, calendarEvents, feedIcon, feedItems, RSS_MAX_ITEMS, feedUrl, foldLine, icsCalendar, icsText, lawNames, rfc822, rssFeed, xmlText } from "./feeds.ts";
 
 function amendment(over: Partial<AmendmentSummary>): AmendmentSummary {
   return {
@@ -157,4 +157,13 @@ test("feedItems keeps at most RSS_MAX_ITEMS, but never cuts a day", () => {
   assert.equal(items.length, RSS_MAX_ITEMS + 10);
   assert.ok(items.every((i) => i.day >= "2026-10-01"));
   assert.equal(feedItems(many("2026-11-01", 50, "d"), today).length, 50);
+});
+
+test("feed icons are decorative SVGs sized by their class", () => {
+  for (const name of ["calendar", "file", "rss", "help"] as const) {
+    const svg = feedIcon(name);
+    assert.match(svg, /^<svg class="h-5 w-5 shrink-0" [^>]*aria-hidden="true"[^>]*><path /);
+    assert.match(svg, /<\/svg>$/);
+  }
+  assert.match(feedIcon("rss", "h-4 w-4"), /^<svg class="h-4 w-4 shrink-0"/);
 });

@@ -5,7 +5,7 @@ import Base from "../../layouts/Base.astro";
 import AmendmentList from "../../components/AmendmentList.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import { buildDate, laws, timeline, timelineYears, type AmendmentSummary } from "../../lib/data.ts";
-import { feedFile, feedUrl } from "../../lib/feeds.ts";
+import { feedFile, feedIcon, feedUrl } from "../../lib/feeds.ts";
 import { DATA_BASE } from "../../lib/site.ts";
 
 const today = buildDate();
@@ -70,12 +70,12 @@ const total = dated.length + undetermined.length;
             <span data-calendar-label>すべての分野</span>の施行日を、Google カレンダーや Outlook に登録できます。URL で登録（購読）すると、新しく公布された改正も毎日反映されます。
           </p>
           <div class="flex flex-wrap gap-2">
-            <button type="button" class="btn btn-soft btn-sm btn-primary" data-copy={allUrl} data-copy-done="カレンダーの URL をコピーしました" data-calendar-copy>カレンダーの URL をコピー</button>
-            <a class="btn btn-soft btn-sm btn-primary" href={allUrl} data-calendar-file>.ics ファイル</a>
+            <button type="button" class="btn btn-soft btn-sm btn-primary" data-copy={allUrl} data-copy-done="カレンダーの URL をコピーしました" data-calendar-copy><Fragment set:html={feedIcon("calendar", "h-4 w-4")} />カレンダーの URL をコピー</button>
+            <a class="btn btn-soft btn-sm btn-primary" href={allUrl} data-calendar-file><Fragment set:html={feedIcon("file", "h-4 w-4")} />.ics ファイル</a>
           </div>
           <p class="mt-2 text-sm text-base-content/70">改正の公布と施行のお知らせは RSS でも受け取れます。</p>
           <div class="flex flex-wrap gap-2">
-            <button type="button" class="btn btn-soft btn-sm btn-primary" data-copy={allRssUrl} data-copy-done="RSS の URL をコピーしました" data-rss-copy>RSS の URL をコピー</button>
+            <button type="button" class="btn btn-soft btn-sm btn-primary" data-copy={allRssUrl} data-copy-done="RSS の URL をコピーしました" data-rss-copy><Fragment set:html={feedIcon("rss", "h-4 w-4")} />RSS の URL をコピー</button>
           </div>
           <details class="text-sm">
             <summary class="cursor-pointer py-1 text-primary">登録のしかた</summary>
