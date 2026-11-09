@@ -2,10 +2,31 @@
 import { defineConfig } from "astro/config";
 import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
+import { buildDate, laws } from "./src/lib/data.ts";
+import { lawLastmod } from "./src/lib/seo.ts";
 
 // Pages left out of the sitemap: the amendment and versions pages show nothing without their
 // query string (?k=..., ?law=...), and the 404 page is not a page to visit.
 const NOT_IN_SITEMAP = ["/amendment/", "/versions/", "/404/"];
+
+/**
+ * Law pages get a lastmod (the day the text last changed, see lawLastmod) and their own sitemap
+ * file, sitemap-laws-0.xml; the other pages are in sitemap-pages-0.xml. sitemap-index.xml, the
+ * file submitted to Search Console, lists both with the latest lastmod of each.
+ * @type {Map<string, string | undefined> | null}
+ */
+let lawDates = null;
+/** @param {import("@astrojs/sitemap").SitemapItem} item */
+function lawPage(item) {
+  const id = /^\/laws\/([^/]+)\/$/.exec(new URL(item.url).pathname)?.[1];
+  if (!id) return undefined;
+  if (!lawDates) {
+    const today = buildDate();
+    lawDates = new Map(laws().map((l) => [l.id, lawLastmod(l.lastAmended, today)]));
+  }
+  const lastmod = lawDates.get(id);
+  return lastmod ? { ...item, lastmod } : item;
+}
 
 /**
  * Fontsource's CSS lists a WOFF file next to each WOFF2 file. Every browser the site supports
@@ -29,6 +50,8 @@ export default defineConfig({
   output: "static",
   trailingSlash: "always",
   build: { format: "directory", concurrency: 4 },
-  integrations: [sitemap({ filter: (page) => !NOT_IN_SITEMAP.includes(new URL(page).pathname) })],
+  integrations: [
+    sitemap({ filter: (page) => !NOT_IN_SITEMAP.includes(new URL(page).pathname), chunks: { laws: lawPage } }),
+  ],
   vite: { plugins: [woff2Only(), tailwindcss()], build: { chunkSizeWarningLimit: 2000 } },
 });

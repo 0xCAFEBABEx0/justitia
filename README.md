@@ -128,11 +128,22 @@ the name of this project and does not appear on the site.
   show their generic title.
 - Pages get a canonical link, except the amendment and versions pages (their content depends on the query string,
   and a canonical link without it would mark every amendment as the same page) and the 404 page (served at any
-  missing path).
+  missing path). The amendment page's script sets its own title, description and canonical link
+  (`/amendment/?k=<key>`), which Google reads when it renders the page, and adds `noindex` when the key is missing
+  or has no data (404), so that such an address is not indexed as an empty page.
+- Structured data (JSON-LD, `src/lib/seo.ts`): pages with breadcrumbs carry a schema.org `BreadcrumbList`
+  (`PageHeader`), and law pages a `Legislation` (law number, type, legal force, date of the last amendment in force,
+  the e-Gov page as `sameAs`).
+- On law pages the amendment history and table of contents come before the law text in the HTML, and CSS places
+  them to the right (wide screens) or after the text (narrow screens). Googlebot reads only the first 2 MB of a
+  page, and the text of the largest laws is over 10 MB.
 - Icons: `public/favicon.svg` is the drawing; `favicon.ico` (16, 32 and 48 px; Google Search does not use SVG
   favicons), `apple-touch-icon.png` (180 px) and `og-image.png` are rendered from it.
 - `@astrojs/sitemap` writes `sitemap-index.xml` (all pages except the amendment, versions and 404 pages), which
-  `public/robots.txt` points to.
+  `public/robots.txt` points to and Search Console has. It lists `sitemap-laws-0.xml`, the law pages with a
+  `lastmod` (the day the latest amendment in force came into force, never later than the build date), and
+  `sitemap-pages-0.xml`, the other pages, without one (their content changes with the data, not on a date a page
+  could state).
 
 ### Disclaimer
 
