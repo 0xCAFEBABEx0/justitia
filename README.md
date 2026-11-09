@@ -222,9 +222,9 @@ amending law, the first three characters of the key (`scripts/amendment-shards.t
 
 | Worker | Keys | Amending laws |
 | --- | --- | --- |
-| `justitia-amendments-meiji-heisei` | `0`–`4` | Meiji to Heisei, which no longer grow |
-| `justitia-amendments-reiwa1-4` | `501`–`504` | Reiwa 1–4 |
-| `justitia-amendments-latest` | everything else | Reiwa 5 on, about 1,900 a year |
+| `justitia-amendments-1` | `0`–`4` | Meiji to Heisei, which no longer grow |
+| `justitia-amendments-2` | `501`–`504` | Reiwa 1–4 |
+| `justitia-amendments-3` | everything else | Reiwa 5 on, about 1,900 a year |
 
 Each answers Workers routes `anisotro.pics/amendment/<prefix>*`, which Terraform manages
 (`infra/terraform/envs/prod/amendments.tf`): routes take precedence over the main Worker's Custom Domain on the same

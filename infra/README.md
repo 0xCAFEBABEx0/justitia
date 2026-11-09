@@ -24,7 +24,7 @@ the site and the data on them.
 | Its managed label `cf-rss-feed`, which Bot Fight Mode lets through | Terraform, through the API on apply (see below) |
 | The bucket's custom domain `data.anisotro.pics` | Dashboard (cannot be imported, see below) |
 | Worker `justitia`: static assets, compatibility date, `workers_dev`/`preview_urls` off | Wrangler (`wrangler.jsonc`) |
-| Workers `justitia-amendments-meiji-heisei`, `justitia-amendments-reiwa1-4`, `justitia-amendments-latest`: the same settings, observability off | Wrangler (`wrangler.justitia-amendments-*.jsonc`) |
+| Workers `justitia-amendments-1` to `justitia-amendments-3`: the same settings, observability off | Wrangler (`wrangler.justitia-amendments-*.jsonc`) |
 | Workers Logs and Traces of the Worker | Wrangler (`wrangler.jsonc`, `observability`) |
 | Objects in the bucket | `scripts/upload-data.sh` (Publish workflow) |
 | API tokens for the Publish workflow and for Terraform | Dashboard |
@@ -75,16 +75,15 @@ examples), with Terraform 1.7 or later. The layout and the way Terraform is run 
 ## Amendment Workers' routes
 
 The static amendment pages are served by three assets-only Workers (README, "Amendment Workers"), each on Workers
-routes under `anisotro.pics/amendment/`: `0*` … `4*` → `justitia-amendments-meiji-heisei`, `501*` … `504*` →
-`justitia-amendments-reiwa1-4`, and `*` → `justitia-amendments-latest`, ten routes in all (the free plan allows 1,000
-a zone). The Workers are created by the first Publish run that deploys them, not by Terraform, so apply the routes
+routes under `anisotro.pics/amendment/`: `0*` … `4*` → `justitia-amendments-1`, `501*` … `504*` →
+`justitia-amendments-2`, and `*` → `justitia-amendments-3`, ten routes in all (the free plan allows 1,000 a zone). The Workers are created by the first Publish run that deploys them, not by Terraform, so apply the routes
 only after that run has succeeded; a route to a Worker that does not exist would answer with an error. The token's
 **Zone > Workers Routes: Edit** permission covers them (used for the canary on 2026-11-08). After an apply, check
 that:
 
 - `https://anisotro.pics/amendment/<a key>/` answers 200 with that amendment, for a key of each Worker (for example
   one starting with `4`, one with `503` and one with `508`);
-- `https://anisotro.pics/amendment/?k=<a key>` still works (served by `justitia-amendments-latest`);
+- `https://anisotro.pics/amendment/?k=<a key>` still works (served by `justitia-amendments-3`);
 - `https://anisotro.pics/amendment/x/` answers the site's 404 page with status 404;
 - the rest of the site is unchanged (`/`, `/laws/<id>/`, `/_astro/` files);
 - the Workers' Metrics show only static asset requests, no invocations.
@@ -103,7 +102,7 @@ missing:
 3. Run the checks above, then delete the Worker that no route uses any more, in the dashboard (Workers & Pages → the
    Worker → Settings → Delete) or with `npx wrangler delete --name <old name>` (needs the Workers Admin role).
 
-The first three were named `amendments-1` to `amendments-3` and renamed this way on 2026-11-09.
+The three were first named `amendments-1` to `amendments-3`, and renamed this way on 2026-11-09.
 
 ## Running Terraform
 

@@ -10,16 +10,16 @@
 # scripts/amendment-shards.ts (scripts/amendment-shards.test.ts checks it).
 locals {
   amendment_routes = {
-    "0"   = "justitia-amendments-meiji-heisei"
-    "1"   = "justitia-amendments-meiji-heisei"
-    "2"   = "justitia-amendments-meiji-heisei"
-    "3"   = "justitia-amendments-meiji-heisei"
-    "4"   = "justitia-amendments-meiji-heisei"
-    "501" = "justitia-amendments-reiwa1-4"
-    "502" = "justitia-amendments-reiwa1-4"
-    "503" = "justitia-amendments-reiwa1-4"
-    "504" = "justitia-amendments-reiwa1-4"
-    ""    = "justitia-amendments-latest"
+    "0"   = "justitia-amendments-1"
+    "1"   = "justitia-amendments-1"
+    "2"   = "justitia-amendments-1"
+    "3"   = "justitia-amendments-1"
+    "4"   = "justitia-amendments-1"
+    "501" = "justitia-amendments-2"
+    "502" = "justitia-amendments-2"
+    "503" = "justitia-amendments-2"
+    "504" = "justitia-amendments-2"
+    ""    = "justitia-amendments-3"
   }
 }
 
