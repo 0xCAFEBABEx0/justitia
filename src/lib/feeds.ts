@@ -174,7 +174,8 @@ export interface FeedItem {
  * Each amendment gives up to two items, each on its day, so a reader hears of it when it is
  * promulgated (as soon as houritsu has it) and again when it comes into force: the promulgation,
  * and the entry into force once that day has come. An amendment in force on the day it is promulgated
- * gives one item. Items from the past year (CALENDAR_PAST_DAYS) are kept, newest first.
+ * gives one item. Items from the past year (CALENDAR_PAST_DAYS) are kept, newest first, but no more
+ * than about RSS_MAX_ITEMS (see below).
  */
 export function feedItems(amendments: AmendmentSummary[], today: string): FeedItem[] {
   const from = addDays(today, -CALENDAR_PAST_DAYS);
@@ -184,8 +185,21 @@ export function feedItems(amendments: AmendmentSummary[], today: string): FeedIt
     if (a.enforced && a.enforced >= from && a.enforced <= today) items.push({ kind: "enforced", day: a.enforced, amendment: a });
   }
   // Newest first; on one day, entries into force before promulgations, then by key.
-  return items.sort((x, y) => y.day.localeCompare(x.day) || x.kind.localeCompare(y.kind) || x.amendment.key.localeCompare(y.amendment.key));
+  items.sort((x, y) => y.day.localeCompare(x.day) || x.kind.localeCompare(y.kind) || x.amendment.key.localeCompare(y.amendment.key));
+  if (items.length <= RSS_MAX_ITEMS) return items;
+  // A long feed is cut, but never inside a day: a day with more items than the limit (such as
+  // 1 April, when hundreds of amendments come into force) is kept whole, so no reader misses one.
+  const lastDay = items[RSS_MAX_ITEMS - 1].day;
+  return items.filter((i) => i.day >= lastDay);
 }
+
+/**
+ * How many items a feed keeps, plus the rest of the day the last of them falls on (so a feed can hold
+ * more). The site-wide feed has about 3,500 items
+ * a year (3 MB); feed readers fetch every few hours and need only the latest, and the law feeds stay
+ * well under it, so they keep their whole year.
+ */
+export const RSS_MAX_ITEMS = 200;
 
 export interface Feed {
   /** The channel's title, shown as the feed's name in readers. */

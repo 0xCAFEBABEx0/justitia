@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { AmendmentSummary, LawSummary } from "../../scripts/extract/types.ts";
-import { byCategory, byLaw, calendarEvents, feedItems, feedUrl, foldLine, icsCalendar, icsText, lawNames, rfc822, rssFeed, xmlText } from "./feeds.ts";
+import { byCategory, byLaw, calendarEvents, feedItems, RSS_MAX_ITEMS, feedUrl, foldLine, icsCalendar, icsText, lawNames, rfc822, rssFeed, xmlText } from "./feeds.ts";
 
 function amendment(over: Partial<AmendmentSummary>): AmendmentSummary {
   return {
@@ -146,4 +146,15 @@ test("rssFeed gives one item to an amendment in force on the day it is promulgat
   });
   assert.equal(xml.match(/<item>/g)?.length, 1);
   assert.ok(xml.includes("<title>公布・施行：民法等の一部を改正する法律</title>"));
+});
+
+test("feedItems keeps at most RSS_MAX_ITEMS, but never cuts a day", () => {
+  const today = "2026-11-08";
+  const many = (day: string, n: number, prefix: string) =>
+    Array.from({ length: n }, (_, i) => amendment({ key: `${prefix}${String(i).padStart(4, "0")}`, promulgated: null, enforced: day }));
+  const items = feedItems([...many("2026-11-01", RSS_MAX_ITEMS - 10, "a"), ...many("2026-10-01", 20, "b"), ...many("2026-09-01", 5, "c")], today);
+  // The 1 October day is cut into by the limit, so it is kept whole; 1 September goes.
+  assert.equal(items.length, RSS_MAX_ITEMS + 10);
+  assert.ok(items.every((i) => i.day >= "2026-10-01"));
+  assert.equal(feedItems(many("2026-11-01", 50, "d"), today).length, 50);
 });
