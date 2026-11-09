@@ -15,7 +15,7 @@ the site and the data on them.
 | R2 bucket `justitia-data-prod` (existence, location hint) | Terraform |
 | The bucket's `r2.dev` URL (off) | Terraform |
 | Workers Custom Domain `anisotro.pics` → Worker `justitia` | Terraform |
-| Workers routes `anisotro.pics/amendment/<prefix>*` → Workers `amendments-1` to `amendments-3` (the static amendment pages) | Terraform (`envs/prod/amendments.tf`, see below) |
+| Workers routes `anisotro.pics/amendment/<prefix>*` → Workers `justitia-amendments-*` (the static amendment pages) | Terraform (`envs/prod/amendments.tf`, see below) |
 | Cache rules `justitia-data-cache` and `data: versioned files 1 day` (zone entrypoint for Cache Rules) | Terraform |
 | Response header rule `justitia-data-cors` (zone entrypoint for Response Header Transform Rules) | Terraform |
 | Zone setting Browser Cache TTL (4 hours) | Terraform |
@@ -24,7 +24,7 @@ the site and the data on them.
 | Its managed label `cf-rss-feed`, which Bot Fight Mode lets through | Terraform, through the API on apply (see below) |
 | The bucket's custom domain `data.anisotro.pics` | Dashboard (cannot be imported, see below) |
 | Worker `justitia`: static assets, compatibility date, `workers_dev`/`preview_urls` off | Wrangler (`wrangler.jsonc`) |
-| Workers `amendments-1` to `amendments-3`: the same settings, observability off | Wrangler (`wrangler.amendments-*.jsonc`) |
+| Workers `justitia-amendments-1` to `justitia-amendments-3`: the same settings, observability off | Wrangler (`wrangler.justitia-amendments-*.jsonc`) |
 | Workers Logs and Traces of the Worker | Wrangler (`wrangler.jsonc`, `observability`) |
 | Objects in the bucket | `scripts/upload-data.sh` (Publish workflow) |
 | API tokens for the Publish workflow and for Terraform | Dashboard |
@@ -75,21 +75,35 @@ examples), with Terraform 1.7 or later. The layout and the way Terraform is run 
 ## Amendment Workers' routes
 
 The static amendment pages are served by three assets-only Workers (README, "Amendment Workers"), each on Workers
-routes under `anisotro.pics/amendment/`: `0*` … `4*` → `amendments-1`, `501*` … `504*` → `amendments-2`, and
-`*` → `amendments-3`, ten routes in all (the free plan allows 1,000 a zone). The Workers are created by the first
-Publish run that deploys them, not by Terraform, so apply the routes only after that run has succeeded; a route to a
-Worker that does not exist would answer with an error. The token's **Zone > Workers Routes: Edit** permission covers
-them (used for the canary on 2026-11-08). After the apply (the plan adds 10 routes, changes nothing else), check that:
+routes under `anisotro.pics/amendment/`: `0*` … `4*` → `justitia-amendments-1`, `501*` … `504*` →
+`justitia-amendments-2`, and `*` → `justitia-amendments-3`, ten routes in all (the free plan allows 1,000 a zone). The Workers are created by the first Publish run that deploys them, not by Terraform, so apply the routes
+only after that run has succeeded; a route to a Worker that does not exist would answer with an error. The token's
+**Zone > Workers Routes: Edit** permission covers them (used for the canary on 2026-11-08). After an apply, check
+that:
 
 - `https://anisotro.pics/amendment/<a key>/` answers 200 with that amendment, for a key of each Worker (for example
   one starting with `4`, one with `503` and one with `508`);
-- `https://anisotro.pics/amendment/?k=<a key>` still works (now served by `amendments-3`);
+- `https://anisotro.pics/amendment/?k=<a key>` still works (served by `justitia-amendments-3`);
 - `https://anisotro.pics/amendment/x/` answers the site's 404 page with status 404;
 - the rest of the site is unchanged (`/`, `/laws/<id>/`, `/_astro/` files);
 - the Workers' Metrics show only static asset requests, no invocations.
 
 A route takes about a minute to start answering. To undo it, remove `amendments.tf` (or the routes in it) and apply:
 `/amendment/?k=` is then served by the main Worker again.
+
+To rename an amendment Worker or add one, keep the old one serving until the routes have moved, so no page goes
+missing:
+
+1. Merge the change (`scripts/amendment-shards.ts`, its `wrangler.<name>.jsonc` and `amendments.tf`). The Publish run
+   creates the new Worker with its first `wrangler deploy`.
+2. Apply: the plan updates the `script` of the routes in place (`~`), and adds a route for each new prefix. Do it
+   before any change to the site's CSS or scripts is published: the old Worker is no longer deployed, and its pages
+   load `/_astro/` files that the main Worker keeps only until the Publish run after the one that replaced them
+   (README, publishing step 5).
+3. Run the checks above, then delete the Worker that no route uses any more, in the dashboard (Workers & Pages → the
+   Worker → Settings → Delete) or with `npx wrangler delete --name <old name>` (needs the Workers Admin role).
+
+The three were first named `amendments-1` to `amendments-3`, and renamed this way on 2026-11-09.
 
 ## Running Terraform
 

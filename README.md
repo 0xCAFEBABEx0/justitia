@@ -217,10 +217,16 @@ It rebuilds only what changed:
 
 A Worker version holds at most 20,000 files on the Workers Free plan. The site has about 10,000 pages and there are
 over 23,000 amendments, so the static amendment pages (`/amendment/<key>/`, `src/pages/amendment/[key].astro`) are
-served by three more assets-only Workers, `amendments-1` to `amendments-3` (`wrangler.amendments-*.jsonc`), split by
-the era and year of the amending law, the first three characters of the key (`scripts/amendment-shards.ts`):
-`0`–`4` (Meiji to Heisei, which no longer grow), `501`–`504` (Reiwa 1–4), and everything else (Reiwa 5 on, about
-1,900 a year). Each answers Workers routes `anisotro.pics/amendment/<prefix>*`, which Terraform manages
+served by three more assets-only Workers (`wrangler.justitia-amendments-*.jsonc`), split by the era and year of the
+amending law, the first three characters of the key (`scripts/amendment-shards.ts`):
+
+| Worker | Keys | Amending laws |
+| --- | --- | --- |
+| `justitia-amendments-1` | `0`–`4` | Meiji to Heisei, which no longer grow |
+| `justitia-amendments-2` | `501`–`504` | Reiwa 1–4 |
+| `justitia-amendments-3` | everything else | Reiwa 5 on, about 1,900 a year |
+
+Each answers Workers routes `anisotro.pics/amendment/<prefix>*`, which Terraform manages
 (`infra/terraform/envs/prod/amendments.tf`): routes take precedence over the main Worker's Custom Domain on the same
 hostname, and the most specific route wins, so the catch-all `amendment/*` also takes `/amendment/?k=` (it has a copy
 of that page). None of them runs a Worker script, so their requests are free static asset requests, as for the main
@@ -235,9 +241,8 @@ browser fetches the amendment from R2 only for the rest, or when the inline view
 The amendment pages load their CSS and scripts from `/_astro/` on the main Worker, which the main Worker therefore
 keeps for one build after they change (see step 5 above).
 
-Rollout: the first Publish run after the merge creates the three Workers (the Wrangler token may create Workers);
-then the owner applies the routes (`infra/README.md`); then the site links to the static pages and lists them in the
-sitemap (a later change).
+A new Worker name is created by its first `wrangler deploy` in the Publish workflow (the Wrangler token may create
+Workers); the owner then points the routes at it (`infra/README.md`, "Amendment Workers' routes").
 
 A change to the site takes a few minutes. New commits in houritsu take about 15 minutes more for the extraction
 and, when the law text changed, about 10 for the search index. To rebuild everything anyway, run the workflow by

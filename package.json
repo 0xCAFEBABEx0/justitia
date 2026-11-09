@@ -15,7 +15,7 @@
     "upload-data": "scripts/upload-data.sh",
     "split-amendments": "node scripts/split-amendments.ts",
     "deploy": "npx --yes wrangler@4.151.3 deploy",
-    "deploy:amendments": "for n in 1 2 3; do npx --yes wrangler@4.151.3 deploy --config wrangler.amendments-$n.jsonc || exit 1; done"
+    "deploy:amendments": "for c in wrangler.justitia-amendments-*.jsonc; do npx --yes wrangler@4.151.3 deploy --config \"$c\" || exit 1; done"
   },
   "repository": {
     "type": "git",

@@ -14,9 +14,9 @@ export interface Shard {
 }
 
 export const SHARDS: Shard[] = [
-  { name: "amendments-1", prefixes: ["0", "1", "2", "3", "4"] }, // Meiji to Heisei
-  { name: "amendments-2", prefixes: ["501", "502", "503", "504"] }, // Reiwa 1-4
-  { name: "amendments-3", prefixes: [""] }, // everything else: Reiwa 5 on, and the /amendment/ page itself
+  { name: "justitia-amendments-1", prefixes: ["0", "1", "2", "3", "4"] }, // Meiji to Heisei
+  { name: "justitia-amendments-2", prefixes: ["501", "502", "503", "504"] }, // Reiwa 1-4
+  { name: "justitia-amendments-3", prefixes: [""] }, // everything else: Reiwa 5 on, and the /amendment/ page itself
 ];
 
 /**
