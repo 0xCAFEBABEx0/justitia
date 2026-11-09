@@ -177,7 +177,8 @@ liability for damages from its use, in three places:
 ## Publishing
 
 `.github/workflows/publish.yml` publishes the site every day at 05:17 JST and again at 08:47 JST, on every push
-to `main` (except changes to Markdown files, repository settings and `infra/`), and when run by hand (Actions → Publish →
+to `main` (except changes to Markdown files, repository settings, `infra/` and the release workflow; see
+[Versioning and releases](#versioning-and-releases)), and when run by hand (Actions → Publish →
 Run workflow). houritsu is pushed once a day at about 04:10 JST (04:27 JST on Sundays, when its builder fetches
 everything from e-Gov), so the first run picks up the day's commits; the second one covers a scheduled run that
 GitHub dropped or a late push to houritsu, and takes about 2 minutes when there is nothing new.
@@ -318,6 +319,75 @@ To publish from your own machine instead, set the same four values as environmen
 later, and Node.js 22.23.4 or later),
 then run `npm run upload-data` and `npm run deploy` after building.
 
+
+## Versioning and releases
+
+The site is deployed continuously: every push to `main` publishes it, and houritsu's daily update is published every
+morning. A version therefore does not gate a deploy. It names a point in `main`'s history, so a change can be referred
+to and announced, and [CHANGELOG.md](CHANGELOG.md) and the
+[GitHub Releases](https://github.com/0xCAFEBABEx0/justitia/releases) say what changed for the people who use the
+site, its data, feeds and calendars.
+
+- **Calendar versions `YYYY.M.N`**: the year and month (Japan time) of the release, and `N`, which counts the releases
+  of that month from 0: `2026.11.0`, `2026.11.1`, `2026.12.0`. The tag is `v` + version (`v2026.11.0`). Semantic
+  versioning would not fit: nothing installs a version of the site, and its public contracts (below) are kept
+  stable by rule instead of by major versions. A calendar version says how recent a change is, allows any number
+  of releases a month, and is also a valid semantic version (no leading zeros), so tools that sort versions sort
+  it correctly.
+- **What a version covers**: the code in this repository (site, extractor, feeds, publishing). The data is not
+  versioned by releases: houritsu's daily updates are published without one, and each build of the data has its own
+  data version (`dataVersion` in `meta.json`, see [Output](#output)) and data date (shown on the home and about
+  pages).
+- **Public contracts and breaking changes**: page URLs, the files, fields and keys of the JSON at
+  `https://data.anisotro.pics`, and the URLs of the calendars and feeds are relied on by bookmarks, subscriptions and
+  reusers of the data. They are not changed for style ([AGENTS.md](AGENTS.md), rule 10). When one has to change, the
+  pull request says so, and its changelog entry starts with **Breaking:**.
+- **`package.json`'s `version` is not the site's version.** The package is private and never published; the field
+  stays as it is and is not bumped. The tags and CHANGELOG.md are the record.
+
+### Changelog
+
+[CHANGELOG.md](CHANGELOG.md) follows [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/): one section per
+release, newest first, headed `## [YYYY.M.N] - YYYY-MM-DD`, with entries under `### Added`, `### Changed`,
+`### Deprecated`, `### Removed`, `### Fixed` and `### Security` (in that order, only those used), and a link
+reference per version at the end of the file (the compare view from the version before it; the tag page for the
+first). Entries are in English, written for the people who use the site and its data rather than for developers, and
+end with the pull requests they come from (`(#27, #29)`).
+
+- List: new and changed pages and features, visible fixes, accessibility and performance improvements, changes to
+  the published data, calendars and feeds, and security fixes.
+- Leave out: dependency updates (unless they fix a security issue or change something visible), refactoring, tests,
+  documentation, CI, infrastructure and repository settings, and changes undone before the release (a canary added
+  and removed, for example). A release needs at least one entry.
+
+Feature pull requests do not edit CHANGELOG.md: several branches are open at once, and they would all change the
+same lines. The release pull request writes the entries from the pull requests merged since the last tag, so a pull
+request's title and description should say what changed for users.
+
+### Cutting a release
+
+Cut a release when `main` has changes worth announcing: after a notable feature or fix, or about once a week when
+smaller changes have piled up. Changes that would all be left out of the changelog need no release.
+
+1. List what was merged since the last release:
+   `git fetch origin --tags && git log --first-parent --oneline "$(git describe --tags --abbrev=0 origin/main)..origin/main"`.
+2. On a new branch from `origin/main`, add the new section at the top of CHANGELOG.md (above the previous release),
+   with the version and today's date in Japan time, and its link reference at the end; update the version in the
+   "Changes merged since the latest release" compare link under the introduction. `node scripts/changelog.ts` checks
+   the file (`npm test` does too).
+3. Open a pull request titled `Release YYYY.M.N` that changes only CHANGELOG.md. The Publish workflow ignores it,
+   so the merge deploys nothing new. Before merging it, hold other merges until it is in, run the command of step 1
+   again and add entries for anything merged in the meantime (above all a **Breaking:** change). If the date has
+   passed, update it (and the version, if the month changed: the workflow refuses a version of an earlier month).
+4. Merge it. `.github/workflows/release.yml` checks CHANGELOG.md, then creates the tag `vYYYY.M.N` on the merge
+   commit and a GitHub Release titled `YYYY.M.N` whose notes are the new section (with its lines joined, since
+   GitHub shows every line break) and a link to the full diff. It does nothing if that release already exists; if
+   it failed, fix CHANGELOG.md in another pull request, or run it by hand (Actions → Release → Run workflow), which
+   creates the newest version's release at the last commit on `main`'s first-parent line that changed CHANGELOG.md
+   (the release PR's merge), even if other pull requests have merged since.
+
+Tags are never moved or deleted. A mistake in published notes is fixed in CHANGELOG.md by a pull request and by
+editing the GitHub Release by hand; a mistake in the code is fixed in the next release.
 
 ## License
 

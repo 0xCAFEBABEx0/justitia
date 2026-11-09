@@ -1,0 +1,69 @@
+# Creates the GitHub Release (and its tag v<version>) for the newest version in CHANGELOG.md when a release PR
+# merges into main. See README, "Versioning and releases".
+#
+# The site is deployed by the Publish workflow on every push to main; a release does not deploy anything. A release
+# PR changes only CHANGELOG.md, which Publish ignores, so the tag points at the commit whose site is already live.
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths: [CHANGELOG.md]
+  # Creates the release of the newest version if it is missing (after a failed run, for example).
+  workflow_dispatch:
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # create the tag and the release
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the whole history, to find the commit that last changed CHANGELOG.md
+
+      # scripts/changelog.ts uses only Node.js built-ins (TypeScript runs directly from 22.18), so no npm ci.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # On a merge, the newest release must be of the month of the merge commit (its committer date, in Japan time): a
+      # release PR written in one month and merged in the next gets the new month's version first. A run by hand may
+      # create a missed release later.
+      - name: Check CHANGELOG.md and write the release notes
+        id: changelog
+        env:
+          ON_PUSH: ${{ github.event_name == 'push' }}
+        run: |
+          month=()
+          if [[ "$ON_PUSH" == true ]]; then month=(--merged-at "$(git log -1 --format=%cI "$GITHUB_SHA")"); fi
+          version=$(node scripts/changelog.ts "${month[@]}" --notes "$RUNNER_TEMP/notes.md")
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+          # The release PR's merge commit: on a push, the pushed commit itself; on a run by hand, the last commit on main's
+          # first-parent line that changed CHANGELOG.md (not a commit inside a merged branch), so a run after later
+          # merges still tags the commit the notes describe.
+          if [[ "$ON_PUSH" == true ]]; then target=$GITHUB_SHA; else target=$(git log --first-parent -1 --format=%H -- CHANGELOG.md); fi
+          echo "target=$target" >>"$GITHUB_OUTPUT"
+
+      # gh is preinstalled on GitHub-hosted runners. A tag that does not exist yet is created at --target.
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          VERSION: ${{ steps.changelog.outputs.version }}
+          TARGET: ${{ steps.changelog.outputs.target }}
+        run: |
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "Release v$VERSION already exists; nothing to do"
+            exit 0
+          fi
+          gh release create "v$VERSION" --target "$TARGET" --title "$VERSION" --notes-file "$RUNNER_TEMP/notes.md"
