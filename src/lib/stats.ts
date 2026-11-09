@@ -172,25 +172,30 @@ export function articleSpan(heading: string): number {
   if (!joiner) return 1;
   if (joiner === "及び") return 2;
   const [from, to] = [kanjiNumber(fromNum), kanjiNumber(toNum)];
-  if (from !== to) return to > from ? to - from + 1 : 1;
+  // 第六百九十九条から第七百条の五十まで: 第六百九十九条, 第七百条 and 第七百条の二 to の五十
+  if (from !== to) return to > from ? to - from + 1 + (toBranch ? lastBranch(toBranch) - 1 : 0) : 1;
   // 第三条の二から第三条の五まで
-  const last = (s: string) => kanjiNumber(s.split("の").pop() ?? "");
-  const [a, b] = [fromBranch ? last(fromBranch) : 1, toBranch ? last(toBranch) : 1];
+  const [a, b] = [fromBranch ? lastBranch(fromBranch) : 1, toBranch ? lastBranch(toBranch) : 1];
   return b > a ? b - a + 1 : 1;
+}
+
+/** The last branch number of "の二の三" (3). */
+function lastBranch(branch: string): number {
+  return kanjiNumber(branch.split("の").pop() ?? "");
 }
 
 /**
  * How many of the articles a heading stands for have a branch number: 第三条の二 is one,
- * 第三条の二から第三条の五まで four, 第三条から第三条の三まで two (第三条 has none). A range across
- * article numbers (第三条の二から第五条まで) counts only its ends, as the branches in between are
- * not in the heading.
+ * 第三条の二から第三条の五まで four, 第三条から第三条の三まで two (第三条 has none). In a range across
+ * article numbers, the branches of the last article up to the end are counted (第三条から第五条の三まで:
+ * two); branches of the articles in between are not in the heading, so they are not.
  */
 export function branchedSpan(heading: string): number {
   const m = ARTICLE_HEADING.exec(heading);
   if (!m) return 0;
   const [, fromNum, fromBranch, joiner, toNum, toBranch] = m;
-  const ends = (fromBranch ? 1 : 0) + (joiner && toBranch ? 1 : 0);
-  if (joiner !== "から" || kanjiNumber(fromNum) !== kanjiNumber(toNum)) return ends;
+  if (joiner !== "から") return (fromBranch ? 1 : 0) + (joiner && toBranch ? 1 : 0);
+  if (kanjiNumber(fromNum) !== kanjiNumber(toNum)) return (fromBranch ? 1 : 0) + (toBranch ? lastBranch(toBranch) - 1 : 0);
   return articleSpan(heading) - (fromBranch ? 0 : 1);
 }
 
@@ -211,9 +216,10 @@ const KANJI = "\\u4E00-\\u9FFF\\u3005";
 const KATAKANA_PARTICLE = new RegExp(`[${KANJI}][ノニヲハヘトモ](?=[${KANJI}])`, "g");
 const HIRAGANA_PARTICLE = new RegExp(`[${KANJI}][のにをはへとも](?=[${KANJI}])`, "g");
 
-/** Visible characters of a markdown line: no tags, list markers or whitespace. */
+/** Visible characters of a markdown line: no tags, list markers or whitespace. Counts code points, not UTF-16 units. */
 function visible(text: string): number {
-  return text.replace(/<[^>]*>/g, "").replace(/^\s*- /gm, "").replace(/\s/g, "").length;
+  const s = text.replace(/<[^>]*>/g, "").replace(/^\s*- /gm, "").replace(/\s/g, "");
+  return s.length - (s.match(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g)?.length ?? 0);
 }
 
 /**
@@ -246,7 +252,7 @@ export function measureBlocks(blocks: { key: string; level: number; heading: str
     if (/^削除\s*$/.test(b.text.trim())) deleted += span;
     branched += branchedSpan(b.heading);
   }
-  return { chars, articles, deleted, branched, katakana: kata > hira && kata >= 2 };
+  return { chars, articles, deleted, branched, katakana: kata > hira };
 }
 
 let textCache: Map<string, TextStats> | null = null;

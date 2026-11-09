@@ -100,11 +100,13 @@ test("kanjiNumber and articleSpan", () => {
   assert.equal(articleSpan("第三十二条から第三十四条まで"), 3);
   assert.equal(articleSpan("第三条の二から第三条の五まで"), 4);
   assert.equal(articleSpan("第十二条及び第十三条"), 2);
+  assert.equal(articleSpan("第六百九十九条から第七百条の五十まで"), 51);
   assert.equal(branchedSpan("第三条"), 0);
   assert.equal(branchedSpan("第三条の二"), 1);
   assert.equal(branchedSpan("第三条の二から第三条の五まで"), 4);
   assert.equal(branchedSpan("第三条から第三条の三まで"), 2);
   assert.equal(branchedSpan("第三条の二から第五条まで"), 1);
+  assert.equal(branchedSpan("第六百九十九条から第七百条の五十まで"), 49);
   assert.equal(branchedSpan("第三条の二及び第三条の三"), 2);
   assert.equal(branchedSpan("第一章　総則"), 0);
   assert.equal(articleSpan("第一章　総則"), 0);
@@ -146,6 +148,8 @@ test("measureBlocks counts characters, articles, 削除 and 枝番 in the main p
   const expected = ["第一章総則", "第一条（目的）", "この法律は、テストを目的とする。", "一別表", "第二条から第四条まで", "削除", "第四条の二", "国は、テストをする。", "附則", "第一条", "この法律は、公布の日から施行する。"].join("").length;
   assert.equal(s.chars, expected);
   assert.equal(s.katakana, false);
+  // a character outside the BMP counts once
+  assert.equal(measureBlocks(body("# 題名\n\n𠮟る")).chars, 2);
 });
 
 test("measureBlocks tells katakana laws from their particles, text under the title included", () => {
