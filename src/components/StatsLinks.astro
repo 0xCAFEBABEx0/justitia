@@ -1,0 +1,20 @@
+---
+// Links to the other /stats/ pages, at the bottom of the side column of each list.
+const STATS_PAGES = [
+  { href: "/stats/unamended/", title: "一度も改正されていない法律の一覧" },
+  { href: "/stats/oldest/", title: "日本一古い法律は？現行法令の古い順" },
+  { href: "/stats/most-amended/", title: "改正回数が多い法律ランキング" },
+  { href: "/stats/length/", title: "日本一長い法律・短い法律は？法令の文字数ランキング" },
+  { href: "/stats/katakana/", title: "カタカナで書かれた法律の一覧" },
+];
+
+interface Props {
+  /** The page the links are on, left out of the list. */
+  current: string;
+}
+const { current } = Astro.props;
+---
+<ul class="flex flex-col gap-2">
+  {STATS_PAGES.filter((p) => p.href !== current).map((p) => <li><a class="link link-primary" href={p.href}>{p.title} →</a></li>)}
+  <li><a class="link link-primary" href="/stats/">法令の統計 →</a></li>
+</ul>

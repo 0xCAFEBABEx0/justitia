@@ -1,0 +1,39 @@
+---
+// Counts of laws by era and type, for the side column of the /stats/ lists. 憲法 and 勅令 are too
+// few to get their own column: they are counted with 法律 and 政令.
+import { TYPE_LABELS } from "../lib/data.ts";
+import { ERAS, type StatLaw } from "../lib/stats.ts";
+
+interface Props {
+  items: StatLaw[];
+}
+const { items } = Astro.props;
+const COLUMNS = [
+  { label: TYPE_LABELS.act, dirs: ["act", "constitution"] },
+  { label: TYPE_LABELS["cabinet-order"], dirs: ["cabinet-order", "imperial-order"] },
+  { label: TYPE_LABELS["ministerial-ordinance"], dirs: ["ministerial-ordinance"] },
+  { label: TYPE_LABELS.rule, dirs: ["rule"] },
+];
+const eras = ERAS.map((e) => ({ name: e.name, items: items.filter((l) => l.year?.era === e.name) })).filter((e) => e.items.length > 0);
+const counts = (list: StatLaw[]) => [...COLUMNS.map((c) => list.filter((l) => c.dirs.includes(l.dir)).length), list.length];
+---
+<section class="card card-border bg-base-100">
+  <div class="card-body p-5">
+    <h2 class="card-title text-base">時代と種別ごとの件数</h2>
+    <div class="overflow-x-auto">
+      <table class="table table-xs tabular-nums">
+        <thead>
+          <tr class="text-base-content/65"><th scope="col">時代</th>{COLUMNS.map((c) => <th scope="col" class="text-right">{c.label}</th>)}<th scope="col" class="text-right">計</th></tr>
+        </thead>
+        <tbody>
+          {eras.map((e) => (
+            <tr>
+              <th scope="row">{e.name}</th>
+              {counts(e.items).map((n, i) => <td class:list={["text-right", { "font-bold": i === COLUMNS.length, "text-base-content/65": n === 0 }]}>{n.toLocaleString()}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,64 @@
+---
+import Base from "../../../layouts/Base.astro";
+import PageHeader from "../../../components/PageHeader.astro";
+import StatsNote from "../../../components/StatsNote.astro";
+import StatsLinks from "../../../components/StatsLinks.astro";
+import StatLawList from "../../../components/StatLawList.astro";
+import TypeFilter from "../../../components/TypeFilter.astro";
+import EraTypeTable from "../../../components/EraTypeTable.astro";
+import { buildDate, jpDate } from "../../../lib/data.ts";
+import { byAge, ERAS, statLaws, textStats, type StatLaw } from "../../../lib/stats.ts";
+
+/** Well-known katakana laws named in the lead when they are in the list. */
+const KNOWN = ["手形法", "小切手法", "供託法", "公証人法", "船舶法"];
+
+const today = buildDate();
+const text = textStats();
+const measured = statLaws(today).filter((l) => text.has(l.id));
+const items = measured.filter((l) => text.get(l.id)!.katakana).sort(byAge);
+const isAct = (l: StatLaw) => l.dir === "act" || l.dir === "constitution";
+const acts = items.filter(isAct);
+const newest = acts.filter((l) => l.year).sort((a, b) => byAge(b, a))[0];
+const known = KNOWN.filter((k) => items.some((l) => l.title === k));
+const eras = ERAS.map((e) => ({ ...e, items: items.filter((l) => l.year?.era === e.name) })).filter((e) => e.items.length > 0);
+const unknownYear = items.filter((l) => !l.year);
+const last = (l: StatLaw) => (l.lastAmended ? `最終改正 ${jpDate(l.lastAmended)}` : null);
+const title = "カタカナで書かれた法律の一覧";
+const description = `条文がカタカナの文語体で書かれた現行の法令は ${items.length.toLocaleString()} 件（うち法律 ${acts.length.toLocaleString()} 件）。${known.length ? `${known.join("、")}など、` : ""}明治から昭和初期の法令を古い順に並べました。`;
+---
+<Base title={title} description={description} nav="stats">
+  <PageHeader title={title} crumbs={[{ href: "/stats/", label: "法令の統計" }]}>
+    現行の法令のうち、本則がカタカナの文語体（「之ヲ適用セス」のような書き方）で書かれているものは <b>{items.length.toLocaleString()} 件</b>（うち法律 {acts.length.toLocaleString()} 件）です。{known.length > 0 && <>{known.join("、")}も今もカタカナのままです。</>}{newest?.year && <>法律で最も新しいのは{newest.title}（{newest.year.year}年）です。</>}
+  </PageHeader>
+  <StatsNote />
+
+  <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <section class="min-w-0" data-type-filter-root>
+      <TypeFilter dirs={items.map((l) => l.dir)} />
+      {eras.map((e) => (
+        <section class="mb-6" data-type-group>
+          <h2 class="mb-3 text-xl font-bold">{e.name}の法令（{e.items.length.toLocaleString()} 件）</h2>
+          <StatLawList items={e.items} note={last} markUnamended />
+        </section>
+      ))}
+      {unknownYear.length > 0 && (
+        <section class="mb-6" data-type-group>
+          <h2 class="mb-3 text-xl font-bold">制定年が分からない法令</h2>
+          <StatLawList items={unknownYear} note={last} markUnamended />
+        </section>
+      )}
+    </section>
+
+    <aside class="flex flex-col gap-4 text-sm">
+      <EraTypeTable items={items} />
+      <section class="card card-border bg-base-100">
+        <div class="card-body gap-2 p-5">
+          <h2 class="card-title text-base">数え方</h2>
+          <p class="text-base-content/70">本則（附則を除く本文）で、漢字に続く助詞がカタカナ（条ノ規定ハ）の箇所が、ひらがな（条の規定は）の箇所より多い法令を数えています。後の改正で一部の条がひらがなになった法令も含みます。</p>
+          <p class="text-base-content/70">刑法（1995年）や民法（2004年）のように、改正で全体がひらがなの口語体に改められた法令は含みません。</p>
+        </div>
+      </section>
+      <StatsLinks current="/stats/katakana/" />
+    </aside>
+  </div>
+</Base>

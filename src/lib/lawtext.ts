@@ -4,7 +4,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { splitBlocks } from "../../scripts/extract/blocks.ts";
-import { splitLawFile } from "../../scripts/extract/frontmatter.ts";
+import { splitLawFile, type LawDoc } from "../../scripts/extract/frontmatter.ts";
 import { meta } from "./data.ts";
 import { renderBlocks, renderBlockText, type RenderedLaw } from "./render.ts";
 import { HOURITSU_DIR } from "./site.ts";
@@ -36,8 +36,8 @@ function checkSourceCommit(): void {
   sourceChecked = true;
 }
 
-/** Renders the law file at `path` (relative to the houritsu clone), or null if it is gone. */
-export function renderLawFile(path: string): (RenderedLaw & { title: string }) | null {
+/** The law file at `path` (relative to the houritsu clone), split into frontmatter and body, or null if it is gone. */
+export function readLawFile(path: string): LawDoc | null {
   checkSourceCommit();
   let text: string;
   try {
@@ -45,7 +45,13 @@ export function renderLawFile(path: string): (RenderedLaw & { title: string }) |
   } catch {
     return null;
   }
-  const doc = splitLawFile(text);
+  return splitLawFile(text);
+}
+
+/** Renders the law file at `path` (relative to the houritsu clone), or null if it is gone. */
+export function renderLawFile(path: string): (RenderedLaw & { title: string }) | null {
+  const doc = readLawFile(path);
+  if (!doc) return null;
   const blocks = splitBlocks(doc.body);
   const title = blocks.find((b) => b.level === 1)?.heading ?? String(doc.frontmatter.title ?? "");
   const titleBlock = blocks.find((b) => b.level === 1);
