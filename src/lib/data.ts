@@ -8,6 +8,7 @@ import type {
   LawSummary,
   Meta,
 } from "../../scripts/extract/types.ts";
+import type { RevisionLinks } from "../scripts/amendment.ts";
 import { collectNewLaws, type NewLaw } from "./new-laws.ts";
 import { collectRepealedLaws, type RepealedLaw } from "./repealed-laws.ts";
 import { DATA_DIR } from "./site.ts";
@@ -88,6 +89,42 @@ export function pageAmendments(): AmendmentSummary[] {
   if (!only) return all;
   const ids = new Set(only.split(",").map((s) => s.trim()));
   return all.filter((a) => a.laws.some((l) => ids.has(l.id)));
+}
+
+/**
+ * For each amendment key, by law ID: the law's e-Gov revision IDs after and before the change, and the key of the
+ * law's revision before it. Each revision is compared with the one before it in the law's own history (oldest
+ * first, upcoming last), which is how the versions page steps through it.
+ */
+export function indexRevisions(details: Iterable<Pick<LawDetail, "id" | "revisions">>): Map<string, Record<string, RevisionLinks>> {
+  const index = new Map<string, Record<string, RevisionLinks>>();
+  for (const { id, revisions } of details) {
+    revisions.forEach((r, i) => {
+      const prev = revisions[i - 1];
+      const links: RevisionLinks = {};
+      if (r.revisionId) links.after = r.revisionId;
+      if (prev?.revisionId) links.before = prev.revisionId;
+      if (prev) links.from = prev.amendment;
+      let byLaw = index.get(r.amendment);
+      if (!byLaw) index.set(r.amendment, (byLaw = {}));
+      byLaw[id] = links;
+    });
+  }
+  return index;
+}
+
+let revisionsCache: Map<string, Record<string, RevisionLinks>> | null = null;
+/**
+ * What the amendment page links for each law the amendment changes (see indexRevisions). The amendment files have
+ * no revision IDs; the law files do, so every law file is read once, on the first call.
+ */
+export function amendmentRevisions(key: string): Record<string, RevisionLinks> {
+  revisionsCache ??= indexRevisions(
+    (function* () {
+      for (const s of laws()) if (existsSync(join(DATA_DIR, "laws", `${s.id}.json`))) yield law(s.id);
+    })(),
+  );
+  return revisionsCache.get(key) ?? {};
 }
 
 /** One amendment with its diffs (amendments/<key>.json, the file the amendment page fetches). */

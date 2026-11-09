@@ -4,10 +4,10 @@
 // Workers, not by the main Worker: scripts/split-amendments.ts moves them out of dist/ after the build (see
 // scripts/amendment-shards.ts).
 import Base from "../../layouts/Base.astro";
-import { amendment, dataVersion, jpDate, pageAmendments } from "../../lib/data.ts";
+import { amendment, amendmentRevisions, dataVersion, jpDate, law, pageAmendments } from "../../lib/data.ts";
 import { DATA_BASE } from "../../lib/site.ts";
 import { amendingLegislation, breadcrumbList, jsonLdText } from "../../lib/seo.ts";
-import { amendmentDescription, amendmentStaticHtml } from "../../scripts/amendment.ts";
+import { amendmentDescription, amendmentStaticHtml, type AmendmentLinks } from "../../scripts/amendment.ts";
 
 export function getStaticPaths() {
   return pageAmendments().map((a) => ({ params: { key: a.key } }));
@@ -19,7 +19,15 @@ const CONTENT_BUDGET = 800_000;
 
 const { key } = Astro.params;
 const a = amendment(key);
-const { html, complete } = amendmentStaticHtml(a, CONTENT_BUDGET);
+// The revisions around the change, from the law files, for the e-Gov and comparison links. An amendment of one law
+// gets the graph the law page shows: the law and the three laws most often amended with it.
+const revisions = amendmentRevisions(key);
+const only = a.files.length === 1 && a.files[0].lawId in revisions ? law(a.files[0].lawId) : null;
+const links: AmendmentLinks = {
+  laws: revisions,
+  ...(only ? { graph: [only.id, ...only.related.slice(0, 3).map((r) => r.id)] } : {}),
+};
+const { html, complete } = amendmentStaticHtml(a, CONTENT_BUDGET, links);
 const year = a.enforced?.slice(0, 4) ?? "undetermined";
 const url = new URL(`/amendment/${key}/`, Astro.site).href;
 const ld = [
@@ -43,7 +51,7 @@ const ld = [
 ---
 <Base title={`${a.title}（${a.enforced ? `${jpDate(a.enforced)}施行` : "施行日未定"}）`} description={amendmentDescription(a)} nav="timeline">
   <script is:inline type="application/ld+json" set:html={jsonLdText(ld)} />
-  <div id="amendment" data-base={DATA_BASE} data-v={dataVersion()} data-key={key} data-complete={String(complete)} set:html={html} />
+  <div id="amendment" data-base={DATA_BASE} data-v={dataVersion()} data-key={key} data-complete={String(complete)} data-links={JSON.stringify(links)} set:html={html} />
   <script>
     import { renderAmendmentPage } from "../../scripts/amendment.ts";
     void renderAmendmentPage(document.getElementById("amendment")!);

@@ -33,6 +33,44 @@ const OP_BADGE: Record<BlockChange["op"], string> = {
 /** A short explanatory line (no data, nothing found, and so on). */
 export const NOTE = "text-sm text-base-content/70";
 
+/** Around one amendment of one law: the law's e-Gov revision IDs before and after it, and the key of the law's revision before it. */
+export interface RevisionLinks {
+  before?: string;
+  after?: string;
+  from?: string;
+}
+
+/**
+ * What the static page adds to the amendment file from the law files (laws/<id>.json), passed to the browser in the
+ * page's data-links attribute so that the page rendered again in the browser keeps it.
+ */
+export interface AmendmentLinks {
+  /** By law ID, for the laws the amendment changes. */
+  laws: Record<string, RevisionLinks>;
+  /** Laws for the amendment graph button; without it, the laws the amendment changes. */
+  graph?: string[];
+}
+
+/** The graph page shows at most this many laws (MAX_LANES in src/scripts/graph.ts). */
+const GRAPH_LANES = 12;
+
+/**
+ * A law on e-Gov 法令検索 as it read at one revision: /law/<law ID>/<the rest of the revision ID>. A revision ID e-Gov
+ * does not know opens the current text without an error, so the ID must come from the data (houritsu's revision_id),
+ * never be pieced together from the amendment key (e-Gov dates undetermined revisions 21171231, for one).
+ */
+export function egovRevisionUrl(lawId: string, revisionId: string | undefined): string | null {
+  if (!revisionId?.startsWith(`${lawId}_`)) return null;
+  const rest = revisionId.slice(lawId.length + 1);
+  return /^\d{8}_[0-9A-Za-z]+$/.test(rest) ? `https://laws.e-gov.go.jp/law/${lawId}/${rest}` : null;
+}
+
+/** The amendment graph of the laws the amendment changes (or `links.graph`). */
+export function graphUrl(a: Amendment, links?: AmendmentLinks): string {
+  const ids = links?.graph?.length ? links.graph : a.files.map((f) => f.lawId);
+  return `/graph/?laws=${[...new Set(ids)].slice(0, GRAPH_LANES).map(encodeURIComponent).join(",")}`;
+}
+
 /** The 新旧対照 / インライン switch, as a daisyUI join of two buttons. */
 export function viewToggleHtml(view: View): string {
   const btn = (v: View, label: string) =>
@@ -160,8 +198,13 @@ export function blockHtml(b: BlockChange, lawId: string, view: View, articleUrl?
  * One changed law. With `blocks`, only the blocks it returns are shown (the static page renders as many as fit
  * its size budget, see amendmentStaticHtml).
  */
-function fileHtml(f: FileChange, view: View, a: Amendment, blocks: BlockChange[] | undefined = f.blocks): string {
-  const amendmentKey = a.key;
+function fileHtml(
+  f: FileChange,
+  view: View,
+  a: Amendment,
+  links: AmendmentLinks | undefined,
+  blocks: BlockChange[] | undefined = f.blocks,
+): string {
   const staged = isStaged(f.kind, f.lawId, a.amendmentLawId);
   const stats =
     f.kind === "amended" ? ` <span class="tabular-nums"><span class="text-add">+${f.additions}</span> <span class="text-del">−${f.deletions}</span></span>` : "";
@@ -178,23 +221,38 @@ function fileHtml(f: FileChange, view: View, a: Amendment, blocks: BlockChange[]
   } else {
     body = `<p class="${NOTE}">${f.kind === "enacted" ? "この法令はここで制定されました。" : "この法令は houritsu にここから収録されています（それ以前の改正履歴はありません）。"}全文は<a class="link link-primary" href="/laws/${f.lawId}/">条文ページ</a>で見られます。</p>`;
   }
-  const versions =
-    f.kind !== "repealed" && amendmentKey
-      ? `・<a class="link link-primary" href="/versions/?law=${f.lawId}&at=${encodeURIComponent(amendmentKey)}">${staged ? "施行後" : "改正後"}の条文</a>`
-      : "";
-  // An amendment that changes many laws: each can be printed alone.
-  const printOne =
-    a.files.length > 1
-      ? ` <button type="button" class="btn btn-ghost btn-xs ml-1 align-middle font-normal text-primary print:hidden" data-print-law="law-${esc(f.lawId)}">この法令だけ印刷</button>`
-      : "";
+  const actions = lawActionsHtml(f, a, staged, links?.laws[f.lawId]);
   return `<section class="mt-8 scroll-mt-[4.5rem] print:mt-6" id="law-${esc(f.lawId)}">
     <h2 class="text-xl font-bold break-after-avoid"><a class="link link-hover" href="/laws/${f.lawId}/">${esc(f.title)}</a> ${kindBadge(f, a.amendmentLawId)}</h2>
-    <div class="mt-0.5 mb-3 text-sm text-base-content/65">${esc(f.lawNum)}${stats}${f.blocks ? `・変更 ${f.blocks.length} か所` : ""}${versions}${printOne}</div>
-    ${title}${body}
+    <div class="mt-0.5 ${actions ? "" : "mb-3 "}text-sm text-base-content/65">${esc(f.lawNum)}${stats}${f.blocks ? `・変更 ${f.blocks.length} か所` : ""}</div>
+    ${actions}${title}${body}
   </section>`;
 }
 
-function headHtml(a: Amendment): string {
+/**
+ * The links under one changed law, like the buttons under a law page's heading: its text after the change, the whole
+ * text compared with the revision before (the versions page), the two revisions on e-Gov 法令検索 (where readers
+ * check the official text, as the disclaimer asks), and, on an amendment that changes several laws, printing it alone.
+ */
+function lawActionsHtml(f: FileChange, a: Amendment, staged: boolean, r: RevisionLinks | undefined): string {
+  const what = staged ? "施行" : "改正";
+  const link = (href: string, label: string) => `<a class="link link-primary inline-block py-0.5" href="${esc(href)}">${label}</a>`;
+  const items: string[] = [];
+  const key = encodeURIComponent(a.key);
+  if (f.kind !== "repealed") items.push(link(`/versions/?law=${f.lawId}&at=${key}`, `${what}後の条文`));
+  if (f.kind === "amended" && r?.from) items.push(link(`/versions/?law=${f.lawId}&from=${encodeURIComponent(r.from)}&at=${key}`, `${what}前と全文で比較`));
+  // No e-Gov link for a repeal: e-Gov showed no text for the revision of a repealed law checked (2026-11).
+  const after = f.kind !== "repealed" ? egovRevisionUrl(f.lawId, r?.after) : null;
+  const before = f.kind === "amended" ? egovRevisionUrl(f.lawId, r?.before) : null;
+  if (before) items.push(link(before, `e-Gov（${what}前）`));
+  if (after) items.push(link(after, f.kind === "amended" ? `e-Gov（${what}後）` : f.kind === "enacted" ? "e-Gov（制定時）" : "e-Gov（この時点）"));
+  // An amendment that changes many laws: each can be printed alone.
+  if (a.files.length > 1)
+    items.push(`<button type="button" class="btn btn-ghost btn-xs font-normal text-primary" data-print-law="law-${esc(f.lawId)}">この法令だけ印刷</button>`);
+  return items.length ? `<div class="mt-0.5 mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm print:hidden">${items.join("")}</div>` : "";
+}
+
+function headHtml(a: Amendment, links: AmendmentLinks | undefined): string {
   const facts: [string, string][] = [
     ["改正法令", esc(a.amendmentLawNum)],
     ["公布日", jpDate(a.promulgated)],
@@ -215,7 +273,10 @@ function headHtml(a: Amendment): string {
     <div class="breadcrumbs py-0 text-sm text-base-content/70 print:hidden"><ul><li><a href="/timeline/">改正の年表</a></li><li><a href="/timeline/${a.enforced?.slice(0, 4) ?? "undetermined"}/">${a.enforced?.slice(0, 4) ?? "施行日未定"}</a></li></ul></div>
     <h1 class="text-2xl leading-snug font-bold sm:text-3xl">${esc(a.title)}${a.branch === "upcoming" ? ` <span class="${badgeClass("upcoming")}">施行予定</span>` : ""}</h1>
     <dl class="my-4 grid grid-cols-[max-content_1fr] gap-x-4 gap-y-0.5 text-sm">${facts.map(([k, v]) => `<dt class="text-base-content/65">${k}</dt><dd>${v}</dd>`).join("")}</dl>
-    ${shareToolsHtml("mb-4")}
+    <div class="mb-4 flex flex-wrap gap-2 print:hidden">
+      <a class="btn btn-soft btn-sm btn-primary" href="${esc(graphUrl(a, links))}">改正のグラフ</a>
+      ${shareToolsHtml("sm:ml-auto", "sm:dropdown-end")}
+    </div>
     ${DISCLAIMER_NOTE_HTML}
     ${toc}
   </div>`;
@@ -230,9 +291,9 @@ const utf8 = new TextEncoder();
  * so blocks are rendered only while the content stays within `budget` bytes; `complete` says whether all were.
  * In the browser, renderAmendmentPage then fetches the amendment and renders the rest.
  */
-export function amendmentStaticHtml(a: Amendment, budget: number): { html: string; complete: boolean } {
+export function amendmentStaticHtml(a: Amendment, budget: number, links?: AmendmentLinks): { html: string; complete: boolean } {
   const hasDiffs = a.files.some((f) => f.blocks?.some((b) => b.segments));
-  const parts = [headHtml(a), hasDiffs ? viewToggleHtml("side") : ""];
+  const parts = [headHtml(a, links), hasDiffs ? viewToggleHtml("side") : ""];
   let used = parts.reduce((n, p) => n + utf8.encode(p).length, 0);
   let complete = true;
   for (const f of a.files) {
@@ -250,7 +311,7 @@ export function amendmentStaticHtml(a: Amendment, budget: number): { html: strin
     } else if (f.blocks?.length) {
       complete = false;
     }
-    const html = fileHtml(f, "side", a, blocks);
+    const html = fileHtml(f, "side", a, links, blocks);
     used += utf8.encode(html).length - blocks.reduce((n, b) => n + utf8.encode(blockHtml(b, f.lawId, "side")).length, 0);
     parts.push(html);
   }
@@ -286,6 +347,15 @@ function fragmentTarget(): HTMLElement | null {
     return document.getElementById(decodeURIComponent(location.hash.slice(1)));
   } catch {
     return null; // a malformed %-escape
+  }
+}
+
+/** The links the static page built in (data-links, see AmendmentLinks). */
+function pageLinks(root: HTMLElement): AmendmentLinks | undefined {
+  try {
+    return root.dataset.links ? (JSON.parse(root.dataset.links) as AmendmentLinks) : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -365,10 +435,11 @@ export async function renderAmendmentPage(root: HTMLElement, chosenView?: View):
   }
 
   const hasDiffs = a.files.some((f) => f.blocks?.some((b) => b.segments));
+  const links = pageLinks(root);
   const render = () => {
     const toggle = hasDiffs ? viewToggleHtml(view) : "";
     root.className = view === "inline" ? "inline-view" : "";
-    root.innerHTML = headHtml(a) + toggle + a.files.map((f) => fileHtml(f, view, a)).join("");
+    root.innerHTML = headHtml(a, links) + toggle + a.files.map((f) => fileHtml(f, view, a, links)).join("");
     root.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((btn) =>
       btn.addEventListener("click", () => {
         view = btn.dataset.view as View;
