@@ -11,7 +11,7 @@ Changes merged since the latest release: [compare](https://github.com/0xCAFEBABE
 ## [2026.11.0] - 2026-11-09
 
 The first versioned release. It records what the site gained from its start on 2026-11-06 up to the introduction of
-versioning (#1 to #41). Changes to the repository settings, CI, infrastructure and agent instructions are left out.
+versioning (#1 to #42). Changes to the repository settings, CI, infrastructure and agent instructions are left out.
 
 ### Added
 
@@ -51,6 +51,10 @@ versioning (#1 to #41). Changes to the repository settings, CI, infrastructure a
   cache. (#16, #17)
 - The data files at `https://data.anisotro.pics` are stored and served Brotli-compressed (`Content-Encoding: br`);
   clients that do not accept Brotli get them uncompressed. (#19, #20)
+- Pages are easier for search engines to read: law pages put the amendment history and table of contents before
+  the law text in the HTML (the layout is unchanged), pages carry schema.org breadcrumbs and law pages a Legislation
+  entry, law pages are in their own sitemap with the date of their latest amendment, and an amendment page sets its
+  own description and canonical link (and noindex for an unknown key). (#42)
 - **Breaking:** `amendments/<key>.json` no longer has the `sha` field. It held the houritsu commit SHA, which changed
   whenever houritsu rewrote its history. (#39)
 
