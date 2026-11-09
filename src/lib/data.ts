@@ -186,7 +186,7 @@ export function lawUrl(id: string): string {
 }
 
 export function amendmentUrl(key: string): string {
-  return `/amendment/?k=${encodeURIComponent(key)}`;
+  return `/amendment/${encodeURIComponent(key)}/`;
 }
 
 export function categorySlug(category: string): string {

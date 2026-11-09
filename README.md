@@ -107,8 +107,8 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | `/` | Search, newly enacted laws (recent and upcoming), recent amendments, upcoming amendments |
 | `/browse/`, `/browse/kana/<row>/`, `/browse/type/<type>/`, `/browse/category/<category>/` | Law lists |
 | `/laws/<law ID>/` | Law text (an anchor per heading), table of contents, amendment history, and the law's calendar (`.ics`) and RSS feed |
-| `/amendment/?k=<amendment key>` | Old and new text of the articles an amendment changed (side by side, or inline) |
-| `/amendment/<amendment key>/` | The same, as a static page with its own title, description and structured data, served by the amendment Workers (see [Amendment Workers](#amendment-workers)); not linked or in the sitemap until their routes are applied |
+| `/amendment/<amendment key>/` | Old and new text of the articles an amendment changed (side by side, or inline), as a static page with its own title, description and structured data, served by the amendment Workers (see [Amendment Workers](#amendment-workers)) |
+| `/amendment/?k=<amendment key>` | The address the site linked before the static pages: its script forwards to `/amendment/<amendment key>/`, keeping the `#fragment` |
 | `/new/`, `/new/<year>/` | Newly enacted laws (a law whose file first appears in houritsu through the law itself), by year of entry into force, with a type filter. Later parts of a new law coming into force are labeled 段階施行, not 改正, across the site |
 | `/repealed/`, `/repealed/<year>/` | Repealed laws (a law whose file is deleted from houritsu's main branch; houritsu records repeals from 2017 on), by year and date of repeal, laid out like `/new/`, with type and "how it was repealed" filters: by a new law coming into force, by a law made to repeal it, or by another amending law. Each links the text in force just before the repeal. Repealed law pages show the same details |
 | `/upcoming/` | Amendments promulgated and not yet in force, by month of entry into force (with a countdown in days), then those without a date; a filter by category and law name; the calendar (`.ics`) and RSS feed of the whole site or of the chosen category to subscribe to (see [Calendars and RSS feeds](#calendars-and-rss-feeds)) |
@@ -124,14 +124,12 @@ The site is called **Anisotropics** after its domain (`SITE_NAME` in `src/lib/si
 the name of this project and does not appear on the site.
 
 - Every page has its own title (`<page> | Anisotropics`) and description, plus Open Graph and X card tags. All pages
-  share one card image, `public/og-image.png` (an image per law would add about 9,000 files). The amendment and
-  versions pages are filled in by the browser from their query string, so link previews (which do not run scripts)
-  show their generic title.
-- Pages get a canonical link, except the amendment and versions pages (their content depends on the query string,
+  share one card image, `public/og-image.png` (an image per law would add about 9,000 files). The versions page is
+  filled in by the browser from its query string, so link previews (which do not run scripts) show its generic
+  title.
+- Pages get a canonical link, except `/amendment/` and the versions page (their content depends on the query string,
   and a canonical link without it would mark every amendment as the same page) and the 404 page (served at any
-  missing path). The amendment page's script sets its own title, description and canonical link
-  (`/amendment/?k=<key>`), which Google reads when it renders the page, and adds `noindex` when the key is missing
-  or has no data (404), so that such an address is not indexed as an empty page.
+  missing path). `/amendment/` without a key gets `noindex`, so that it is not indexed as an empty page.
 - Structured data (JSON-LD, `src/lib/seo.ts`): pages with breadcrumbs carry a schema.org `BreadcrumbList`
   (`PageHeader`), and law pages a `Legislation` (law number, type, legal force, date of the last amendment in force,
   the e-Gov page as `sameAs`).
@@ -140,11 +138,11 @@ the name of this project and does not appear on the site.
   page, and the text of the largest laws is over 10 MB.
 - Icons: `public/favicon.svg` is the drawing; `favicon.ico` (16, 32 and 48 px; Google Search does not use SVG
   favicons), `apple-touch-icon.png` (180 px) and `og-image.png` are rendered from it.
-- `@astrojs/sitemap` writes `sitemap-index.xml` (all pages except the amendment, versions and 404 pages), which
-  `public/robots.txt` points to and Search Console has. It lists `sitemap-laws-0.xml`, the law pages with a
-  `lastmod` (the day the latest amendment in force came into force, never later than the build date), and
-  `sitemap-pages-0.xml`, the other pages, without one (their content changes with the data, not on a date a page
-  could state).
+- `@astrojs/sitemap` writes `sitemap-index.xml` (all pages except `/amendment/`, the versions page and the 404 page),
+  which `public/robots.txt` points to and Search Console has. It lists `sitemap-laws-0.xml`, the law pages with a
+  `lastmod` (the day the latest amendment in force came into force, never later than the build date),
+  `sitemap-amendments-0.xml`, the static amendment pages, and `sitemap-pages-0.xml`, the other pages; the last two
+  have no `lastmod` (their content changes with the data, not on a date a page could state).
 
 ### Disclaimer
 

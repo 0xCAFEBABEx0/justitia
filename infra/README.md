@@ -83,13 +83,13 @@ that:
 
 - `https://anisotro.pics/amendment/<a key>/` answers 200 with that amendment, for a key of each Worker (for example
   one starting with `4`, one with `503` and one with `508`);
-- `https://anisotro.pics/amendment/?k=<a key>` still works (served by `justitia-amendments-3`);
+- `https://anisotro.pics/amendment/?k=<a key>` forwards to `/amendment/<a key>/` (served by `justitia-amendments-3`);
 - `https://anisotro.pics/amendment/x/` answers the site's 404 page with status 404;
 - the rest of the site is unchanged (`/`, `/laws/<id>/`, `/_astro/` files);
 - the Workers' Metrics show only static asset requests, no invocations.
 
-A route takes about a minute to start answering. To undo it, remove `amendments.tf` (or the routes in it) and apply:
-`/amendment/?k=` is then served by the main Worker again.
+A route takes about a minute to start answering. The site links to `/amendment/<key>/`, which only these routes
+serve, so removing them (`amendments.tf`) takes every amendment page down: undo the linking in the site first.
 
 To rename an amendment Worker or add one, keep the old one serving until the routes have moved, so no page goes
 missing:

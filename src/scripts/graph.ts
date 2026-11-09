@@ -138,7 +138,7 @@ function svgFor(items: Item[], laws: LawDetail[]): string {
       const color = COLORS[lane % COLORS.length];
       const cx = x(lane);
       const cy = y(i);
-      const href = `/amendment/?k=${encodeURIComponent(it.key)}#law-${laws[lane].id}`;
+      const href = `/amendment/${encodeURIComponent(it.key)}/#law-${laws[lane].id}`;
       const label = `${laws[lane].title}：${KIND[kind]}（${shortDate(it.enforced)}）`;
       let shape: string;
       if (kind === "repealed") {
@@ -174,7 +174,7 @@ function rowsHtml(items: Item[], laws: LawDetail[], today: string): string {
         if (n.kind !== "amended") notes.push(`${esc(laws[lane].title)}を${KIND[n.kind]}`);
       }
       const dots = lanes.map((l) => `<i class="g-dot" style="background:${COLORS[l % COLORS.length]}"></i>`).join("");
-      const href = `/amendment/?k=${encodeURIComponent(it.key)}#law-${laws[lanes[0]].id}`;
+      const href = `/amendment/${encodeURIComponent(it.key)}/#law-${laws[lanes[0]].id}`;
       return `<div class="g-row${it.upcoming ? " upcoming" : ""}">
         <div class="g-line1"><span class="g-date">${shortDate(it.enforced)}</span><a class="link link-hover link-primary" href="${href}">${esc(it.title)}</a></div>
         <div class="g-line2"><span class="g-dots">${dots}</span>${esc(it.lawNum)}${notes.length ? `・${notes.join("、")}` : ""}${
