@@ -53,7 +53,7 @@ test("icsCalendar writes all-day events with CRLF lines and a stable DTSTAMP", (
   assert.match(unfolded, /\r\nDTSTAMP:20260624T000000Z\r\n/);
   assert.match(unfolded, /\r\nUID:508AC0000000045_20270623-129AC0000000089@anisotro\.pics\r\n/);
   assert.match(unfolded, /\r\nSUMMARY:施行：民法等の一部を改正する法律\r\n/);
-  assert.match(unfolded, /\r\nURL:https:\/\/anisotro\.pics\/amendment\/\?k=508AC0000000045_20270623#law-129AC0000000089\r\n/);
+  assert.match(unfolded, /\r\nURL:https:\/\/anisotro\.pics\/amendment\/508AC0000000045_20270623\/#law-129AC0000000089\r\n/);
   assert.match(unfolded, /施行：2027年6月23日（予定）/);
   assert.match(unfolded, /\r\nX-WR-CALNAME:民法の施行日\r\n/);
   // The same input gives the same file, whenever it is made.
@@ -130,7 +130,7 @@ test("rssFeed writes valid, escaped, deterministic RSS", () => {
   assert.ok(xml.includes("A &amp;amp; B &amp;lt;改正&amp;gt;"));
   assert.ok(xml.includes("&lt;br&gt;"));
   assert.ok(xml.includes('<guid isPermaLink="false">508AC0000000045_20270623-129AC0000000089-promulgated@anisotro.pics</guid>'));
-  assert.ok(xml.includes("<link>https://anisotro.pics/amendment/?k=508AC0000000045_20270623#law-129AC0000000089</link>"));
+  assert.ok(xml.includes("<link>https://anisotro.pics/amendment/508AC0000000045_20270623/#law-129AC0000000089</link>"));
 });
 
 test("rssFeed leaves out lastBuildDate when there is no item", () => {

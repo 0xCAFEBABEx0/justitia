@@ -1,8 +1,8 @@
 ---
-// The static page of one amendment, /amendment/<key>/: the same content the client-rendered /amendment/?k=<key>
-// shows, built in, with its own title, description, canonical link and structured data. These pages are served
-// by the amendment Workers, not by the main Worker: scripts/split-amendments.ts moves them out of dist/ after the
-// build (see scripts/amendment-shards.ts).
+// The static page of one amendment, /amendment/<key>/, the address the site links to: the amendment's diffs built in,
+// with its own title, description, canonical link and structured data. These pages are served by the amendment
+// Workers, not by the main Worker: scripts/split-amendments.ts moves them out of dist/ after the build (see
+// scripts/amendment-shards.ts).
 import Base from "../../layouts/Base.astro";
 import { amendment, dataVersion, jpDate, pageAmendments } from "../../lib/data.ts";
 import { DATA_BASE } from "../../lib/site.ts";

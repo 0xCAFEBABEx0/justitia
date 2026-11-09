@@ -8,14 +8,15 @@ import { lawLastmod } from "./src/lib/seo.ts";
 // Pages left out of the sitemap: the amendment and versions pages show nothing without their
 // query string (?k=..., ?law=...), and the 404 page is not a page to visit.
 const NOT_IN_SITEMAP = ["/amendment/", "/versions/", "/404/"];
-// The static amendment pages (/amendment/<key>/) are served by the amendment Workers once their Workers routes
-// are applied (infra/terraform/envs/prod/amendments.tf); until then they are not listed.
+// The static amendment pages, /amendment/<key>/ (served by the amendment Workers, see README).
 const AMENDMENT_PAGE = /^\/amendment\/[^/]+\/$/;
 
 /**
  * Law pages get a lastmod (the day the text last changed, see lawLastmod) and their own sitemap
- * file, sitemap-laws-0.xml; the other pages are in sitemap-pages-0.xml. sitemap-index.xml, the
- * file submitted to Search Console, lists both with the latest lastmod of each.
+ * file, sitemap-laws-0.xml; the amendment pages are in sitemap-amendments-0.xml (no lastmod: an
+ * amendment page changes only when houritsu corrects old text) and the other pages in
+ * sitemap-pages-0.xml. sitemap-index.xml, the file submitted to Search Console, lists them with the
+ * latest lastmod of each.
  * @type {Map<string, string | undefined> | null}
  */
 let lawDates = null;
@@ -29,6 +30,10 @@ function lawPage(item) {
   }
   const lastmod = lawDates.get(id);
   return lastmod ? { ...item, lastmod } : item;
+}
+/** @param {import("@astrojs/sitemap").SitemapItem} item */
+function amendmentPage(item) {
+  return AMENDMENT_PAGE.test(new URL(item.url).pathname) ? item : undefined;
 }
 
 /**
@@ -55,8 +60,8 @@ export default defineConfig({
   build: { format: "directory", concurrency: 4 },
   integrations: [
     sitemap({
-      filter: (page) => !NOT_IN_SITEMAP.includes(new URL(page).pathname) && !AMENDMENT_PAGE.test(new URL(page).pathname),
-      chunks: { laws: lawPage },
+      filter: (page) => !NOT_IN_SITEMAP.includes(new URL(page).pathname),
+      chunks: { laws: lawPage, amendments: amendmentPage },
     }),
   ],
   vite: { plugins: [woff2Only(), tailwindcss()], build: { chunkSizeWarningLimit: 2000 } },

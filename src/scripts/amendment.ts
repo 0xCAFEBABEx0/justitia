@@ -1,4 +1,5 @@
-// Renders /amendment/?k=<key> from <data base>/amendments/<key>.json.
+// Renders the static amendment pages, /amendment/<key>/, with what <data base>/amendments/<key>.json adds to them,
+// and forwards /amendment/?k=<key> (the address the site linked before the static pages) to /amendment/<key>/.
 //
 // Each changed block is shown like a 新旧対照表: the text after the amendment on the left and
 // before it on the right, with the changed parts marked. An inline view puts both in one column.
@@ -8,7 +9,6 @@ import { badgeClass } from "../lib/badges.ts";
 import { isStaged } from "../lib/new-laws.ts";
 import { DISCLAIMER_NOTE_HTML } from "../lib/disclaimer.ts";
 import { linkPieces, type Piece } from "../lib/links.ts";
-import { SITE_NAME } from "../lib/site-name.ts";
 import { shareToolsHtml } from "../lib/share.ts";
 import { dataUrl } from "./data-url.ts";
 
@@ -268,21 +268,9 @@ function setHead(tag: "meta" | "link", match: Record<string, string>, attrs: Rec
   for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
 }
 
-/**
- * The page is the same HTML for every amendment, so search engines learn which address shows
- * which amendment only from what this script sets: the title, the description and the canonical
- * address (Google renders the page and reads them). An address with no amendment behind it gets
- * noindex instead, so it is not indexed as an empty page (a "soft 404").
- */
+/** /amendment/ without an amendment key gets noindex, so it is not indexed as an empty page (a "soft 404"). */
 function noindex(): void {
   setHead("meta", { name: "robots" }, { content: "noindex" });
-}
-
-/** Title, description and canonical link of /amendment/?k=<key>, which is one HTML file for every amendment. */
-function setPageHead(a: Amendment, key: string): void {
-  document.title = `${a.title}（${jpDate(a.enforced)}施行） | ${SITE_NAME}`;
-  setHead("meta", { name: "description" }, { content: amendmentDescription(a) });
-  setHead("link", { rel: "canonical" }, { href: `${location.origin}/amendment/?k=${encodeURIComponent(key)}` });
 }
 
 /** The meta description of an amendment's page. */
@@ -321,19 +309,24 @@ function storeView(view: View): void {
 /**
  * Renders the amendment page. On the static page /amendment/<key>/ (root has data-key), the content is already
  * there: when it holds every block and the side-by-side view is wanted, only the view switch needs the data, which
- * is fetched when it is used. Otherwise the amendment is fetched and rendered, as on /amendment/?k=<key>.
+ * is fetched when it is used. Otherwise the amendment is fetched and rendered again. /amendment/?k=<key> (no
+ * data-key) goes to /amendment/<key>/, keeping the #fragment; a key with no page there gets the 404 page.
  * `chosenView` is the view the reader just picked; without it, the stored preference is used.
  */
 export async function renderAmendmentPage(root: HTMLElement, chosenView?: View): Promise<void> {
-  const staticKey = root.dataset.key;
-  const key = staticKey ?? new URLSearchParams(location.search).get("k");
-  if (!key || !/^[0-9A-Za-z_-]+$/.test(key)) {
+  const key = root.dataset.key;
+  if (!key) {
+    const k = new URLSearchParams(location.search).get("k");
+    if (k && /^[0-9A-Za-z_-]+$/.test(k)) {
+      location.replace(`/amendment/${k}/${location.hash}`);
+      return;
+    }
     noindex();
     root.innerHTML = `<p class="${NOTE}">改正が指定されていません。<a class="link link-primary" href="/timeline/">改正の年表</a>から選んでください。</p>`;
     return;
   }
   let view = chosenView ?? storedView();
-  if (staticKey && root.dataset.complete === "true" && view === "side") {
+  if (root.dataset.complete === "true" && view === "side") {
     root.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((btn) =>
       btn.addEventListener("click", () => {
         if (btn.dataset.view === "side") return;
@@ -347,19 +340,12 @@ export async function renderAmendmentPage(root: HTMLElement, chosenView?: View):
   let a: Amendment;
   try {
     const res = await fetch(dataUrl(root, `amendments/${key}.json`));
-    // Only a missing file: a network error or a 5xx says nothing about the amendment.
-    if (res.status === 404 && !staticKey) noindex();
     if (!res.ok) throw new Error(String(res.status));
     a = (await res.json()) as Amendment;
   } catch {
-    if (staticKey) {
-      root.querySelectorAll("[data-rest]").forEach((p) => (p.textContent = "残りの差分を読み込めませんでした。ページを再読み込みしてください。"));
-      return;
-    }
-    root.innerHTML = `<p class="${NOTE}">改正「${esc(key)}」が見つかりませんでした。</p>`;
+    root.querySelectorAll("[data-rest]").forEach((p) => (p.textContent = "残りの差分を読み込めませんでした。ページを再読み込みしてください。"));
     return;
   }
-  if (!staticKey) setPageHead(a, key);
 
   const hasDiffs = a.files.some((f) => f.blocks?.some((b) => b.segments));
   const render = () => {
@@ -382,5 +368,5 @@ export async function renderAmendmentPage(root: HTMLElement, chosenView?: View):
   // target (on a static page, the ones it left out) move it down.
   const target = fragmentTarget();
   if (!chosenView && target) target.scrollIntoView();
-  else if (staticKey) scrollTo(0, y);
+  else scrollTo(0, y);
 }

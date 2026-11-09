@@ -167,7 +167,7 @@ export async function renderVersionsPage(root: HTMLElement): Promise<void> {
             ? "まだ施行されていない改正を反映した条文です。"
             : "過去の条文です。現在の条文とは異なります。";
       body = `<p class="${NOTE} mb-4">${esc(revLabel(r, id))} の後の条文。${notice}
-          <a class="link link-primary" href="/amendment/?k=${encodeURIComponent(r.amendment)}#law-${esc(id)}">この改正の新旧対照</a></p>
+          <a class="link link-primary" href="/amendment/${encodeURIComponent(r.amendment)}/#law-${esc(id)}">この改正の新旧対照</a></p>
         <article class="law-text" data-cite-law="${esc(title)}" data-cite-num="${esc(law.num)}" data-cite-asof="${esc(citeAsOf(r))}">${preamble}${rendered.html}</article>`;
     }
 

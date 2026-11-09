@@ -36,7 +36,7 @@ function addDays(iso: string, days: number): string {
 }
 
 export function amendmentPageUrl(key: string, lawId?: string): string {
-  return `${SITE_URL}/amendment/?k=${encodeURIComponent(key)}${lawId ? `#law-${lawId}` : ""}`;
+  return `${SITE_URL}/amendment/${encodeURIComponent(key)}/${lawId ? `#law-${lawId}` : ""}`;
 }
 
 /** The laws an amendment changes, for a description: 民法、商法ほか 3 法令. */
