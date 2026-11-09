@@ -131,6 +131,13 @@ local `houritsu/`, `data/` and `dist/` copies when you are done.
 
 - `main` is protected: changes go through a pull request, review threads must be resolved, and the `CodeRabbit` check
   is required. Do not push to `main`.
+- CodeRabbit runs on the open-source plan, whose review allowance is small and shared by every PR opened under the
+  owner's account (each push to an open PR spends another review). When a PR changes only Markdown documentation,
+  a `Release YYYY.M.N` PR included, put `@coderabbitai ignore` on its own line in the PR description when you open
+  it: CodeRabbit then skips the PR, spends nothing, and ends the `CodeRabbit` check as skipped, which counts as
+  passing. Write it in the description, not in a comment (as a comment it pauses reviews instead). A PR that touches
+  anything else, `infra/` and workflow files included, is reviewed as usual; if a skipped PR turns out to need a
+  review, comment `@coderabbitai full review`.
 - Other work may be in progress on other branches at the same time; keep each PR to one topic.
 - Update README.md (and `infra/README.md` for infrastructure) in the same PR when behavior, pages, commands or
   publishing change.
