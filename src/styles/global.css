@@ -200,6 +200,25 @@
     @apply bg-primary/10;
     box-shadow: 0 0 0 0.5rem color-mix(in oklab, var(--color-primary) 10%, transparent);
   }
+  /*
+   * content-visibility gives each block layout containment, so its heading's top margin stays
+   * inside the block instead of collapsing through it, and the highlight above showed it as an
+   * empty band (36px over 附則). For the highlighted block, the margin moves outside the block,
+   * all but 0.375rem: that keeps a little room above the heading, where ruby over a heading's
+   * characters (民法 第三十条 失踪) can hang without making the line taller. Every heading stays where
+   * it is. The heading margins come from the .h rules above: 1.8em at text-xl / text-lg / text-base,
+   * 1.4em for an article.
+   */
+  .law-text .blk:target {
+    margin-top: calc(var(--target-gap, 0.375rem) - 0.375rem);
+  }
+  .law-text .blk:target > .h:first-child { margin-top: 0.375rem; }
+  .law-text > .blk:first-child:target > .h:first-child { margin-top: 0; }
+  :where(.law-text .blk:target:has(> h2.h:first-child)) { --target-gap: 2.25rem; }
+  :where(.law-text .blk:target:has(> h3.h:first-child)) { --target-gap: 2.025rem; }
+  :where(.law-text .blk:target:has(> :is(h4, h5, h6).h:first-child)) { --target-gap: 1.8rem; }
+  :where(.law-text .art:target:has(> .h:first-child)) { --target-gap: 1.4rem; }
+  :where(.law-text > .blk:first-child:target) { --target-gap: 0.375rem; }
 
   /* ---- Diffs (amendment page and the comparison of two revisions) ---- */
   .cmp {
