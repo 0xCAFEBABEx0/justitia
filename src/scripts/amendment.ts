@@ -291,6 +291,16 @@ export function amendmentDescription(a: Amendment): string {
   return `${a.title}（${a.amendmentLawNum}）${a.enforced ? `の${jpDate(a.enforced)}の施行` : ""}で変わった${lawCount > 1 ? `${lawCount} 法令の` : ""}条文を、改正前と改正後の新旧対照で見られます。`;
 }
 
+/** The element the URL's #fragment names, if any. */
+function fragmentTarget(): HTMLElement | null {
+  if (!location.hash) return null;
+  try {
+    return document.getElementById(decodeURIComponent(location.hash.slice(1)));
+  } catch {
+    return null; // a malformed %-escape
+  }
+}
+
 function storedView(): View {
   try {
     if (localStorage.getItem(VIEW_KEY) === "inline") return "inline";
@@ -312,8 +322,9 @@ function storeView(view: View): void {
  * Renders the amendment page. On the static page /amendment/<key>/ (root has data-key), the content is already
  * there: when it holds every block and the side-by-side view is wanted, only the view switch needs the data, which
  * is fetched when it is used. Otherwise the amendment is fetched and rendered, as on /amendment/?k=<key>.
+ * `chosenView` is the view the reader just picked; without it, the stored preference is used.
  */
-export async function renderAmendmentPage(root: HTMLElement): Promise<void> {
+export async function renderAmendmentPage(root: HTMLElement, chosenView?: View): Promise<void> {
   const staticKey = root.dataset.key;
   const key = staticKey ?? new URLSearchParams(location.search).get("k");
   if (!key || !/^[0-9A-Za-z_-]+$/.test(key)) {
@@ -321,14 +332,14 @@ export async function renderAmendmentPage(root: HTMLElement): Promise<void> {
     root.innerHTML = `<p class="${NOTE}">改正が指定されていません。<a class="link link-primary" href="/timeline/">改正の年表</a>から選んでください。</p>`;
     return;
   }
-  let view = storedView();
+  let view = chosenView ?? storedView();
   if (staticKey && root.dataset.complete === "true" && view === "side") {
     root.querySelectorAll<HTMLButtonElement>("[data-view]").forEach((btn) =>
       btn.addEventListener("click", () => {
         if (btn.dataset.view === "side") return;
         storeView("inline");
         root.dataset.complete = "false";
-        void renderAmendmentPage(root);
+        void renderAmendmentPage(root, "inline");
       }),
     );
     return;
@@ -367,6 +378,9 @@ export async function renderAmendmentPage(root: HTMLElement): Promise<void> {
   };
   const y = scrollY;
   render();
-  if (staticKey) scrollTo(0, y);
-  else if (location.hash) document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();
+  // A view the reader just picked keeps their place; on load, a #fragment wins, since the blocks rendered above its
+  // target (on a static page, the ones it left out) move it down.
+  const target = fragmentTarget();
+  if (!chosenView && target) target.scrollIntoView();
+  else if (staticKey) scrollTo(0, y);
 }
