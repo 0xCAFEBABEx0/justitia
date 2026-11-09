@@ -24,6 +24,9 @@ test("（以下「X」という。）", () => {
   assert.deepEqual(terms("国は、地域において事業を行う者（以下「事業者」という。）の協力を求める。"), [["事業者", "ika", "地域において事業を行う者"]]);
   // a 、 before 又は does not end the phrase
   assert.deepEqual(terms("労働者が組織し、又は加入する団体（以下「労働団体」という。）"), [["労働団体", "ika", "労働者が組織し、又は加入する団体"]]);
+  // nor does one between the nouns of an enumeration
+  assert.deepEqual(terms("事業者は、土地、建物その他の工作物（以下「土地等」という。）を"), [["土地等", "ika", "土地、建物その他の工作物"]]);
+  assert.deepEqual(terms("この場合において、国、地方公共団体及び事業者（以下「国等」という。）は"), [["国等", "ika", "国、地方公共団体及び事業者"]]);
   // the parenthesis can hold the definition itself
   assert.deepEqual(terms("暴力団員（法第二条第六号に規定する暴力団員をいう。以下「暴力団員」という。）"), [["暴力団員", "ika", "法第二条第六号に規定する暴力団員をいう"]]);
 });
@@ -51,6 +54,9 @@ test("X（…をいう。以下同じ。）", () => {
 test("items of a definition that refers to them", () => {
   const [d] = definitionsIn("この法律において「中小企業者」とは、次の各号のいずれかに該当する者をいう。\n\n- 一 会社\n\n- 二 個人\n\n次の文。", "本則|第二条");
   assert.deepEqual(d.items, ["一 会社", "二 個人"]);
+  // nested items are kept, with the items after them
+  const [n] = definitionsIn("この法律において「事業者」とは、次に掲げる者をいう。\n\n- 一 次のいずれかに該当する会社\n\n  - イ 株式会社\n\n  - ロ 合同会社\n\n- 二 個人", "本則|第二条");
+  assert.deepEqual(n.items, ["一 次のいずれかに該当する会社", "  イ 株式会社", "  ロ 合同会社", "二 個人"]);
 });
 
 test("markup other than ruby is taken out; the marker of an item too", () => {
@@ -80,11 +86,15 @@ test("items of a glossary article", () => {
     "",
     "  - ロ 会社以外の者",
     "",
+    "    - （１） 組合",
+    "",
+    "  - ハ 個人",
+    "",
     "- 四 公告方法 会社が公告をする方法",
   ].join("\n");
   const defs = definitionsIn(text, "本則|第二条");
   assert.deepEqual(defs.map((d) => [d.term, d.form, d.text, d.items]), [
     ["会社", "item", "株式会社、合名会社、合資会社又は合同会社をいう", undefined],
-    ["子会社等", "item", "次のいずれかに該当する者をいう", ["イ 子会社", "ロ 会社以外の者"]],
+    ["子会社等", "item", "次のいずれかに該当する者をいう", ["イ 子会社", "ロ 会社以外の者", "  （１） 組合", "ハ 個人"]],
   ]);
 });

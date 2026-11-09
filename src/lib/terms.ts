@@ -18,7 +18,10 @@ export interface Definition {
   form: DefinitionForm;
   /** The definition as the law words it, quoted from the text. */
   text: string;
-  /** The items of a definition that ends 「次に掲げる者をいう。」, as the law words them (「一 …」). */
+  /**
+   * The items of a definition that ends 「次に掲げる者をいう。」, as the law words them (「一 …」). A
+   * nested item starts with two spaces for each level (「  イ …」).
+   */
   items?: string[];
   /** The key of the block (article) the definition is in, as on the law page (#本則|第二条). */
   block: string;
@@ -71,8 +74,9 @@ function openParen(s: string, to: number): number {
 
 /**
  * The phrase that ends at `to`: back to a 、 or 。, a bracket or the start of the line, at depth 0. A
- * 、 followed by 又は, 及び and the like does not end it (労働者が組織し、又は加入する労働組合). Empty
- * when no such start is found within 120 characters.
+ * 、 followed by 又は, 及び and the like does not end it (労働者が組織し、又は加入する労働組合), nor
+ * does a 、 between the nouns of an enumeration (土地、建物その他の工作物). Empty when no such start
+ * is found within 120 characters.
  */
 function phraseBefore(s: string, to: number): string {
   let depth = 0;
@@ -86,9 +90,17 @@ function phraseBefore(s: string, to: number): string {
       if (depth === 0) break;
       depth--;
     } else if (depth === 0 && "。「」\n".includes(c)) break;
-    else if (depth === 0 && c === "、" && !CONJUNCTION.test(s.slice(i + 1, i + 5))) break;
+    else if (depth === 0 && c === "、" && !CONJUNCTION.test(s.slice(i + 1, i + 5)) && !enumerates(s, i, to)) break;
   }
   return s.slice(i + 1, to);
+}
+
+/** Words that close an enumeration: 土地、建物その他の工作物, 国、地方公共団体及び事業者. */
+const ENUMERATION = /その他|及び|又は|並びに|若しくは/;
+
+/** True when the 、 at `at` separates nouns of an enumeration that the phrase up to `to` closes. */
+function enumerates(s: string, at: number, to: number): boolean {
+  return /[\p{Script=Han}\p{Script=Katakana}ー々]/u.test(s[at - 1] ?? "") && ENUMERATION.test(s.slice(at + 1, to));
 }
 
 /** An item of a glossary article: 「- 三の二 子会社等 次のいずれかに該当する者をいう。」 */
@@ -96,20 +108,30 @@ const ITEM_DEFINITION = new RegExp(`^- ${NUMBER}(?:の${NUMBER})* (\\S+) (.+)$`)
 
 /** A definition whose substance is in the numbered items that follow it. */
 const LIST = /(?:次|左)(?:に掲げる|の各号|のいずれか)/;
-const MAX_ITEMS = 20;
+const MAX_ITEMS = 30;
 
-/** The numbered items (「- 一 …」 lines) right after the line that ends at `from`; none if the line goes on. */
-function itemsAfter(s: string, from: number): string[] | undefined {
-  const eol = s.indexOf("\n", from);
-  if (!/^。?\s*$/.test(s.slice(from, eol < 0 ? undefined : eol)) || eol < 0) return undefined;
+/**
+ * The list items (「- 一 …」 lines) at the start of `lines`, indented `base` spaces or more, nested
+ * items included: each keeps two spaces for every level below the first (「一 …」, 「  イ …」).
+ * Undefined when there are too many to show.
+ */
+function listItems(lines: string[], base: number): string[] | undefined {
   const items: string[] = [];
-  for (const line of s.slice(eol + 1).split("\n")) {
+  for (const line of lines) {
     if (!line.trim()) continue;
-    if (!line.startsWith("- ")) break;
-    if (items.length === MAX_ITEMS) return undefined; // too long to show
-    items.push(stripTags(line.slice(2)).trim());
+    const m = /^( *)- (.*)$/.exec(line);
+    if (!m || m[1].length < base) break;
+    if (items.length === MAX_ITEMS) return undefined;
+    items.push(`${" ".repeat(m[1].length - base)}${stripTags(m[2]).trim()}`);
   }
   return items;
+}
+
+/** The numbered items right after the line that ends at `from`; none if the line goes on. */
+function itemsAfter(s: string, from: number): string[] | undefined {
+  const eol = s.indexOf("\n", from);
+  if (eol < 0 || !/^。?\s*$/.test(s.slice(from, eol))) return undefined;
+  return listItems(s.slice(eol + 1).split("\n"), 0);
 }
 
 const CONJUNCTION = /^(?:又は|及び|並びに|若しくは|かつ)/;
@@ -220,13 +242,8 @@ export function definitionsIn(text: string, block: string): Definition[] {
       if (!/をいう$/.test(def)) return;
       let items: string[] | undefined;
       if (LIST.test(def)) {
-        items = [];
-        for (const sub of lines.slice(i + 1)) {
-          if (!sub.trim()) continue;
-          if (!sub.startsWith("  - ")) break;
-          items.push(stripTags(sub.slice(4)).trim());
-        }
-        if (items.length > MAX_ITEMS) return;
+        items = listItems(lines.slice(i + 1), 2);
+        if (!items) return; // too long to show
       }
       add(m[1], "item", def, items);
     });

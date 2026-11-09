@@ -56,7 +56,10 @@ const FORMS = ["「○○」とは、…をいう", "次の各号に掲げる用
                 <p><Fragment set:html={renderInline(g.def.text)} />{g.def.items ? "。" : ""}</p>
                 {g.def.items && (
                   <ul class="mt-2 flex flex-col gap-1 text-sm">
-                    {g.def.items.map((item) => <li set:html={renderInline(item)} />)}
+                    {g.def.items.map((item) => {
+                      const level = (item.length - item.trimStart().length) / 2;
+                      return <li style={level ? `padding-left: ${level * 1.25}rem` : undefined} set:html={renderInline(item.trim())} />;
+                    })}
                   </ul>
                 )}
               </blockquote>
