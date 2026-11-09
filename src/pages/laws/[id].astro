@@ -144,7 +144,7 @@ const legislationLd = jsonLdText(
                 <div class="timeline-middle">
                   <span class:list={["mt-1.5 block h-2.5 w-2.5 rounded-full border-2", r.branch === "upcoming" ? "border-dashed border-primary bg-base-100" : "border-primary bg-primary"]}></span>
                 </div>
-                <div class="timeline-end mb-4 ml-1 min-w-0">
+                <div class:list={["timeline-end ml-1 min-w-0", { "mb-4": i < revisions.length - 1 }]}>
                   <div class="font-bold">
                     {r.enforced ? jpDate(r.enforced) : "施行日未定"}
                     {r.branch === "upcoming" ? <StatusBadge kind="upcoming" label="施行予定" /> : isStaged(r.kind, law.id, r.amendmentLawId) ? <StatusBadge kind="staged" label="段階施行" /> : <StatusBadge kind={r.kind} label={KIND_LABELS[r.kind]} />}
