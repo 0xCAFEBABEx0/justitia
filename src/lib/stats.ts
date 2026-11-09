@@ -179,6 +179,21 @@ export function articleSpan(heading: string): number {
   return b > a ? b - a + 1 : 1;
 }
 
+/**
+ * How many of the articles a heading stands for have a branch number: 第三条の二 is one,
+ * 第三条の二から第三条の五まで four, 第三条から第三条の三まで two (第三条 has none). A range across
+ * article numbers (第三条の二から第五条まで) counts only its ends, as the branches in between are
+ * not in the heading.
+ */
+export function branchedSpan(heading: string): number {
+  const m = ARTICLE_HEADING.exec(heading);
+  if (!m) return 0;
+  const [, fromNum, fromBranch, joiner, toNum, toBranch] = m;
+  const ends = (fromBranch ? 1 : 0) + (joiner && toBranch ? 1 : 0);
+  if (joiner !== "から" || kanjiNumber(fromNum) !== kanjiNumber(toNum)) return ends;
+  return articleSpan(heading) - (fromBranch ? 0 : 1);
+}
+
 export interface TextStats {
   /** Characters of the text as shown, without the title, whitespace and markup. */
   chars: number;
@@ -186,7 +201,7 @@ export interface TextStats {
   articles: number;
   /** Of those, articles whose whole text is 削除. */
   deleted: number;
-  /** Article headings with a branch number (第三条の二). */
+  /** Of those, articles with a branch number (第三条の二). */
   branched: number;
   /** The main provisions are written with katakana (文語体), like 失火ノ責任ニ関スル法律. */
   katakana: boolean;
@@ -229,7 +244,7 @@ export function measureBlocks(blocks: { key: string; level: number; heading: str
     if (!span) continue;
     articles += span;
     if (/^削除\s*$/.test(b.text.trim())) deleted += span;
-    if (/^第[〇一二三四五六七八九十百千]+条の/.test(b.heading)) branched++;
+    branched += branchedSpan(b.heading);
   }
   return { chars, articles, deleted, branched, katakana: kata > hira && kata >= 2 };
 }

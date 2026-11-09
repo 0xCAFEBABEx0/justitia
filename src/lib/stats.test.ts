@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { splitBlocks } from "../../scripts/extract/blocks.ts";
-import { articleSpan, byAge, isUnamended, kanjiNumber, lastAmended, lawYear, lawYearLabel, listTitle, measureBlocks, statLaw, yearBefore, yearsSince, type StatLaw } from "./stats.ts";
+import { articleSpan, branchedSpan, byAge, isUnamended, kanjiNumber, lastAmended, lawYear, lawYearLabel, listTitle, measureBlocks, statLaw, yearBefore, yearsSince, type StatLaw } from "./stats.ts";
 import type { LawDetail, LawRevision } from "../../scripts/extract/types.ts";
 
 test("lawYear reads the era and year from a law ID", () => {
@@ -100,6 +100,13 @@ test("kanjiNumber and articleSpan", () => {
   assert.equal(articleSpan("第三十二条から第三十四条まで"), 3);
   assert.equal(articleSpan("第三条の二から第三条の五まで"), 4);
   assert.equal(articleSpan("第十二条及び第十三条"), 2);
+  assert.equal(branchedSpan("第三条"), 0);
+  assert.equal(branchedSpan("第三条の二"), 1);
+  assert.equal(branchedSpan("第三条の二から第三条の五まで"), 4);
+  assert.equal(branchedSpan("第三条から第三条の三まで"), 2);
+  assert.equal(branchedSpan("第三条の二から第五条まで"), 1);
+  assert.equal(branchedSpan("第三条の二及び第三条の三"), 2);
+  assert.equal(branchedSpan("第一章　総則"), 0);
   assert.equal(articleSpan("第一章　総則"), 0);
   assert.equal(articleSpan("附　則"), 0);
 });
