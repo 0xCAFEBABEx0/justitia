@@ -1,7 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
 import PageHeader from "../components/PageHeader.astro";
-import { jpDate, jstDate, meta } from "../lib/data.ts";
+import { dataDate, jpDate, meta } from "../lib/data.ts";
 import { CODE_LICENSE_URL, CODE_REPO, DATA_LICENSE_URL, PDL_URL, SITE_NAME, SOURCE_REPO } from "../lib/site.ts";
 import { EGOV_URL } from "../lib/disclaimer.ts";
 
@@ -71,7 +71,7 @@ const m = meta();
   </ul>
   <h2 class="mt-6 mb-2 text-lg font-bold">データ</h2>
   <p class="text-sm text-base-content/70">
-    最終更新：{jpDate(jstDate(m.generatedAt))}・houritsu の <a class="link link-primary" href={`${SOURCE_REPO}/commit/${m.source.mainCommit}`}>{m.source.mainCommit.slice(0, 9)}</a> 時点
+    最終更新：{jpDate(dataDate())}・houritsu の <a class="link link-primary" href={`${SOURCE_REPO}/commit/${m.source.mainCommit}`}>{m.source.mainCommit.slice(0, 9)}</a> 時点
   </p>
   </div></div>
 </Base>

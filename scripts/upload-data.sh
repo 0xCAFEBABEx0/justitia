@@ -139,12 +139,18 @@ upload=(--checksum --fast-list --transfers 32 --checkers 32
 # _publish/data-version.txt records which data R2 holds ("<data version> br"); the workflow uses its cached
 # data only when that matches. It says "incomplete" while the data is being synced, so an upload that fails halfway
 # makes the next run extract and upload again.
+# Its second line, "<source version> <updated at>" from meta.json, is the data date and the houritsu content it
+# belongs to; the next extraction keeps that date when houritsu's content is the same (scripts/extract/source-version.ts).
+# The "incomplete" marker carries it too, so an upload that fails halfway does not lose the date.
 if $upload_data; then
-  version=$(node -p 'require(process.argv[1]).dataVersion' "$(cd "$data" && pwd)/meta.json" | grep -Ex '[0-9a-f]{16}') ||
+  meta="$(cd "$data" && pwd)/meta.json"
+  version=$(node -p 'require(process.argv[1]).dataVersion' "$meta" | grep -Ex '[0-9a-f]{16}') ||
     { echo "upload-data: $data/meta.json has no dataVersion" >&2; exit 1; }
-  echo "$version $encoding" >"$work/data-version.txt"
+  # Empty for output from before meta.json had them.
+  dated=$(node -p 'const m = require(process.argv[1]); m.sourceVersion && m.updatedAt ? `${m.sourceVersion} ${m.updatedAt}` : ""' "$meta")
+  printf '%s %s\n%s\n' "$version" "$encoding" "$dated" >"$work/data-version.txt"
   node "$here/compress-data.ts" "$data" "$work/$encoding"
-  echo incomplete >"$work/incomplete.txt"
+  printf 'incomplete\n%s\n' "$dated" >"$work/incomplete.txt"
   rclone copyto "$work/incomplete.txt" "r2:$bucket/_publish/data-version.txt" --header-upload "Cache-Control: no-store"
   for dir in amendments laws history; do
     echo "upload-data: $dir/"

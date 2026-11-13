@@ -43,13 +43,24 @@ export function meta(): Meta {
   return readJson<Meta>("meta.json");
 }
 
-/** The date (YYYY-MM-DD) in Japan at a time, such as meta().generatedAt. */
+/** The date (YYYY-MM-DD) in Japan at a time, such as meta().updatedAt. */
 export function jstDate(time: string | Date): string {
   return new Date(new Date(time).getTime() + 9 * 3600_000).toISOString().slice(0, 10); // JST has no daylight saving
 }
 
 /**
- * Today's date (YYYY-MM-DD) in Japan, when the site is built. Pages use it, not meta().generatedAt,
+ * The data date (YYYY-MM-DD, Japan): when the content read from houritsu last changed, not when the
+ * extractor last ran (houritsu rewrites its history almost daily without changing the laws; see
+ * scripts/extract/source-version.ts). Output from before meta.json had it falls back to the
+ * generation time.
+ */
+export function dataDate(): string {
+  const m = meta();
+  return jstDate(m.updatedAt ?? m.generatedAt);
+}
+
+/**
+ * Today's date (YYYY-MM-DD) in Japan, when the site is built. Pages use it, not dataDate(),
  * to tell enforced amendments from upcoming ones: a build can reuse data extracted days before.
  */
 export function buildDate(): string {

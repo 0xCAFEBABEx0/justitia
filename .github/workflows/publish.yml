@@ -144,8 +144,10 @@ jobs:
         run: |
           # The upload writes "<data version> br" (scripts/upload-data.sh): a cache entry from before the data was
           # stored compressed is extracted and uploaded again.
+          # Its second line is the data date (see the next step).
           cached="$(node -p 'require("./data/meta.json").dataVersion') br"
           published=$(curl -fsS "$PUBLIC_DATA_BASE/_publish/data-version.txt?ts=$(date +%s%N)" || echo none)
+          published=${published%%$'\n'*}
           if [[ "$published" == "$cached" ]]; then
             echo "R2 holds the cached data ($cached)"
             echo "same=true" >>"$GITHUB_OUTPUT"
@@ -153,10 +155,17 @@ jobs:
             echo "R2 holds $published, the cache $cached: extracting again"
           fi
 
+      # houritsu rewrites its history almost every day, mostly without changing the laws. The extractor keeps the
+      # published data date ("<source version> <updated at>", the second line of _publish/data-version.txt) when
+      # the content it reads from houritsu is the same (scripts/extract/source-version.ts), so the date the pages
+      # show moves only when the data does. Without a published date (the first run, or R2 unreachable) it is now.
       - name: Extract data (about 15 minutes)
         id: extract
         if: steps.published.outputs.same != 'true'
-        run: npm run extract
+        run: |
+          published=$(curl -fsS "$PUBLIC_DATA_BASE/_publish/data-version.txt?ts=$(date +%s%N)" | sed -n 2p || true)
+          echo "published data date: ${published:-none}"
+          npm run extract -- --published-source="$published"
         env:
           NODE_OPTIONS: --max-old-space-size=8192
 
