@@ -25,7 +25,7 @@ npm run fetch-houritsu   # clone houritsu into ./houritsu (fetch on later runs) 
 npm run extract          # write JSON to ./data
 ```
 
-The options (`--repo`, `--out`, `--main`, `--upcoming`, `--only`, `--related-only`) are described in the comment at the top of `scripts/extract/index.ts`.
+The options (`--repo`, `--out`, `--main`, `--upcoming`, `--only`, `--related-only`, `--published-source`) are described in the comment at the top of `scripts/extract/index.ts`.
 Passing a law ID, as in `--only 140AC0000000045`, writes only that law (useful for testing).
 
 ### Output
@@ -34,7 +34,7 @@ The types are in `scripts/extract/types.ts`.
 
 | File | Contents |
 | --- | --- |
-| `meta.json` | Generation time, data version (a hash of `amendments/`, `laws/` and `history/`), the houritsu commits used, counts |
+| `meta.json` | Generation time, data date (`updatedAt`: when the content read from houritsu last changed, see [Publishing](#publishing)), data version (a hash of `amendments/`, `laws/` and `history/`), source version (a hash of the content read from houritsu, without commit SHAs), the houritsu commits used, counts |
 | `laws.json` | All laws (in force, repealed, and not yet in force), in kana order |
 | `laws/<law ID>.json` | Per-law details, amendment history (oldest first, upcoming amendments last), and the laws most often amended together with it |
 | `amendments/<key>.json` | Per-amendment (one houritsu commit) details, with an article-level diff for each law it changed |
@@ -203,7 +203,13 @@ It rebuilds only what changed:
    `laws.json`, `laws/`, `timeline/`, and `amendments/` for the static amendment pages). A change to the site alone, or a day without new commits in houritsu, uses
    the cache, as long as R2 still holds the same data: the upload records the data version it uploaded and how
    it stored it in `_publish/data-version.txt` (`<data version> br`, `incomplete` while it uploads), and a cached
-   copy with another version (after an extractor change is reverted, for example) is extracted and uploaded again;
+   copy with another version (after an extractor change is reverted, for example) is extracted and uploaded again.
+   The second line of that file is `<source version> <updated at>` from `meta.json`. houritsu rewrites its history
+   almost every day, often without changing any law (a new README in its root commit, for example), which changes
+   its commit SHAs and so the cache key. The extractor gets that line (`--published-source`) and keeps the published
+   data date when the content it reads from houritsu is the same (`scripts/extract/source-version.ts`), so the date
+   the pages show (最終更新, データ更新) moves only when the data does. A cached copy is used only when its date is the
+   published one too;
 2. build the site, then the search index (`npm run search-index -- --skip-if-same <published input hash>`),
    unless the published index was built from the same input: `shards.json` records a hash of the indexed parts
    of the law pages, the indexer and the Pagefind version, and the upload publishes it as
@@ -381,8 +387,8 @@ site, its data, feeds and calendars.
   it correctly.
 - **What a version covers**: the code in this repository (site, extractor, feeds, publishing). The data is not
   versioned by releases: houritsu's daily updates are published without one, and each build of the data has its own
-  data version (`dataVersion` in `meta.json`, see [Output](#output)) and data date (shown on the home and about
-  pages).
+  data version (`dataVersion` in `meta.json`, see [Output](#output)) and data date (`updatedAt`, the day houritsu's
+  content last changed, shown on the home and about pages, on law pages and in print).
 - **Public contracts and breaking changes**: page URLs, the files, fields and keys of the JSON at
   `https://data.anisotro.pics`, and the URLs of the calendars and feeds are relied on by bookmarks, subscriptions and
   reusers of the data. They are not changed for style ([AGENTS.md](AGENTS.md), rule 10). When one has to change, the

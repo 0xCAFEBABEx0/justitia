@@ -2,9 +2,9 @@
 // The note under the heading of the /stats/ pages: the figures are counted by a program and can be
 // wrong (the counterpart of DISCLAIMER_NOTE_HTML on the law pages), and the date of the data.
 import { EGOV_URL } from "../lib/disclaimer.ts";
-import { jpDate, jstDate, meta } from "../lib/data.ts";
+import { dataDate, jpDate } from "../lib/data.ts";
 ---
 <div role="note" class="alert alert-warning alert-soft mb-5 items-start gap-3 py-2.5 text-base-content" data-disclaimer>
   <svg class="mt-0.5 h-5 w-5 shrink-0 text-warning" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4M12 17h.01" /></svg>
-  <p>{jpDate(jstDate(meta().generatedAt))}時点のデータから、プログラムで自動的に集計しています。誤りを含むことがあるため、正式な内容は <a class="link link-primary" href={EGOV_URL}>e-Gov 法令検索</a> で確認してください。本サイトの利用により生じた損害について、管理者は一切の責任を負いません。</p>
+  <p>{jpDate(dataDate())}時点のデータから、プログラムで自動的に集計しています。誤りを含むことがあるため、正式な内容は <a class="link link-primary" href={EGOV_URL}>e-Gov 法令検索</a> で確認してください。本サイトの利用により生じた損害について、管理者は一切の責任を負いません。</p>
 </div>

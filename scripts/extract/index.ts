@@ -10,12 +10,16 @@
 //                      skipped when missing)
 //   --only <ids>       comma-separated law IDs: only these laws are written (for quick checks)
 //   --related-only     recompute only the related laws in an existing output (no git access)
+//   --published-source "<source version> <updated at>"
+//                      of the published data (second line of _publish/data-version.txt): its date
+//                      is kept as updatedAt when houritsu's content is the same (source-version.ts)
 
 import { appendFile, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { diffBlocks, splitBlocks, type Block } from "./blocks.ts";
 import { dataVersion } from "./data-version.ts";
+import { sourceVersion, updatedAt } from "./source-version.ts";
 import { splitLawFile, str } from "./frontmatter.ts";
 import { BlobReader, listCommits, tryRevParse, type RawCommit } from "./git.ts";
 import { buildHistory, historyEntry, type HistoryEntry } from "./history.ts";
@@ -41,6 +45,7 @@ const { values: opts } = parseArgs({
     main: { type: "string" },
     upcoming: { type: "string" },
     only: { type: "string" },
+    "published-source": { type: "string" },
     "related-only": { type: "boolean" },
   },
 });
@@ -376,9 +381,13 @@ async function main(): Promise<void> {
     await writeJson(join(outDir, "timeline", `${year}.json`), list);
   }
 
+  const generatedAt = new Date().toISOString();
+  const source = sourceVersion(all);
   const meta: Meta = {
-    generatedAt: new Date().toISOString(),
+    generatedAt,
+    updatedAt: updatedAt(opts["published-source"], source, generatedAt),
     dataVersion: await dataVersion(outDir),
+    sourceVersion: source,
     source: {
       repository: "https://github.com/Kohei-Wada/houritsu",
       mainRef: mainRef[0],

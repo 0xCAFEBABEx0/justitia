@@ -14,9 +14,18 @@
 export type Branch = "main" | "upcoming";
 
 export interface Meta {
+  /** When the extractor ran. */
   generatedAt: string;
+  /**
+   * When the content read from houritsu last changed: the published data's date when the source
+   * version is the same as the published one, else generatedAt (see source-version.ts). The pages
+   * show it as the data date. Missing in older output.
+   */
+  updatedAt?: string;
   /** Hash of amendments/, laws/ and history/ (see data-version.ts). Missing in older output. */
   dataVersion?: string;
+  /** Hash of the content read from houritsu, without commit SHAs (see source-version.ts). Missing in older output. */
+  sourceVersion?: string;
   source: {
     repository: string;
     mainRef: string;

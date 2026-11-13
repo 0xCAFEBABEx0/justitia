@@ -2,11 +2,10 @@
 import Base from "../../layouts/Base.astro";
 import {
   amendmentUrl,
+  dataDate,
   jpDate,
-  jstDate,
   KIND_LABELS,
   law as loadLaw,
-  meta,
   pageLaws,
   repealOf,
   STATUS_LABELS,
@@ -62,7 +61,7 @@ const citeAsOf =
     ? "公布済み・未施行の法令の条文"
     : law.status === "repealed"
       ? "廃止された法令の、廃止直前の条文"
-      : `${jpDate(jstDate(meta().generatedAt))}更新のデータによる現行条文`;
+      : `${jpDate(dataDate())}更新のデータによる現行条文`;
 // The calendar of the days the law's amendments come into force (scripts/feeds.ts); a repealed law
 // gets none.
 const calendarUrl = law.status === "repealed" ? null : feedUrl(DATA_BASE, feedFile.law(law.id, "ics"));

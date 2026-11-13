@@ -3,7 +3,7 @@ import Base from "../layouts/Base.astro";
 import AmendmentList from "../components/AmendmentList.astro";
 import NewLawList from "../components/NewLawList.astro";
 import BrowseTabs from "../components/BrowseTabs.astro";
-import { buildDate, jpDate, jstDate, lawUrl, meta, newLaws, repealedLaws, timeline, timelineYears, typeLabel, type AmendmentSummary } from "../lib/data.ts";
+import { buildDate, dataDate, jpDate, lawUrl, meta, newLaws, repealedLaws, timeline, timelineYears, typeLabel, type AmendmentSummary } from "../lib/data.ts";
 import { isUpcomingNewLaw } from "../lib/new-laws.ts";
 import { SITE_TAGLINE } from "../lib/site.ts";
 import { statLaws } from "../lib/stats.ts";
@@ -109,7 +109,7 @@ const newThisYear = allNew.filter((l) => l.branch === "main" && l.enforced?.star
           <div class="stat py-3"><div class="stat-title text-base-content/65">廃止された法令</div><div class="stat-value text-2xl"><a class="link link-hover" href="/repealed/">{m.counts.lawsRepealed.toLocaleString()}</a></div></div>
           <div class="stat py-3"><div class="stat-title text-base-content/65">一度も改正されていない法令</div><div class="stat-value text-2xl"><a class="link link-hover" href="/stats/unamended/">{unamendedCount.toLocaleString()}</a></div><div class="stat-desc"><a class="link text-base-content/65" href="/stats/">法令の統計を見る</a></div></div>
           <div class="stat py-3"><div class="stat-title text-base-content/65">{today.slice(0, 4)}年に施行された新しい法令</div><div class="stat-value text-2xl">{newThisYear.toLocaleString()}</div></div>
-          <div class="stat py-3"><div class="stat-title text-base-content/65">改正</div><div class="stat-value text-2xl">{m.counts.amendments.toLocaleString()}</div><div class="stat-desc text-base-content/65">データ更新：{jpDate(jstDate(m.generatedAt))}</div></div>
+          <div class="stat py-3"><div class="stat-title text-base-content/65">改正</div><div class="stat-value text-2xl">{m.counts.amendments.toLocaleString()}</div><div class="stat-desc text-base-content/65">データ更新：{jpDate(dataDate())}</div></div>
         </div>
       </section>
     </aside>
