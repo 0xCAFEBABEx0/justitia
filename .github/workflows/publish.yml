@@ -144,15 +144,18 @@ jobs:
         run: |
           # The upload writes "<data version> br" (scripts/upload-data.sh): a cache entry from before the data was
           # stored compressed is extracted and uploaded again.
-          # Its second line is the data date (see the next step).
+          # Its second line is the data date (see the next step), which the cached copy must have too: the same houritsu
+          # commits can come back after another history was published, and their cached copy has an older date.
           cached="$(node -p 'require("./data/meta.json").dataVersion') br"
-          published=$(curl -fsS "$PUBLIC_DATA_BASE/_publish/data-version.txt?ts=$(date +%s%N)" || echo none)
-          published=${published%%$'\n'*}
-          if [[ "$published" == "$cached" ]]; then
+          cached_date=$(node -p 'const m = require("./data/meta.json"); m.sourceVersion && m.updatedAt ? `${m.sourceVersion} ${m.updatedAt}` : ""')
+          marker=$(curl -fsS "$PUBLIC_DATA_BASE/_publish/data-version.txt?ts=$(date +%s%N)" || echo none)
+          published=${marker%%$'\n'*}
+          published_date=$(sed -n 2p <<<"$marker")
+          if [[ "$published" == "$cached" && "$published_date" == "$cached_date" ]]; then
             echo "R2 holds the cached data ($cached)"
             echo "same=true" >>"$GITHUB_OUTPUT"
           else
-            echo "R2 holds $published, the cache $cached: extracting again"
+            echo "R2 holds $published ($published_date), the cache $cached ($cached_date): extracting again"
           fi
 
       # houritsu rewrites its history almost every day, mostly without changing the laws. The extractor keeps the

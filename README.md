@@ -208,7 +208,8 @@ It rebuilds only what changed:
    almost every day, often without changing any law (a new README in its root commit, for example), which changes
    its commit SHAs and so the cache key. The extractor gets that line (`--published-source`) and keeps the published
    data date when the content it reads from houritsu is the same (`scripts/extract/source-version.ts`), so the date
-   the pages show (最終更新, データ更新) moves only when the data does;
+   the pages show (最終更新, データ更新) moves only when the data does. A cached copy is used only when its date is the
+   published one too;
 2. build the site, then the search index (`npm run search-index -- --skip-if-same <published input hash>`),
    unless the published index was built from the same input: `shards.json` records a hash of the indexed parts
    of the law pages, the indexer and the Pagefind version, and the upload publishes it as
