@@ -3,7 +3,7 @@
 
 import { laws, lawUrl, TYPE_ORDER, type LawSummary } from "./data.ts";
 import { listTitle, scanLaws } from "./stats.ts";
-import type { Definition } from "./terms.ts";
+import type { Definition, DefinitionSource } from "./terms.ts";
 
 /** A term gets a page when this many laws in force define it. */
 export const MIN_LAWS = 5;
@@ -17,6 +17,16 @@ export interface TermLaw {
   href: string;
   /** The article as the law page heads it: 第二条. */
   article: string;
+  /** For a definition by reference to another law, that law's provision. */
+  source?: TermSource;
+}
+
+/** The provision of another law that a definition refers to, as shown: 地方自治法 第二百五十二条の十九第一項. */
+export interface TermSource {
+  law: string;
+  provision: string;
+  /** The law page at the article, when the law is in force. */
+  href?: string;
 }
 
 export interface Term {
@@ -54,6 +64,15 @@ export function termIndex(): TermIndex {
   const byId = new Map<string, LawSummary>(laws().map((l) => [l.id, l]));
   const cited = (id: string) => scan.citedBy.get(id)?.length ?? 0;
   const rank = (l: LawSummary) => TYPE_ORDER.indexOf(l.dir);
+  const byTitle = new Map<string, string | null>();
+  for (const l of laws()) if (l.status === "in_force") byTitle.set(l.title, byTitle.has(l.title) ? null : l.id);
+  const sourceOf = (s: DefinitionSource): TermSource => {
+    const id = byTitle.get(s.law);
+    if (!id) return { law: s.law, provision: s.provision };
+    const article = /^第[〇一二三四五六七八九十百千]+条(?:の[〇一二三四五六七八九十百千]+)*/.exec(s.provision)?.[0];
+    const key = article && scan.articles.get(id)?.get(article);
+    return { law: s.law, provision: s.provision, href: `${lawUrl(id)}${key ? `#${encodeURIComponent(key)}` : ""}` };
+  };
   const terms: Term[] = [];
   for (const [term, uses] of scan.definitions) {
     if (uses.length < MIN_LAWS) continue;
@@ -67,6 +86,7 @@ export function termIndex(): TermIndex {
         def,
         href: `${lawUrl(law.id)}#${encodeURIComponent(def.block)}`,
         article: articleLabel(def.block),
+        ...(def.source ? { source: sourceOf(def.source) } : {}),
       }));
     terms.push({ term, laws: list, acts: list.filter(isAct).length });
   }
@@ -83,14 +103,41 @@ export function termIndex(): TermIndex {
   return cache;
 }
 
-/** A term's laws grouped by the wording of their definitions, the group with the first law first. */
-export function definitionGroups(t: Term): { def: Definition; laws: TermLaw[] }[] {
-  const groups = new Map<string, { def: Definition; laws: TermLaw[] }>();
+/**
+ * What a definition by reference says in parentheses beyond the reference: 「法人税法（昭和四十年法律
+ * 第三十四号）第二条第四号に規定する外国法人（公益法人等を除く。）」 → 公益法人等を除く。 The number
+ * of the law and a short name given to it (以下「法」という。) are not part of it.
+ */
+export function qualifiers(text: string): string {
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "（" && depth++ === 0) start = i + 1;
+    else if (text[i] === "）" && depth > 0 && --depth === 0) {
+      const inner = text.slice(start, i);
+      if (!/^(?:(?:明治|大正|昭和|平成|令和)[元〇一二三四五六七八九十]+年[^（）。]*第[〇一二三四五六七八九十百千]+号。?)?(?:[^。「」]*「[^「」]*」という。?)?$/.test(inner)) out.push(inner);
+    }
+  }
+  return out.join("\n");
+}
+
+/**
+ * A term's laws grouped by the wording of their definitions, the group with the first law first. The
+ * definitions that refer to the same provision of another law make one group, however they word it
+ * (with or without the law number), quoted from a law that names the other law by its title. What a
+ * reference adds in parentheses (公益法人等を除く。) changes its meaning, and keeps it apart.
+ */
+export function definitionGroups(t: Term): { def: Definition; laws: TermLaw[]; source?: TermSource }[] {
+  const groups = new Map<string, { def: Definition; laws: TermLaw[]; source?: TermSource }>();
   for (const l of t.laws) {
-    const key = `${l.def.text}\n${(l.def.items ?? []).join("\n")}`;
+    const key = l.source ? `\0${l.source.law}\0${l.source.provision}\0${qualifiers(l.def.text)}` : `${l.def.text}\n${(l.def.items ?? []).join("\n")}`;
     const g = groups.get(key);
-    if (g) g.laws.push(l);
-    else groups.set(key, { def: l.def, laws: [l] });
+    if (!g) groups.set(key, { def: l.def, laws: [l], ...(l.source ? { source: l.source } : {}) });
+    else {
+      g.laws.push(l);
+      if (g.def.text.startsWith("同法") && !l.def.text.startsWith("同法")) g.def = l.def;
+    }
   }
   return [...groups.values()];
 }
