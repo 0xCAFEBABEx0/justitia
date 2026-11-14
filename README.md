@@ -158,6 +158,13 @@ the name of this project and does not appear on the site.
 - Pages get a canonical link, except `/amendment/` and the versions page (their content depends on the query string,
   and a canonical link without it would mark every amendment as the same page) and the 404 page (served at any
   missing path). `/amendment/` without a key gets `noindex`, so that it is not indexed as an empty page.
+- An amendment page whose laws were all only enacted (制定) or first recorded by houritsu (収録開始) shows no diff,
+  only links to the law pages, so it gets `noindex` and is left out of the sitemap (`amendmentIndexable` in
+  `src/lib/seo.ts`; about a quarter of the amendment pages). Its URL keeps working and the site keeps linking to it.
+- `public/robots.txt` keeps crawlers off the pages the browser fills in from a query string: `/versions/` (law
+  pages link it once per revision, tens of thousands of URLs), search results (`/search/?q=`) and the old
+  amendment address (`/amendment/?k=`). Google's crawl budget guide asks sites to block such URLs with robots.txt
+  rather than `noindex`, which still costs a crawl each.
 - Structured data (JSON-LD, `src/lib/seo.ts`): pages with breadcrumbs carry a schema.org `BreadcrumbList`
   (`PageHeader`), and law pages a `Legislation` (law number, type, legal force, date of the last amendment in force,
   the e-Gov page as `sameAs`).
@@ -166,13 +173,16 @@ the name of this project and does not appear on the site.
   page, and the text of the largest laws is over 10 MB.
 - Icons: `public/favicon.svg` is the drawing; `favicon.ico` (16, 32 and 48 px; Google Search does not use SVG
   favicons), `apple-touch-icon.png` (180 px) and `og-image.png` are rendered from it.
-- `@astrojs/sitemap` writes `sitemap-index.xml` (all pages except `/amendment/`, the versions page and the 404 page),
+- `@astrojs/sitemap` writes `sitemap-index.xml` (all pages except `/amendment/`, the `noindex` amendment pages, the
+  versions page and the 404 page),
   which `public/robots.txt` points to and Search Console has. It lists `sitemap-laws-0.xml`, the law pages with a
   `lastmod` (the day the latest amendment in force came into force, never later than the build date, and left out
   before 1970, which Search Console reports as an invalid date),
-  `sitemap-amendments-0.xml`, the static amendment pages, `sitemap-terms-0.xml`, the pages of defined terms
-  (`/terms/<term>/`), and `sitemap-pages-0.xml`, the other pages; the last three have no `lastmod` (their content
-  changes with the data, not on a date a page could state).
+  `sitemap-amendments-0.xml`, the static amendment pages except the `noindex` ones, with a `lastmod` (the day the
+  amendment came into force, or the day it was promulgated while it is not in force yet or its date is
+  undetermined; same limits), `sitemap-terms-0.xml`, the pages of defined terms (`/terms/<term>/`), and
+  `sitemap-pages-0.xml`, the other pages; the last two have no `lastmod` (their content changes with the data, not
+  on a date a page could state).
 
 ### Disclaimer
 

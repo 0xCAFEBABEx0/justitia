@@ -6,11 +6,11 @@
 import Base from "../../layouts/Base.astro";
 import { amendment, amendmentRevisions, dataVersion, jpDate, law, pageAmendments } from "../../lib/data.ts";
 import { DATA_BASE } from "../../lib/site.ts";
-import { amendingLegislation, breadcrumbList, jsonLdText } from "../../lib/seo.ts";
+import { amendingLegislation, amendmentIndexable, breadcrumbList, jsonLdText } from "../../lib/seo.ts";
 import { amendmentDescription, amendmentStaticHtml, type AmendmentLinks } from "../../scripts/amendment.ts";
 
 export function getStaticPaths() {
-  return pageAmendments().map((a) => ({ params: { key: a.key } }));
+  return pageAmendments().map((a) => ({ params: { key: a.key }, props: { indexable: amendmentIndexable(a.laws) } }));
 }
 
 // Googlebot reads the first 2 MB of a page; Japanese text is 3 bytes a character in UTF-8. The layout and the
@@ -18,6 +18,9 @@ export function getStaticPaths() {
 const CONTENT_BUDGET = 800_000;
 
 const { key } = Astro.params;
+// An amendment that only enacted or first recorded laws shows no diff: noindex, and left out of the sitemap
+// (astro.config.mjs).
+const { indexable } = Astro.props as { indexable: boolean };
 const a = amendment(key);
 // The revisions around the change, from the law files, for the e-Gov and comparison links. An amendment of one law
 // gets the graph the law page shows: the law and the three laws most often amended with it.
@@ -49,7 +52,7 @@ const ld = [
   }),
 ];
 ---
-<Base title={`${a.title}（${a.enforced ? `${jpDate(a.enforced)}施行` : "施行日未定"}）`} description={amendmentDescription(a)} nav="timeline">
+<Base title={`${a.title}（${a.enforced ? `${jpDate(a.enforced)}施行` : "施行日未定"}）`} description={amendmentDescription(a)} nav="timeline" noindex={!indexable}>
   <script is:inline type="application/ld+json" set:html={jsonLdText(ld)} />
   <div id="amendment" data-base={DATA_BASE} data-v={dataVersion()} data-key={key} data-complete={String(complete)} data-links={JSON.stringify(links)} set:html={html} />
   <script>

@@ -1,4 +1,11 @@
 User-agent: *
 Allow: /
+# Pages rendered in the browser from a query string: the text of a law at a revision
+# (/versions/?law=...), search results (/search/?q=...) and the old amendment address
+# (/amendment/?k=..., which forwards to /amendment/<key>/). Law pages link /versions/ once per
+# revision, tens of thousands of URLs with no content of their own for a crawler.
+Disallow: /versions/
+Disallow: /search/?
+Disallow: /amendment/?
 
 Sitemap: https://anisotro.pics/sitemap-index.xml
