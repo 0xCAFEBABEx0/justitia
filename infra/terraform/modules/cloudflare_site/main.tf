@@ -127,6 +127,17 @@ resource "cloudflare_zone_setting" "browser_cache_ttl" {
   value      = 14400
 }
 
+# Always Use HTTPS (SSL/TLS > Edge Certificates): every http:// request on the zone,
+# the site and data_domain alike, gets a 301 to the same https:// URL. Without it,
+# http://anisotro.pics/ answers 200 with the same page as https://, a duplicate URL
+# for search engines. The redirect happens at Cloudflare's edge, before the Workers
+# and the bucket; nothing on the origin redirects, so there is no redirect loop.
+resource "cloudflare_zone_setting" "always_use_https" {
+  zone_id    = var.cloudflare_zone_id
+  setting_id = "always_use_https"
+  value      = "on"
+}
+
 # Bot Fight Mode (Security > Bots) is on. It challenges automated clients, such as
 # GitHub's runners, on non-static file extensions (.json) but not on the static
 # ones (.txt), which is why the Publish workflow fetches only .txt files from
