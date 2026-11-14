@@ -273,10 +273,16 @@ export function billSteps(b: PendingBill): BillStep[] {
 /** The latest step done, for the line above a bill: 「衆議院を通過」 once a house has passed it. */
 export function billHeadline(b: PendingBill): { date: string | null; text: string } {
   const first = firstHouse(b);
-  const r = b.houses[first];
-  if (r.decided && r.decisionResult && PASSED.has(r.decisionResult)) return { date: r.decided, text: `${first}を通過` };
-  if (r.reviewed && r.reviewResult) return { date: r.reviewed, text: `${first}の委員会で${resultLabel(r.reviewResult)}` };
-  return { date: r.received, text: "提出" };
+  const second: House = first === "衆議院" ? "参議院" : "衆議院";
+  let latest = { date: b.houses[first].received, text: "提出" };
+  // Same order as billSteps: the second house counts only once the first has passed the bill.
+  for (const h of [first, second]) {
+    const r = b.houses[h];
+    if (r.reviewed && r.reviewResult) latest = { date: r.reviewed, text: `${h}の委員会で${resultLabel(r.reviewResult)}` };
+    if (!(r.decided && r.decisionResult && PASSED.has(r.decisionResult))) break;
+    latest = { date: r.decided, text: `${h}を通過` };
+  }
+  return latest;
 }
 
 /** 閣法 第222回国会 第15号 */

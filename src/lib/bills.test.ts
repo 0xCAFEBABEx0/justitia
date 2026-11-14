@@ -142,6 +142,16 @@ test("billSteps shows what was done, where the bill is and what is left", () => 
     { date: null, text: "成立・公布", state: "todo" },
   ]);
   assert.deepEqual(billHeadline(b), { date: "2026-11-10", text: "衆議院を通過" });
+  // Once the 参議院 committee has voted, the headline follows it, like the last step done.
+  const [later] = pendingBills([
+    HEADER,
+    row({ ...keishoku, "参議院付託年月日／参議院付託委員会": "令和 8年11月12日／内閣", "参議院審査終了年月日／参議院審査結果": "令和 8年11月19日／可決" }),
+  ]);
+  assert.deepEqual(billSteps(later).slice(3, 5), [
+    { date: "2026-11-19", text: "参議院 内閣委員会で可決", state: "done" },
+    { date: null, text: "参議院で審議中", note: "本会議での採決待ち", state: "current" },
+  ]);
+  assert.deepEqual(billHeadline(later), { date: "2026-11-19", text: "参議院の委員会で可決" });
 });
 
 test("billSteps for a bill still in the first house, modified in committee", () => {
