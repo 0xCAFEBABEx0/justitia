@@ -24,6 +24,12 @@ export function laws(): LawSummary[] {
   return (lawsCache ??= readJson<LawSummary[]>("laws.json"));
 }
 
+let lawsByIdCache: Map<string, LawSummary> | null = null;
+/** Every law in laws.json by law ID. */
+export function lawsById(): ReadonlyMap<string, LawSummary> {
+  return (lawsByIdCache ??= new Map(laws().map((l) => [l.id, l])));
+}
+
 /**
  * Laws that get a page. JUSTITIA_ONLY_LAWS (comma-separated IDs) limits this for quick builds;
  * links to other laws then point at pages that were not built.

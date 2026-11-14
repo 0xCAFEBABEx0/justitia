@@ -6,7 +6,7 @@ import {
   jpDate,
   KIND_LABELS,
   law as loadLaw,
-  laws as allLaws,
+  lawsById,
   lawUrl,
   pageLaws,
   repealOf,
@@ -23,7 +23,7 @@ import { isStaged } from "../../lib/new-laws.ts";
 import { lastTextBeforeRepeal, REPEAL_WAY_LABELS } from "../../lib/repealed-laws.ts";
 import { jsonLdText, legislation } from "../../lib/seo.ts";
 import { amendmentsInForce, isUnamended, listTitle, scanLaws } from "../../lib/stats.ts";
-import { lawSummary, topCitations, type CitationLaw } from "../../lib/law-summary.ts";
+import { lawSummary, topCitations } from "../../lib/law-summary.ts";
 import { termIndex, termUrl } from "../../lib/term-index.ts";
 import { badgeClass } from "../../lib/badges.ts";
 import { amendingLawNum } from "../../lib/law-num.ts";
@@ -89,10 +89,9 @@ const CITATIONS_SHOWN = 10;
 const scan = law.status === "in_force" ? scanLaws() : null;
 const citedByIds = scan?.citedBy.get(law.id) ?? [];
 const citesIds = scan?.cites.get(law.id) ?? [];
-const lawsById = new Map<string, CitationLaw>(allLaws().map((l) => [l.id, l]));
 const citedCount = (lawId: string) => scan?.citedBy.get(lawId)?.length ?? 0;
-const citedByTop = topCitations(citedByIds, lawsById, citedCount, TYPE_ORDER, CITATIONS_SHOWN);
-const citesTop = topCitations(citesIds, lawsById, citedCount, TYPE_ORDER, CITATIONS_SHOWN);
+const citedByTop = topCitations(citedByIds, lawsById(), citedCount, TYPE_ORDER, CITATIONS_SHOWN);
+const citesTop = topCitations(citesIds, lawsById(), citedCount, TYPE_ORDER, CITATIONS_SHOWN);
 // A summary of the facts above and on the rest of the page, in sentences (src/lib/law-summary.ts).
 const summary =
   law.status === "in_force"
