@@ -7,6 +7,7 @@
 import type { Amendment, BlockChange, FileChange, Hunk, Segment } from "../../scripts/extract/types.ts";
 import { badgeClass } from "../lib/badges.ts";
 import { isStaged } from "../lib/new-laws.ts";
+import { amendingLawNum } from "../lib/law-num.ts";
 import { DISCLAIMER_NOTE_HTML } from "../lib/disclaimer.ts";
 import { linkPieces, type Piece } from "../lib/links.ts";
 import { shareToolsHtml } from "../lib/share.ts";
@@ -254,7 +255,7 @@ function lawActionsHtml(f: FileChange, a: Amendment, staged: boolean, r: Revisio
 
 function headHtml(a: Amendment, links: AmendmentLinks | undefined): string {
   const facts: [string, string][] = [
-    ["改正法令", esc(a.amendmentLawNum)],
+    ["改正法令", esc(amendingLawNum(a.amendmentLawNum))],
     ["公布日", jpDate(a.promulgated)],
     ["施行日", a.enforced ? jpDate(a.enforced) : esc(a.enforcedText ?? "未定")],
   ];
@@ -337,7 +338,7 @@ function noindex(): void {
 /** The meta description of an amendment's page. */
 export function amendmentDescription(a: Amendment): string {
   const lawCount = a.files.length;
-  return `${a.title}（${a.amendmentLawNum}）${a.enforced ? `の${jpDate(a.enforced)}の施行` : ""}で変わった${lawCount > 1 ? `${lawCount} 法令の` : ""}条文を、改正前と改正後の新旧対照で見られます。`;
+  return `${a.title}（${amendingLawNum(a.amendmentLawNum)}）${a.enforced ? `の${jpDate(a.enforced)}の施行` : ""}で変わった${lawCount > 1 ? `${lawCount} 法令の` : ""}条文を、改正前と改正後の新旧対照で見られます。`;
 }
 
 /** The element the URL's #fragment names, if any. */

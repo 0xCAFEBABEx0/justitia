@@ -22,6 +22,7 @@ import { jsonLdText, legislation } from "../../lib/seo.ts";
 import { isUnamended } from "../../lib/stats.ts";
 import { termIndex, termUrl } from "../../lib/term-index.ts";
 import { badgeClass } from "../../lib/badges.ts";
+import { amendingLawNum } from "../../lib/law-num.ts";
 import { billHeadline, billName, billsFile, billSteps, BILLS_LICENSE_URL, BILLS_SOURCE_CREDIT, BILLS_SOURCE_NAME, BILLS_SOURCE_URL, pendingBillsOf } from "../../lib/bills.ts";
 import PageHeader from "../../components/PageHeader.astro";
 import StatusBadge from "../../components/StatusBadge.astro";
@@ -106,8 +107,8 @@ const legislationLd = jsonLdText(
       <span data-law-num>{law.num}</span>
       {law.abbrev && <span>略称：{law.abbrev}</span>}
       {enacted && <span>制定：{enacted.enforced ? `${jpDate(enacted.enforced)} 施行` : "施行日未定"}{enacted.branch === "upcoming" && "（予定）"}</span>}
-      {latest && latest.kind === "amended" && <span>最終改正：{jpDate(latest.enforced)} 施行（{latest.amendmentLawNum}）</span>}
-      {repeal && <span>廃止：{repeal.enforced ? `${jpDate(repeal.enforced)} 施行` : "施行日未定"}（{repeal.amendmentLawNum}）</span>}
+      {latest && latest.kind === "amended" && <span>最終改正：{jpDate(latest.enforced)} 施行（{amendingLawNum(latest.amendmentLawNum)}）</span>}
+      {repeal && <span>廃止：{repeal.enforced ? `${jpDate(repeal.enforced)} 施行` : "施行日未定"}（{amendingLawNum(repeal.amendmentLawNum)}）</span>}
     </div>
   </PageHeader>
   <script is:inline type="application/ld+json" set:html={legislationLd} />
@@ -210,7 +211,7 @@ const legislationLd = jsonLdText(
                   </div>
                   <div>
                     <a class="link link-primary" href={amendmentUrl(r.amendment) + anchor}>{r.amendmentTitle}</a>
-                    <span class="text-xs text-base-content/65">（{r.amendmentLawNum}）</span>
+                    <span class="text-xs text-base-content/65">（{amendingLawNum(r.amendmentLawNum)}）</span>
                   </div>
                   {r.titleChange && <div class="text-xs text-base-content/65">題名を「{r.titleChange.from}」から変更</div>}
                   {r.changedCount > 0 && (
@@ -278,12 +279,12 @@ const legislationLd = jsonLdText(
                 {repeal.newLaw ? (
                   <>
                     <dt class="text-base-content/70">新しい法令</dt>
-                    <dd><a class="link link-primary" href={`/laws/${repeal.newLaw.id}/`}>{repeal.newLaw.title}</a><span class="text-xs text-base-content/65">（{repeal.amendmentLawNum}）</span>の施行により廃止・<a class="link" href={`${amendmentUrl(repeal.amendment)}${anchor}`}>施行時の変更</a></dd>
+                    <dd><a class="link link-primary" href={`/laws/${repeal.newLaw.id}/`}>{repeal.newLaw.title}</a><span class="text-xs text-base-content/65">（{amendingLawNum(repeal.amendmentLawNum)}）</span>の施行により廃止・<a class="link" href={`${amendmentUrl(repeal.amendment)}${anchor}`}>施行時の変更</a></dd>
                   </>
                 ) : (
                   <>
                     <dt class="text-base-content/70">廃止した法令</dt>
-                    <dd><a class="link link-primary" href={`${amendmentUrl(repeal.amendment)}${anchor}`}>{repeal.amendmentTitle}</a><span class="text-xs text-base-content/65">（{repeal.amendmentLawNum}）</span></dd>
+                    <dd><a class="link link-primary" href={`${amendmentUrl(repeal.amendment)}${anchor}`}>{repeal.amendmentTitle}</a><span class="text-xs text-base-content/65">（{amendingLawNum(repeal.amendmentLawNum)}）</span></dd>
                   </>
                 )}
                 {repeal.alsoRepeals > 0 && (

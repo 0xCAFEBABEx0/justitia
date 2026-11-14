@@ -4,6 +4,7 @@
 // /repealed/<year>/ pages.
 import { amendmentUrl, jpDate, law, lawUrl, typeLabel, type RepealedLaw } from "../lib/data.ts";
 import { lastTextBeforeRepeal, REPEAL_WAY_LABELS } from "../lib/repealed-laws.ts";
+import { amendingLawNum } from "../lib/law-num.ts";
 
 interface Props {
   items: RepealedLaw[];
@@ -44,9 +45,9 @@ const before = (id: string): string | null => {
               <div class="mt-1 text-xs text-base-content/65">{typeLabel(l.dir)}{l.num && <>・{l.num}</>}・{REPEAL_WAY_LABELS[l.way]}</div>
               <div class="mt-1 text-xs text-base-content/65">
                 {l.newLaw ? (
-                  <>新しい法令：<a class="link link-primary" href={lawUrl(l.newLaw.id)}>{l.newLaw.title}</a>（{l.amendmentLawNum}）・<a class="link" href={`${amendmentUrl(l.amendment)}#law-${l.id}`}>施行時の変更</a></>
+                  <>新しい法令：<a class="link link-primary" href={lawUrl(l.newLaw.id)}>{l.newLaw.title}</a>（{amendingLawNum(l.amendmentLawNum)}）・<a class="link" href={`${amendmentUrl(l.amendment)}#law-${l.id}`}>施行時の変更</a></>
                 ) : (
-                  <>廃止した法令：<a class="link" href={`${amendmentUrl(l.amendment)}#law-${l.id}`}>{l.amendmentTitle}</a>（{l.amendmentLawNum}）</>
+                  <>廃止した法令：<a class="link" href={`${amendmentUrl(l.amendment)}#law-${l.id}`}>{l.amendmentTitle}</a>（{amendingLawNum(l.amendmentLawNum)}）</>
                 )}
                 {l.alsoRepeals > 0 && <>・あわせて {l.alsoRepeals} 法令を廃止</>}
               </div>

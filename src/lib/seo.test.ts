@@ -62,10 +62,23 @@ test("amendingLegislation lists the laws the amendment changed", () => {
     changes: [{ title: "地方自治法", num: "昭和二十二年法律第六十七号", url: "https://anisotro.pics/laws/322AC0000000067/" }],
   }) as Record<string, unknown>;
   assert.equal(ld.legislationDate, "2014-05-30");
+  assert.equal(ld.legislationIdentifier, "平成二十六年法律第四十二号");
   assert.ok(!("legislationDateVersion" in ld));
   assert.deepEqual(ld.legislationChanges, [
     { "@type": "Legislation", name: "地方自治法", legislationIdentifier: "昭和二十二年法律第六十七号", url: "https://anisotro.pics/laws/322AC0000000067/" },
   ]);
+});
+
+test("amendingLegislation leaves out the law number when the amending law is unknown", () => {
+  const ld = amendingLegislation({
+    url: "https://anisotro.pics/amendment/000000000000000_20280613/",
+    title: "事業性融資の推進等に関する法律",
+    num: null,
+    promulgated: "2024-06-14",
+    enforced: "2028-06-13",
+    changes: [],
+  }) as Record<string, unknown>;
+  assert.ok(!("legislationIdentifier" in ld));
 });
 
 test("amendmentLastmod is the enforcement date once in force, else the promulgation date", () => {
