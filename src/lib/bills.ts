@@ -306,3 +306,20 @@ export function pendingBillsOf(lawId: string): PendingBill[] {
   const order: Record<BillKind, number> = { 閣法: 0, 衆法: 1, 参法: 2 };
   return [...(byLawCache.get(lawId) ?? [])].sort((a, b) => order[a.kind] - order[b.kind] || b.session - a.session || a.number - b.number);
 }
+
+let titlesCache: Map<string, string> | null = null;
+/** The laws a bill amends, as far as its title tells (see amendedLawTitles); empty for a new law or a 整備法. */
+export function lawsAmendedBy(b: PendingBill): { id: string; title: string }[] {
+  titlesCache ??= amendableTitles(laws());
+  const titles = titlesCache;
+  return amendedLawTitles(b.title, [...titles.keys()]).map((title) => ({ id: titles.get(title)!, title }));
+}
+
+export type BillStage = "passed" | "first";
+
+/** Whether a bill has passed the house it was sent to first, and which house that was, for /bills/. */
+export function billStage(b: PendingBill): { stage: BillStage; house: House } {
+  const house = firstHouse(b);
+  const r = b.houses[house];
+  return { stage: r.decided && r.decisionResult && PASSED.has(r.decisionResult) ? "passed" : "first", house };
+}

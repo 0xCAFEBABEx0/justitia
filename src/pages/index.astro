@@ -7,6 +7,8 @@ import { buildDate, dataDate, jpDate, lawUrl, meta, newLaws, repealedLaws, timel
 import { isUpcomingNewLaw } from "../lib/new-laws.ts";
 import { SITE_TAGLINE } from "../lib/site.ts";
 import { statLaws } from "../lib/stats.ts";
+import { billHeadline, billsFile, billStage, lawsAmendedBy } from "../lib/bills.ts";
+import StatusBadge from "../components/StatusBadge.astro";
 
 const m = meta();
 const today = buildDate();
@@ -34,6 +36,12 @@ const upcomingNew = allNew
   .sort((a, b) => a.enforced!.localeCompare(b.enforced!))
   .slice(0, 5);
 const recentRepealed = repealedLaws().filter((l) => l.enforced && l.enforced <= today).slice(0, 5);
+// Bills in the Diet: those one house has passed first, then the latest steps.
+const bills = billsFile()?.bills ?? [];
+const pendingBills = bills
+  .map((b) => ({ b, head: billHeadline(b), passed: billStage(b).stage === "passed" }))
+  .sort((x, y) => Number(y.passed) - Number(x.passed) || (y.head.date ?? "").localeCompare(x.head.date ?? ""))
+  .slice(0, 5);
 const newThisYear = allNew.filter((l) => l.branch === "main" && l.enforced?.startsWith(today.slice(0, 4)) && l.enforced <= today).length;
 ---
 <Base
@@ -84,6 +92,28 @@ const newThisYear = allNew.filter((l) => l.branch === "main" && l.enforced?.star
           <p class="text-xs text-base-content/65">公布済みで施行前の改正です（{m.counts.upcomingAmendments.toLocaleString()} 件）。<a class="link" href="/upcoming/">施行予定の改正をすべて見る・カレンダーに登録</a></p>
         </div>
       </section>
+      {pendingBills.length > 0 && (
+        <section class="card card-border bg-base-100">
+          <div class="card-body p-5">
+            <h2 class="card-title text-base">国会で審議中の法律案</h2>
+            <ul class="list">
+              {pendingBills.map(({ b, head }) => {
+                const amended = lawsAmendedBy(b);
+                return (
+                  <li class="list-row px-0 py-2.5">
+                    <div class="list-col-grow">
+                      <div class="text-xs font-bold text-base-content/70">{head.date ? `${jpDate(head.date)} ` : ""}{head.text}<StatusBadge kind="pending" label="審議中" /></div>
+                      <div class="font-bold">{b.title}</div>
+                      {amended.length > 0 && <div class="mt-1 text-xs">改正する法令：{amended.map((l, i) => <>{i > 0 && "、"}<a class="link" href={`${lawUrl(l.id)}#bills`}>{l.title}</a></>)}</div>}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            <p class="text-xs text-base-content/65"><a class="link" href="/bills/">国会で審議中の法律案（{bills.length} 件）をすべて見る</a></p>
+          </div>
+        </section>
+      )}
       {recentRepealed.length > 0 && (
         <section class="card card-border bg-base-100">
           <div class="card-body p-5">

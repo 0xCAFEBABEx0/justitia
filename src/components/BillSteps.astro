@@ -1,0 +1,32 @@
+---
+// The steps a bill pending in the Diet has taken and those left (billSteps in src/lib/bills.ts), as a
+// compact vertical timeline. Used on law pages (in the history) and on /bills/.
+import { jpDate } from "../lib/data.ts";
+import type { BillStep } from "../lib/bills.ts";
+
+interface Props {
+  steps: BillStep[];
+  /** Dates in this year are shown without it (the line above the timeline gives the year). */
+  year?: string;
+}
+const { steps, year } = Astro.props;
+const stepDate = (d: string) => (year && d.startsWith(`${year}-`) ? jpDate(d).replace(/^\d+年/, "") : jpDate(d));
+---
+<ul class="timeline timeline-vertical timeline-compact timeline-snap-icon mt-1.5 text-xs [&>li]:[--timeline-col-start:0]">
+  {steps.map((s, j) => (
+    <li>
+      {j > 0 && <hr />}
+      <div class="timeline-middle">
+        <span class:list={[
+          "mt-1 block h-2.5 w-2.5 rounded-full border-2",
+          s.state === "done" ? "border-primary bg-primary" : s.state === "current" ? "border-dashed border-secondary bg-base-100" : "border-base-300 bg-base-100",
+        ]}></span>
+      </div>
+      <div class:list={["timeline-end ml-1 min-w-0", { "mb-1.5": j < steps.length - 1 }]}>
+        <span class:list={{ "font-bold": s.state === "current", "text-base-content/65": s.state === "todo" }}>{s.date && `${stepDate(s.date)} `}{s.text}</span>
+        {s.note && <div class="text-base-content/65">{s.note}</div>}
+      </div>
+      {j < steps.length - 1 && <hr />}
+    </li>
+  ))}
+</ul>
