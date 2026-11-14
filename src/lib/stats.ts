@@ -3,9 +3,10 @@
 // the browser.
 
 import { law as loadLaw, laws, type LawDetail, type LawSummary } from "./data.ts";
+import type { AmendmentSummary, LawRevision } from "../../scripts/extract/types.ts";
 import { splitBlocks } from "../../scripts/extract/blocks.ts";
 import { readLawFile } from "./lawtext.ts";
-import { isStaged } from "./new-laws.ts";
+import { amendmentLawIdOf, isStaged } from "./new-laws.ts";
 import { COMPANIES, companyMatcher } from "./companies.ts";
 import { lawDefinitions, type Definition } from "./terms.ts";
 
@@ -84,6 +85,71 @@ export interface StatLaw {
   /** Of those, the ones that came into force in the year up to the data's date. */
   amendmentsLastYear: number;
   upcomingCount: number;
+  /** The diff of each amendment in force (see lawDiffs). */
+  diffs: StatDiff[];
+}
+
+/** The size of the change one amendment made to one law. */
+export interface StatDiff {
+  /** Amendment key. */
+  key: string;
+  /** Title of the amending law. */
+  title: string;
+  enforced: string | null;
+  /** Lines added and deleted, as on the amendment pages (a changed line is one of each). */
+  additions: number;
+  deletions: number;
+  /** Changed blocks: articles, chapter headings, 附則, 別表 and the like. */
+  blocks: number;
+}
+
+/**
+ * The length in lines of a law text that has only its title heading and no provisions. houritsu first
+ * recorded 11 laws (地方税法 and 地方交付税法 in 2017, among others) like that, and a later revision added
+ * the whole text, which is no amendment. Every other law starts with at least 4 lines, so a text this
+ * short is such an empty record, not a short law.
+ */
+export const EMPTY_TEXT_LINES = 2;
+
+/**
+ * The diffs of the amendments in force of a law, oldest first: revisions of kind "amended" on main,
+ * without 段階施行 (a later part of the law itself coming into force) and without a revision that
+ * filled in a text recorded empty (EMPTY_TEXT_LINES). The length of the text before each revision is
+ * the running sum of the lines added and deleted, from the first revision on (whose additions are
+ * the whole text).
+ */
+export function lawDiffs(id: string, revisions: LawRevision[]): StatDiff[] {
+  const out: StatDiff[] = [];
+  let lines = 0;
+  for (const r of revisions) {
+    if (r.branch !== "main") continue;
+    const before = lines;
+    lines += r.additions - r.deletions;
+    if (r.kind !== "amended" || isStaged(r.kind, id, r.amendmentLawId) || before <= EMPTY_TEXT_LINES) continue;
+    out.push({ key: r.amendment, title: r.amendmentTitle, enforced: r.enforced, additions: r.additions, deletions: r.deletions, blocks: r.changedCount });
+  }
+  return out;
+}
+
+/** An amendment in force and how many laws it amended. */
+export interface WideAmendment {
+  key: string;
+  title: string;
+  enforced: string | null;
+  /** Laws (current or since repealed) whose text it amended; enacting, repealing and 段階施行 are not counted. */
+  laws: number;
+}
+
+/** The amendments in force with the number of laws each amended, from the timeline. */
+export function wideAmendments(list: Iterable<AmendmentSummary>): WideAmendment[] {
+  const out: WideAmendment[] = [];
+  for (const a of list) {
+    if (a.branch !== "main") continue;
+    const by = amendmentLawIdOf(a.key);
+    const n = a.laws.filter((l) => l.kind === "amended" && !isStaged(l.kind, l.id, by)).length;
+    if (n > 0) out.push({ key: a.key, title: a.title, enforced: a.enforced, laws: n });
+  }
+  return out;
 }
 
 /** The enforcement date e-Gov records for the latest amendment, or null for a law never amended. */
@@ -120,6 +186,7 @@ export function statLaw(detail: LawDetail, today: string): StatLaw {
     amendments: amendments.length,
     amendmentsLastYear: amendments.filter((r) => r.enforced && r.enforced > since && r.enforced <= today).length,
     upcomingCount: detail.upcomingCount,
+    diffs: lawDiffs(detail.id, detail.revisions),
   };
 }
 

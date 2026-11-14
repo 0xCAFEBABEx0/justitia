@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { splitBlocks } from "../../scripts/extract/blocks.ts";
-import { articleSpan, branchedSpan, byAge, isUnamended, kanjiNumber, lastAmended, lawNumbers, lawYear, lawYearLabel, listTitle, measureBlocks, statLaw, yearBefore, yearsSince, type StatLaw } from "./stats.ts";
-import type { LawDetail, LawRevision } from "../../scripts/extract/types.ts";
+import { articleSpan, branchedSpan, byAge, isUnamended, kanjiNumber, lastAmended, lawDiffs, lawNumbers, lawYear, lawYearLabel, listTitle, measureBlocks, statLaw, wideAmendments, yearBefore, yearsSince, type StatLaw } from "./stats.ts";
+import type { AmendmentSummary, LawDetail, LawRevision } from "../../scripts/extract/types.ts";
 
 test("lawYear reads the era and year from a law ID", () => {
   assert.deepEqual(lawYear("140AC0000000045"), { era: "明治", eraYear: 40, year: 1907 });
@@ -187,3 +187,30 @@ test("lawNumbers finds cited law numbers", () => {
   assert.equal(lawNumbers("昭和二十年八月十五日").size, 0);
 });
 
+
+test("lawDiffs lists the amendments in force with their size, without 段階施行 or filling in an empty text", () => {
+  const rev = (kind: LawRevision["kind"], amendmentLawId: string, additions: number, deletions: number, branch: "main" | "upcoming" = "main") =>
+    ({ amendment: `${amendmentLawId}_x`, amendmentTitle: `${amendmentLawId} title`, branch, enforced: "2020-04-01", kind, amendmentLawId, additions, deletions, changedCount: 3 }) as LawRevision;
+  const id = "325AC0000000226";
+  // Recorded with an empty text (2 lines), then the whole text added: no amendment.
+  assert.deepEqual(lawDiffs(id, [rev("coverage_start", "427AC0000000047", 2, 0), rev("amended", "429AC0000000002", 38463, 0), rev("amended", "430AC0000000003", 120, 80)]), [
+    { key: "430AC0000000003_x", title: "430AC0000000003 title", enforced: "2020-04-01", additions: 120, deletions: 80, blocks: 3 },
+  ]);
+  // The enactment, 段階施行 and upcoming revisions are left out.
+  const diffs = lawDiffs(id, [rev("enacted", id, 500, 0), rev("amended", id, 40, 0), rev("amended", "502AC0000000001", 5, 4), rev("amended", "508AC0000000009", 9, 9, "upcoming")]);
+  assert.deepEqual(diffs.map((d) => d.key), ["502AC0000000001_x"]);
+  // A short law with provisions is no empty record: its amendments count.
+  const short = lawDiffs("505AC0000000056", [rev("enacted", "505AC0000000056", 8, 0), rev("amended", "505AC0000000063", 8, 1)]);
+  assert.deepEqual(short.map((d) => d.key), ["505AC0000000063_x"]);
+});
+
+test("wideAmendments counts the laws an amendment in force amended", () => {
+  const summary = (key: string, branch: "main" | "upcoming", laws: [string, LawRevision["kind"]][]) =>
+    ({ key, branch, title: "t", enforced: null, laws: laws.map(([id, kind]) => ({ id, title: id, kind })) }) as unknown as AmendmentSummary;
+  const out = wideAmendments([
+    summary("504AC0000000068_20250601", "main", [["140AC0000000045", "amended"], ["504AC0000000068", "amended"], ["322AC0000000001", "repealed"], ["507AC0000000001", "enacted"], ["129AC0000000089", "amended"]]),
+    summary("508AC0000000001_20270401", "upcoming", [["140AC0000000045", "amended"]]),
+    summary("508AC0000000002_20260401", "main", [["508AC0000000002", "enacted"]]),
+  ]);
+  assert.deepEqual(out, [{ key: "504AC0000000068_20250601", title: "t", enforced: null, laws: 2 }]);
+});

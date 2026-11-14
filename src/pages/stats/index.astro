@@ -2,7 +2,7 @@
 import Base from "../../layouts/Base.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import StatsNote from "../../components/StatsNote.astro";
-import { buildDate, lawUrl, typeLabel } from "../../lib/data.ts";
+import { amendmentUrl, buildDate, jpDate, lawUrl, typeLabel } from "../../lib/data.ts";
 import { byAge, lawYearLabel, scanLaws, statLaws, yearsSince, type StatLaw } from "../../lib/stats.ts";
 import { COMPANIES } from "../../lib/companies.ts";
 import { termIndex, termUrl } from "../../lib/term-index.ts";
@@ -21,6 +21,9 @@ const citers = (l: StatLaw) => scan.citedBy.get(l.id)?.length ?? 0;
 const mostCited = all.filter((l) => text.has(l.id) && citers(l) > 0).sort((a, b) => citers(b) - citers(a) || (a.id < b.id ? -1 : 1));
 const companies = COMPANIES.map((c, i) => ({ c, n: scan.companies[i].length })).filter((r) => r.c.law && r.n > 0).sort((a, b) => b.n - a.n);
 const mostAmended = all.filter((l) => l.amendments > 0).sort((a, b) => b.amendments - a.amendments || (a.id < b.id ? -1 : 1));
+const biggestDiffs = all
+  .flatMap((l) => l.diffs.map((d) => ({ l, d, n: d.additions + d.deletions })))
+  .sort((a, b) => b.n - a.n || (a.d.key < b.d.key ? -1 : a.d.key > b.d.key ? 1 : a.l.id < b.l.id ? -1 : 1));
 
 interface Row {
   href: string;
@@ -51,6 +54,13 @@ const SECTIONS: { href: string; title: string; desc: string; rows: Row[]; more: 
     title: "改正回数が多い法律",
     desc: "houritsu に記録された改正の回数です（主に2000年代以降）。",
     rows: mostAmended.slice(0, 5).map((l) => lawRow(l, l.amendments.toLocaleString(), "回")),
+    more: "ランキングをすべて見る",
+  },
+  {
+    href: "/stats/diff/",
+    title: "差分が大きい法改正",
+    desc: "1回の改正で追加・削除された条文の行数です。",
+    rows: biggestDiffs.slice(0, 5).map(({ l, d, n }) => ({ href: `${amendmentUrl(d.key)}#law-${l.id}`, label: l.title, sub: `${jpDate(d.enforced)}施行`, n: n.toLocaleString(), unit: "行" })),
     more: "ランキングをすべて見る",
   },
   {
@@ -95,7 +105,7 @@ const TILES = [
   { n: oldest[0] ? yearsSince(oldest[0].year, today) ?? 0 : 0, label: "最も古い現行法令の年数（年）", href: "/stats/oldest/" },
 ];
 const title = "法令の統計";
-const description = `現行の法令 ${all.length.toLocaleString()} 件を、改正の回数や古さ、長さ、引用の数で比べた統計です。一度も改正されていない法律（${unamended.length.toLocaleString()} 件）、日本一古い法律、改正回数が多い法律、日本一長い法律、最も引用されている法律のランキング、カタカナで書かれた法律や NTT・JT など特定の会社を名指しする法律の一覧など。`;
+const description = `現行の法令 ${all.length.toLocaleString()} 件を、改正の回数や古さ、長さ、引用の数で比べた統計です。一度も改正されていない法律（${unamended.length.toLocaleString()} 件）、日本一古い法律、改正回数が多い法律、差分が大きい法改正、日本一長い法律、最も引用されている法律のランキング、カタカナで書かれた法律や NTT・JT など特定の会社を名指しする法律の一覧など。`;
 ---
 <Base title={title} description={description} nav="stats">
   <PageHeader title={title}>
