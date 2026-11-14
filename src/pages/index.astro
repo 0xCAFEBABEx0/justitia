@@ -23,14 +23,14 @@ const pool = (from: number, to: number): AmendmentSummary[] =>
 const recent = pool(thisYear - 1, thisYear)
   .filter((a) => a.branch === "main" && a.enforced && a.enforced <= today)
   .sort((a, b) => b.enforced!.localeCompare(a.enforced!))
-  .slice(0, 15);
+  .slice(0, 10);
 const upcoming = pool(thisYear, thisYear + 2)
   .filter((a) => a.branch === "upcoming" && a.enforced && a.enforced > today)
   .sort((a, b) => a.enforced!.localeCompare(b.enforced!))
   .slice(0, 10);
 // Newly enacted laws: the latest in force, and the next ones to come into force.
 const allNew = newLaws();
-const recentNew = allNew.filter((l) => l.branch === "main" && l.enforced && l.enforced <= today).slice(0, 6);
+const recentNew = allNew.filter((l) => l.branch === "main" && l.enforced && l.enforced <= today).slice(0, 5);
 const upcomingNew = allNew
   .filter((l) => isUpcomingNewLaw(l, today) && l.enforced)
   .sort((a, b) => a.enforced!.localeCompare(b.enforced!))
@@ -62,45 +62,55 @@ const newThisYear = allNew.filter((l) => l.branch === "main" && l.enforced?.star
 
   <BrowseTabs mode="none" />
 
-  <div class="mt-6 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
-    <div class="flex flex-col gap-8">
+  {/* Topics in rows, what has happened on the left and what comes next on the right, so both columns end
+     about level. The counts open the page on wide screens and close it on phones. */}
+  <div class="mt-6 flex flex-col gap-8">
+    <div class="stats stats-vertical order-last w-full border border-base-300 bg-base-100 lg:order-none lg:stats-horizontal">
+      <div class="stat py-3"><div class="stat-title text-base-content/65">現行の法令</div><div class="stat-value text-2xl">{m.counts.lawsInForce.toLocaleString()}</div></div>
+      <div class="stat py-3"><div class="stat-title text-base-content/65">廃止された法令</div><div class="stat-value text-2xl"><a class="link link-hover" href="/repealed/">{m.counts.lawsRepealed.toLocaleString()}</a></div></div>
+      <div class="stat py-3"><div class="stat-title text-base-content/65">一度も改正されていない法令</div><div class="stat-value text-2xl"><a class="link link-hover" href="/stats/unamended/">{unamendedCount.toLocaleString()}</a></div><div class="stat-desc"><a class="link text-base-content/65" href="/stats/">法令の統計を見る</a></div></div>
+      <div class="stat py-3"><div class="stat-title text-base-content/65">{today.slice(0, 4)}年に施行された新しい法令</div><div class="stat-value text-2xl">{newThisYear.toLocaleString()}</div></div>
+      <div class="stat py-3"><div class="stat-title text-base-content/65">改正</div><div class="stat-value text-2xl">{m.counts.amendments.toLocaleString()}</div><div class="stat-desc text-base-content/65">データ更新：{jpDate(dataDate())}</div></div>
+    </div>
+
+    <div class="grid items-start gap-8 lg:grid-cols-2">
       <section>
         <h2 class="mb-3 text-xl font-bold">新しく施行された法令</h2>
         <NewLawList items={recentNew} groupByDate={false} />
         <p class="mt-4"><a class="link link-primary" href="/new/">新しく制定された法令をすべて見る →</a></p>
       </section>
+      {upcomingNew.length > 0 && (
+        <section>
+          <h2 class="mb-3 text-xl font-bold">これから施行される新しい法令</h2>
+          <NewLawList items={upcomingNew} groupByDate={false} />
+          <p class="mt-4"><a class="link link-primary" href="/new/">公布済みで施行前の新しい法令をすべて見る →</a></p>
+        </section>
+      )}
+    </div>
+
+    <div class="grid items-start gap-8 lg:grid-cols-2">
       <section>
         <h2 class="mb-3 text-xl font-bold">最近施行された改正</h2>
         <AmendmentList items={recent} />
         <p class="mt-4"><a class="link link-primary" href={`/timeline/${today.slice(0, 4)}/`}>{today.slice(0, 4)}年の改正をすべて見る →</a></p>
       </section>
-    </div>
-    <aside class="flex flex-col gap-4">
-      {upcomingNew.length > 0 && (
-        <section class="card card-border bg-base-100">
-          <div class="card-body p-5">
-            <h2 class="card-title text-base">これから施行される新しい法令</h2>
-            <NewLawList items={upcomingNew} groupByDate={false} bare />
-            <p class="text-xs text-base-content/65"><a class="link" href="/new/">公布済みで施行前の新しい法令をすべて見る</a></p>
-          </div>
-        </section>
-      )}
-      <section class="card card-border bg-base-100">
-        <div class="card-body p-5">
-          <h2 class="card-title text-base">これから施行される改正</h2>
-          <AmendmentList items={upcoming} groupByDate={false} bare />
-          <p class="text-xs text-base-content/65">公布済みで施行前の改正です（{m.counts.upcomingAmendments.toLocaleString()} 件）。<a class="link" href="/upcoming/">施行予定の改正をすべて見る・カレンダーに登録</a></p>
-        </div>
+      <section>
+        <h2 class="mb-3 text-xl font-bold">これから施行される改正</h2>
+        <AmendmentList items={upcoming} countdownFrom={today} />
+        <p class="mt-4"><a class="link link-primary" href="/upcoming/">施行予定の改正（{m.counts.upcomingAmendments.toLocaleString()} 件）をすべて見る・カレンダーに登録 →</a></p>
       </section>
-      {pendingBills.length > 0 && (
-        <section class="card card-border bg-base-100">
-          <div class="card-body p-5">
-            <h2 class="card-title text-base">国会で審議中の法律案</h2>
-            <ul class="list">
+    </div>
+
+    {(pendingBills.length > 0 || recentRepealed.length > 0) && (
+      <div class="grid items-start gap-8 lg:grid-cols-2">
+        {pendingBills.length > 0 && (
+          <section>
+            <h2 class="mb-3 text-xl font-bold">国会で審議中の法律案</h2>
+            <ul class="list rounded-box border border-base-300 bg-base-100">
               {pendingBills.map(({ b, head }) => {
                 const amended = lawsAmendedBy(b);
                 return (
-                  <li class="list-row px-0 py-2.5">
+                  <li class="list-row py-3">
                     <div class="list-col-grow">
                       <div class="text-xs font-bold text-base-content/70">{head.date ? `${jpDate(head.date)} ` : ""}{head.text}<StatusBadge kind="pending" label="審議中" /></div>
                       <div class="font-bold">{b.title}</div>
@@ -110,17 +120,15 @@ const newThisYear = allNew.filter((l) => l.branch === "main" && l.enforced?.star
                 );
               })}
             </ul>
-            <p class="text-xs text-base-content/65"><a class="link" href="/bills/">国会で審議中の法律案（{bills.length} 件）をすべて見る</a></p>
-          </div>
-        </section>
-      )}
-      {recentRepealed.length > 0 && (
-        <section class="card card-border bg-base-100">
-          <div class="card-body p-5">
-            <h2 class="card-title text-base">最近廃止された法令</h2>
-            <ul class="list">
+            <p class="mt-4"><a class="link link-primary" href="/bills/">国会で審議中の法律案（{bills.length} 件）をすべて見る →</a></p>
+          </section>
+        )}
+        {recentRepealed.length > 0 && (
+          <section>
+            <h2 class="mb-3 text-xl font-bold">最近廃止された法令</h2>
+            <ul class="list rounded-box border border-base-300 bg-base-100">
               {recentRepealed.map((l) => (
-                <li class="list-row px-0 py-2.5">
+                <li class="list-row py-3">
                   <div class="list-col-grow">
                     <div class="text-xs font-bold text-base-content/70">{jpDate(l.enforced)} 廃止</div>
                     <a class="link link-hover font-bold text-primary" href={lawUrl(l.id)}>{l.title}</a>
@@ -129,19 +137,10 @@ const newThisYear = allNew.filter((l) => l.branch === "main" && l.enforced?.star
                 </li>
               ))}
             </ul>
-            <p class="text-xs text-base-content/65"><a class="link" href="/repealed/">廃止された法令をすべて見る</a></p>
-          </div>
-        </section>
-      )}
-      <section class="card card-border bg-base-100">
-        <div class="stats stats-vertical">
-          <div class="stat py-3"><div class="stat-title text-base-content/65">現行の法令</div><div class="stat-value text-2xl">{m.counts.lawsInForce.toLocaleString()}</div></div>
-          <div class="stat py-3"><div class="stat-title text-base-content/65">廃止された法令</div><div class="stat-value text-2xl"><a class="link link-hover" href="/repealed/">{m.counts.lawsRepealed.toLocaleString()}</a></div></div>
-          <div class="stat py-3"><div class="stat-title text-base-content/65">一度も改正されていない法令</div><div class="stat-value text-2xl"><a class="link link-hover" href="/stats/unamended/">{unamendedCount.toLocaleString()}</a></div><div class="stat-desc"><a class="link text-base-content/65" href="/stats/">法令の統計を見る</a></div></div>
-          <div class="stat py-3"><div class="stat-title text-base-content/65">{today.slice(0, 4)}年に施行された新しい法令</div><div class="stat-value text-2xl">{newThisYear.toLocaleString()}</div></div>
-          <div class="stat py-3"><div class="stat-title text-base-content/65">改正</div><div class="stat-value text-2xl">{m.counts.amendments.toLocaleString()}</div><div class="stat-desc text-base-content/65">データ更新：{jpDate(dataDate())}</div></div>
-        </div>
-      </section>
-    </aside>
+            <p class="mt-4"><a class="link link-primary" href="/repealed/">廃止された法令をすべて見る →</a></p>
+          </section>
+        )}
+      </div>
+    )}
   </div>
 </Base>
