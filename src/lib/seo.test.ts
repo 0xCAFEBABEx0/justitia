@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { amendingLegislation, breadcrumbList, jsonLdText, lawLastmod, legislation } from "./seo.ts";
+import { amendingLegislation, amendmentIndexable, amendmentLastmod, breadcrumbList, jsonLdText, lawLastmod, legislation } from "./seo.ts";
 
 test("jsonLdText cannot end its <script> and parses back to the same data", () => {
   const data = { name: "a</script><script>alert(1)</script>" };
@@ -66,4 +66,27 @@ test("amendingLegislation lists the laws the amendment changed", () => {
   assert.deepEqual(ld.legislationChanges, [
     { "@type": "Legislation", name: "地方自治法", legislationIdentifier: "昭和二十二年法律第六十七号", url: "https://anisotro.pics/laws/322AC0000000067/" },
   ]);
+});
+
+test("amendmentLastmod is the enforcement date once in force, else the promulgation date", () => {
+  assert.equal(amendmentLastmod("2025-04-01", "2024-06-12", "2026-11-14"), "2025-04-01");
+  assert.equal(amendmentLastmod("2027-04-01", "2024-06-12", "2026-11-14"), "2024-06-12");
+  assert.equal(amendmentLastmod(null, "2026-06-24", "2026-11-14"), "2026-06-24");
+  assert.equal(amendmentLastmod("2026-11-14", null, "2026-11-14"), "2026-11-14");
+});
+
+test("amendmentLastmod leaves out unknown dates and dates before 1970", () => {
+  assert.equal(amendmentLastmod(null, null, "2026-11-14"), undefined);
+  assert.equal(amendmentLastmod("2027-04-01", null, "2026-11-14"), undefined);
+  assert.equal(amendmentLastmod("1947-05-03", "1946-11-03", "2026-11-14"), undefined);
+  assert.equal(amendmentLastmod("1970-01-01", null, "2026-11-14"), "1970-01-01");
+});
+
+test("amendmentIndexable needs a law that was amended or repealed", () => {
+  assert.equal(amendmentIndexable([{ kind: "amended" }]), true);
+  assert.equal(amendmentIndexable([{ kind: "repealed" }]), true);
+  assert.equal(amendmentIndexable([{ kind: "enacted" }, { kind: "amended" }]), true);
+  assert.equal(amendmentIndexable([{ kind: "enacted" }]), false);
+  assert.equal(amendmentIndexable([{ kind: "coverage_start" }, { kind: "enacted" }]), false);
+  assert.equal(amendmentIndexable([]), false);
 });

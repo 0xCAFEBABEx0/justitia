@@ -20,8 +20,10 @@ interface Props {
   canonical?: boolean;
   /** An RSS feed of this page's own (a law's, a category's), announced before the site's. */
   feed?: { title: string; href: string };
+  /** Keeps the page out of search results (robots noindex); its links are still followed. */
+  noindex?: boolean;
 }
-const { title, description, nav, narrow = false, canonical = true, feed } = Astro.props;
+const { title, description, nav, narrow = false, canonical = true, feed, noindex = false } = Astro.props;
 const siteFeed = { title: `法令の改正（${SITE_NAME}）`, href: feedUrl(DATA_BASE, feedFile.all("xml")) };
 const NAV = [
   { key: "laws", href: "/browse/", label: "法令一覧" },
@@ -57,6 +59,7 @@ const ogImage = new URL("/og-image.png", Astro.site).href;
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{fullTitle}</title>
     <meta name="description" content={desc} />
+    {noindex && <meta name="robots" content="noindex" />}
     {url && <link rel="canonical" href={url} />}
     {feed && <link rel="alternate" type="application/rss+xml" title={feed.title} href={feed.href} />}
     <link rel="alternate" type="application/rss+xml" title={siteFeed.title} href={siteFeed.href} />
