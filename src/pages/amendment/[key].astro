@@ -6,6 +6,7 @@
 import Base from "../../layouts/Base.astro";
 import { amendment, amendmentRevisions, dataVersion, jpDate, law, pageAmendments } from "../../lib/data.ts";
 import { DATA_BASE } from "../../lib/site.ts";
+import { isUnknownAmendingLaw } from "../../lib/law-num.ts";
 import { amendingLegislation, amendmentIndexable, breadcrumbList, jsonLdText } from "../../lib/seo.ts";
 import { amendmentDescription, amendmentStaticHtml, type AmendmentLinks } from "../../scripts/amendment.ts";
 
@@ -45,7 +46,7 @@ const ld = [
   amendingLegislation({
     url,
     title: a.title,
-    num: a.amendmentLawNum,
+    num: isUnknownAmendingLaw(a.amendmentLawNum) ? null : a.amendmentLawNum,
     promulgated: a.promulgated,
     enforced: a.enforced,
     changes: a.files.map((f) => ({ title: f.title, num: f.lawNum, url: new URL(`/laws/${f.lawId}/`, Astro.site).href })),

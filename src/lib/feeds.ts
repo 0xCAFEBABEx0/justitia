@@ -8,6 +8,7 @@
 
 import type { AmendmentSummary, LawSummary } from "../../scripts/extract/types.ts";
 import { SITE_NAME } from "./site-name.ts";
+import { amendingLawNum } from "./law-num.ts";
 
 export const SITE_URL = "https://anisotro.pics";
 
@@ -163,7 +164,7 @@ export function icsCalendar(c: Calendar): string {
     const day = a.enforced!;
     const url = amendmentPageUrl(a.key, c.lawId);
     const desc = [
-      `${a.title}（${a.amendmentLawNum}）`,
+      `${a.title}（${amendingLawNum(a.amendmentLawNum)}）`,
       a.promulgated ? `公布：${jpDate(a.promulgated)}` : null,
       `施行：${jpDate(day)}${a.branch === "upcoming" && day > c.today ? "（予定）" : ""}`,
       `変更される法令：${lawNames(a)}`,
@@ -279,7 +280,7 @@ export function rssFeed(f: Feed): string {
         ? `${a.promulgated === a.enforced ? "公布・施行" : "施行"}：${a.title}`
         : `公布：${a.title}（${a.enforced ? `${jpDate(a.enforced)}施行${a.enforced > f.today ? "予定" : ""}` : "施行日未定"}）`;
     const desc = [
-      `${a.title}（${a.amendmentLawNum}）`,
+      `${a.title}（${amendingLawNum(a.amendmentLawNum)}）`,
       a.promulgated ? `公布：${jpDate(a.promulgated)}` : null,
       `施行：${a.enforced ? `${jpDate(a.enforced)}${a.enforced > f.today ? "（予定）" : ""}` : "未定"}`,
       `変更される法令：${lawNames(a)}`,

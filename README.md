@@ -46,6 +46,9 @@ The types are in `scripts/extract/types.ts`.
 - **No commit SHAs in URLs or keys.** houritsu may rewrite its history until v1.0, so an amendment's key is
   `<amending law ID>_<date in force YYYYMMDD | undetermined>`
   (with `-2`, `-3` appended when several commits share the same amending law and date).
+  When e-Gov does not name the amending law (houritsu's commit says 「改正法令: 不明」), houritsu uses the ID
+  `000000000000000` as both its ID and its law number; the key keeps it, and the site shows the number as
+  「改正法令不明」 (`src/lib/law-num.ts`).
 - **Diffs are kept per article.** The law text is split into blocks at its headings (part, chapter, section, article,
   supplementary provisions, appended tables, and so on). Old and new blocks are matched by heading number, so
   `第一条（目的）` and `第一条（趣旨）` count as the same article. Articles inside supplementary provisions are told

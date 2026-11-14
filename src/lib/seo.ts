@@ -96,7 +96,8 @@ export function amendmentIndexable(laws: readonly { kind: FileChangeKind }[]): b
 export interface AmendingLawFacts {
   url: string;
   title: string;
-  num: string;
+  /** Its law number; null when e-Gov does not name the amending law (src/lib/law-num.ts). */
+  num: string | null;
   promulgated: string | null;
   enforced: string | null;
   /** The laws it changed, with their pages on this site. */
@@ -114,7 +115,7 @@ export function amendingLegislation(f: AmendingLawFacts): object {
     "@id": `${f.url}#legislation`,
     url: f.url,
     name: f.title,
-    legislationIdentifier: f.num,
+    ...(f.num ? { legislationIdentifier: f.num } : {}),
     legislationJurisdiction: "JP",
     inLanguage: "ja",
     ...(f.promulgated ? { legislationDate: f.promulgated } : {}),

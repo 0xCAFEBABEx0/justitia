@@ -2,6 +2,7 @@
 import { amendmentUrl, jpDate, KIND_LABELS, lawUrl, type AmendmentSummary } from "../lib/data.ts";
 import StatusBadge from "./StatusBadge.astro";
 import { amendmentLawIdOf, isStaged } from "../lib/new-laws.ts";
+import { amendingLawNum } from "../lib/law-num.ts";
 
 interface Props {
   items: AmendmentSummary[];
@@ -55,7 +56,7 @@ for (const a of groupByDate ? items : []) {
             {role(a).staged && <StatusBadge kind="staged" label="段階施行" />}
             {a.branch === "upcoming" && <StatusBadge kind="upcoming" label="施行予定" />}
             <div class="mt-1 text-xs text-base-content/65">
-              {a.amendmentLawNum}・
+              {amendingLawNum(a.amendmentLawNum)}・
               {a.laws.slice(0, 4).map((l, i) => (
                 <>{i > 0 && "、"}<a class="link link-hover" href={lawUrl(l.id)}>{l.title}</a>{l.kind !== "amended" ? `（${KIND_LABELS[l.kind]}）` : isStaged(l.kind, l.id, role(a).self) && "（段階施行）"}</>
               ))}

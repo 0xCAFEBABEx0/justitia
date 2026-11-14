@@ -8,6 +8,7 @@
 
 import type { FileChangeKind, LawDetail } from "../../scripts/extract/types.ts";
 import { dataUrl } from "./data-url.ts";
+import { amendingLawNum } from "../lib/law-num.ts";
 import { initSearch } from "./search.ts";
 
 const DEFAULT_LAWS = ["140AC0000000045"]; // 刑法
@@ -72,7 +73,7 @@ function buildItems(laws: LawDetail[]): Item[] {
           enforced: r.enforced,
           upcoming: r.branch === "upcoming",
           title: r.amendmentTitle,
-          lawNum: r.amendmentLawNum,
+          lawNum: amendingLawNum(r.amendmentLawNum),
           nodes: new Map(),
         };
         rows.set(r.amendment, row);
