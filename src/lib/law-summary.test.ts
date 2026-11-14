@@ -25,7 +25,7 @@ test("lawSummary writes the facts of a law in sentences", () => {
     "民法は、明治二十九年法律第八十九号の法律です。1898年7月16日に施行されました。" +
       "このサイトで見られる改正は 31 件で、最後の改正は2026年4月1日施行の民法等の一部を改正する法律です。" +
       "まだ施行されていない改正が 5 件あります。" +
-      "この法律は 12 の法令を引用し、1,234 の法令から引用されています。" +
+      "この法律は 12 件の法令を引用し、1,234 件の法令から引用されています。" +
       "ほかの法令でも定義されている用語を 45 語定義しています。",
   );
 });
@@ -40,8 +40,8 @@ test("lawSummary links the last amendment and each count to its list", () => {
   assert.deepEqual(links, [
     ["民法等の一部を改正する法律", base.latest!.href],
     ["審議中の改正案が 2 件", "#bills"],
-    ["12 の法令を引用", "#cites"],
-    ["1,234 の法令から引用", "#cited-by"],
+    ["12 件の法令を引用", "#cites"],
+    ["1,234 件の法令から引用", "#cited-by"],
     ["用語を 45 語", "#terms"],
   ]);
 });
@@ -50,8 +50,8 @@ test("lawSummary leaves out what the law does not have", () => {
   const facts = { ...base, enforced: null, amendments: 0, latest: null, upcoming: 0, citedBy: 0, cites: 0, terms: 0 };
   assert.equal(plain(lawSummary(facts)), "民法は、明治二十九年法律第八十九号の法律です。");
   assert.equal(plain(lawSummary({ ...facts, unamended: true })), "民法は、明治二十九年法律第八十九号の法律です。制定されてから一度も改正されていません。");
-  assert.equal(plain(lawSummary({ ...facts, citedBy: 3 })), "民法は、明治二十九年法律第八十九号の法律です。この法律は 3 の法令から引用されています。");
-  assert.equal(plain(lawSummary({ ...facts, cites: 3 })), "民法は、明治二十九年法律第八十九号の法律です。この法律は 3 の法令を引用しています。");
+  assert.equal(plain(lawSummary({ ...facts, citedBy: 3 })), "民法は、明治二十九年法律第八十九号の法律です。この法律は 3 件の法令から引用されています。");
+  assert.equal(plain(lawSummary({ ...facts, cites: 3 })), "民法は、明治二十九年法律第八十九号の法律です。この法律は 3 件の法令を引用しています。");
   assert.equal(plain(lawSummary({ ...facts, amendments: 2 })), "民法は、明治二十九年法律第八十九号の法律です。このサイトで見られる改正は 2 件です。");
 });
 
