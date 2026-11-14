@@ -19,6 +19,7 @@ the site and the data on them.
 | Cache rules `justitia-data-cache` and `data: versioned files 1 day` (zone entrypoint for Cache Rules) | Terraform |
 | Response header rule `justitia-data-cors` (zone entrypoint for Response Header Transform Rules) | Terraform |
 | Zone setting Browser Cache TTL (4 hours) | Terraform |
+| Zone setting Always Use HTTPS (on: http:// answers 301 to https://) | Terraform |
 | Bot Fight Mode (on) | Terraform |
 | Web Assets operation `GET data.anisotro.pics/feeds/{var1}` (the calendars) | Terraform |
 | Its managed label `cf-rss-feed`, which Bot Fight Mode lets through | Terraform, through the API on apply (see below) |
