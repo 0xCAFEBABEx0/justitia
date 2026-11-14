@@ -1,8 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { definitionsIn, lawDefinitions } from "./terms.ts";
+import { definitionsIn, lawDefinitions, referenceOf, shortLawNames, type DefinitionContext } from "./terms.ts";
 
-const terms = (text: string) => definitionsIn(text, "本則|第二条").map((d) => [d.term, d.form, d.text]);
+const ctx: DefinitionContext = {
+  lawTitles: new Set(["暴力団員による不当な行為の防止等に関する法律", "地方自治法", "法人税法", "独立行政法人通則法", "道路交通法"]),
+  shortNames: new Map([["通則法", "独立行政法人通則法"]]),
+};
+const terms = (text: string) => definitionsIn(text, "本則|第二条", ctx).map((d) => [d.term, d.form, d.text]);
 
 test("「X」とは、…をいう", () => {
   assert.deepEqual(terms("この法律において「児童」とは、満十八歳に満たない者をいう。"), [["児童", "toha", "満十八歳に満たない者をいう"]]);
@@ -20,27 +24,56 @@ test("bracketless definitions of older laws need この法律で", () => {
   assert.deepEqual(terms("前条の規定とは、別に定める規定をいう。"), []);
 });
 
-test("（以下「X」という。）", () => {
-  assert.deepEqual(terms("国は、地域において事業を行う者（以下「事業者」という。）の協力を求める。"), [["事業者", "ika", "地域において事業を行う者"]]);
-  // a 、 before 又は does not end the phrase
-  assert.deepEqual(terms("労働者が組織し、又は加入する団体（以下「労働団体」という。）"), [["労働団体", "ika", "労働者が組織し、又は加入する団体"]]);
-  // nor does one between the nouns of an enumeration
-  assert.deepEqual(terms("事業者は、土地、建物その他の工作物（以下「土地等」という。）を"), [["土地等", "ika", "土地、建物その他の工作物"]]);
-  assert.deepEqual(terms("この場合において、国、地方公共団体及び事業者（以下「国等」という。）は"), [["国等", "ika", "国、地方公共団体及び事業者"]]);
+test("（以下「X」という。） is a definition only by reference to another law", () => {
+  assert.deepEqual(terms("暴力団員による不当な行為の防止等に関する法律（平成三年法律第七十七号）第二条第六号に規定する暴力団員（以下「暴力団員」という。）"), [
+    ["暴力団員", "ika", "暴力団員による不当な行為の防止等に関する法律（平成三年法律第七十七号）第二条第六号に規定する暴力団員"],
+  ]);
+  const [d] = definitionsIn("地方自治法第二百五十二条の十九第一項の指定都市（以下「指定都市」という。）", "本則|第二条", ctx);
+  assert.deepEqual(d.source, { law: "地方自治法", provision: "第二百五十二条の十九第一項" });
   // the parenthesis can hold the definition itself
   assert.deepEqual(terms("暴力団員（法第二条第六号に規定する暴力団員をいう。以下「暴力団員」という。）"), [["暴力団員", "ika", "法第二条第六号に規定する暴力団員をいう"]]);
 });
 
 test("short names are not definitions", () => {
+  // of a phrase of the text
+  assert.deepEqual(terms("国は、地域において事業を行う者（以下「事業者」という。）の協力を求める。"), []);
+  assert.deepEqual(terms("事業者は、土地、建物その他の工作物（以下「土地等」という。）を"), []);
+  // of what is done under an article of the law, or another law
+  assert.deepEqual(terms("第三十三条第一項の登録（以下「登録」という。）"), []);
+  assert.deepEqual(terms("道路交通法第百八条の四第一項の規定による指定（以下「指定」という。）"), []);
+  // of a reference that does not name the law by its title (法 in an order is the law it carries out)
+  assert.deepEqual(terms("法第二条第六号に規定する暴力団員（以下「暴力団員」という。）"), []);
   // of a law
   assert.deepEqual(terms("独立行政法人通則法（平成十一年法律第百三号。以下「通則法」という。）"), []);
-  // of a body: the term ends the name it shortens
+  // of a body
   assert.deepEqual(terms("独立行政法人国立病院機構（以下「機構」という。）は、"), []);
-  assert.deepEqual(terms("労働者が組織する労働組合（以下「組合」という。）"), []);
-  // but a definition by reference ends with the term too
-  assert.deepEqual(terms("第二条第六号に規定する暴力団員（以下「暴力団員」という。）"), [["暴力団員", "ika", "第二条第六号に規定する暴力団員"]]);
-  // a phrase that leans on the text before it
-  assert.deepEqual(terms("同項の期間（以下「指定の有効期間」という。）"), []);
+});
+
+test("referenceOf", () => {
+  // words before the title of the law are not part of the reference
+  assert.deepEqual(referenceOf("当該外国法人の法人税法第二条第十四号に規定する株主等", "株主等", ctx), {
+    source: { law: "法人税法", provision: "第二条第十四号" },
+    start: 7,
+  });
+  // a short name the law defines
+  assert.deepEqual(referenceOf("通則法第二十九条第二項第一号に規定する中期目標の期間", "中期目標の期間", ctx)?.source, {
+    law: "独立行政法人通則法",
+    provision: "第二十九条第二項第一号",
+  });
+  // 同法: the law named before it
+  assert.deepEqual(referenceOf("地方自治法第二百五十二条の十九第一項の指定都市及び同法第二百五十二条の二十二第一項の中核市", "中核市", ctx), {
+    source: { law: "地方自治法", provision: "第二百五十二条の二十二第一項" },
+    start: 25,
+  });
+  // the phrase must end with the term
+  assert.equal(referenceOf("地方自治法第二百五十二条の十九第一項の指定都市の区域", "区域", ctx), undefined);
+});
+
+test("shortLawNames", () => {
+  assert.deepEqual(
+    [...shortLawNames(["独立行政法人通則法（平成十一年法律第百三号。以下「通則法」という。）第二条", "機構（以下「機構」という。）"], ctx.lawTitles)],
+    [["通則法", "独立行政法人通則法"]],
+  );
 });
 
 test("X（…をいう。以下同じ。）", () => {
@@ -70,14 +103,14 @@ test("items of a definition that refers to them", () => {
 });
 
 test("markup other than ruby is taken out; the marker of an item too", () => {
-  assert.deepEqual(terms("<td>ロ　発電用原子炉に燃料として使用する物（以下「燃料体」という。）</td>"), [["燃料体", "ika", "発電用原子炉に燃料として使用する物"]]);
+  assert.deepEqual(terms("<td>ロ　「燃料体」とは、発電用原子炉に燃料として使用する物をいう。</td>"), [["燃料体", "toha", "発電用原子炉に燃料として使用する物をいう"]]);
   assert.deepEqual(terms("「災害」とは、暴風、<ruby>洪<rt>こう</rt></ruby>水をいう。"), [["災害", "toha", "暴風、<ruby>洪<rt>こう</rt></ruby>水をいう"]]);
 });
 
 test("lawDefinitions keeps one definition a term, from the main provisions, preferring とは", () => {
   const defs = lawDefinitions([
     { key: "題名", level: 1, text: "" },
-    { key: "本則|第一条", level: 3, text: "事業を行う者（以下「事業者」という。）" },
+    { key: "本則|第一条", level: 3, text: "事業者（事業を行う者をいう。以下同じ。）" },
     { key: "本則|第二条", level: 3, text: "この法律において「事業者」とは、事業を営む者をいう。" },
     { key: "附則|第一条", level: 3, text: "この法律において「施行日」とは、公布の日をいう。" },
   ]);

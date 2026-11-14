@@ -347,6 +347,8 @@ export interface LawScan {
   companies: string[][];
   /** For each defined term, the laws in force that define it and how, in the order of laws.json. */
   definitions: Map<string, { id: string; def: Definition }[]>;
+  /** For each law in force, the keys of the articles of its main provisions, by article (第二条 → 本則|第一章|第二条). */
+  articles: Map<string, Map<string, string>>;
 }
 
 let scanCache: LawScan | null = null;
@@ -359,7 +361,8 @@ let scanCache: LawScan | null = null;
  *   sides. The dated numbers in the headings of 附則 (「昭和二二年四月一六日法律第六一号」) name
  *   the laws that amended the law, not laws it cites, and do not match.
  * - Companies: a law names a company when the name occurs outside the titles of laws (companyMatcher).
- * - Definitions: the terms each law defines in its main provisions (lawDefinitions).
+ * - Definitions: the terms each law defines in its main provisions (lawDefinitions), a reference to
+ *   another law in （以下「X」という。） kept only when that law names or defines X.
  */
 export function scanLaws(): LawScan {
   if (scanCache) return scanCache;
@@ -377,12 +380,29 @@ export function scanLaws(): LawScan {
   const cites = new Map<string, number>();
   const companies: string[][] = COMPANIES.map(() => []);
   const definitions = new Map<string, { id: string; def: Definition }[]>();
+  const articles = new Map<string, Map<string, string>>();
+  /** The bracketed words (「…」) in each law in force. */
+  const quoted = new Map<string, Set<string>>();
+  /** The terms each law in force defines. */
+  const defined = new Map<string, Set<string>>();
+  /** Laws in force by title (null when two have the same title). */
+  const inForceByTitle = new Map<string, string | null>();
+  for (const l of inForce) inForceByTitle.set(l.title, inForceByTitle.has(l.title) ? null : l.id);
   for (const l of inForce) {
     const doc = readLawFile(l.path);
     if (!doc) continue;
     const blocks = splitBlocks(doc.body);
     text.set(l.id, measureBlocks(blocks));
-    for (const def of lawDefinitions(blocks)) {
+    const keys = new Map<string, string>();
+    for (const b of blocks) {
+      const article = /^第[〇一二三四五六七八九十百千]+条(?:の[〇一二三四五六七八九十百千]+)*/.exec(b.heading)?.[0];
+      if (article && b.key.startsWith("本則|") && !keys.has(article)) keys.set(article, b.key);
+    }
+    articles.set(l.id, keys);
+    quoted.set(l.id, new Set(Array.from(doc.body.matchAll(/「([^「」]{2,30})」/g), (m) => m[1])));
+    const defs = lawDefinitions(blocks, titles);
+    defined.set(l.id, new Set(defs.map((d) => d.term)));
+    for (const def of defs) {
       const list = definitions.get(def.term);
       if (list) list.push({ id: l.id, def });
       else definitions.set(def.term, [{ id: l.id, def }]);
@@ -404,7 +424,21 @@ export function scanLaws(): LawScan {
       if (m(doc.body)) companies[i].push(l.id);
     });
   }
-  scanCache = { text, citedBy, cites, companies, definitions };
+  // 地方自治法第二百五十二条の十九第一項の指定都市（以下「指定都市」という。） takes the meaning that
+  // 地方自治法 gives 「指定都市」, but 道路交通法第百八条の四第一項の指定（以下「指定」という。） only
+  // names what is done under that article: a reference in （以下「X」という。） counts only when the law
+  // it names has the term in brackets or defines it (暴力団員による不当な行為の防止等に関する法律 defines
+  // 暴力団員 in an item of its glossary article, without brackets).
+  for (const [term, uses] of definitions) {
+    const kept = uses.filter(({ def }) => {
+      if (def.form !== "ika" || !def.source) return true;
+      const id = inForceByTitle.get(def.source.law);
+      return id !== undefined && id !== null && (quoted.get(id)?.has(term) === true || defined.get(id)?.has(term) === true);
+    });
+    if (kept.length) definitions.set(term, kept);
+    else definitions.delete(term);
+  }
+  scanCache = { text, citedBy, cites, companies, definitions, articles };
   return scanCache;
 }
 

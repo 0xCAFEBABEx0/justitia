@@ -36,7 +36,7 @@ const ld = jsonLdText({
   url: new URL(termUrl(t.term), site).href,
   inDefinedTermSet: { "@type": "DefinedTermSet", name: "法令用語の定義集", url: new URL("/terms/", site).href },
 });
-const FORMS = ["「○○」とは、…をいう", "次の各号に掲げる用語の意義（定義の条の各号）", "…（以下「○○」という。）", "○○（…をいう。以下同じ。）"];
+const FORMS = ["「○○」とは、…をいう", "次の各号に掲げる用語の意義（定義の条の各号）", "○○（…をいう。以下同じ。）", "ほかの法令の定義の引用：△△法第×条に規定する○○（以下「○○」という。）"];
 ---
 <Base title={title} description={description} nav="terms">
   <PageHeader title={`「${t.term}」の定義`} crumbs={[{ href: "/terms/", label: "法令用語の定義集" }]}>
@@ -63,6 +63,9 @@ const FORMS = ["「○○」とは、…をいう", "次の各号に掲げる用
                   </ul>
                 )}
               </blockquote>
+              {g.source && (
+                <p class="text-sm">{g.source.href ? <a class="link link-primary" href={g.source.href}>{g.source.law} {g.source.provision}</a> : `${g.source.law} ${g.source.provision}`}の定義を引用しています。</p>
+              )}
               <div class="text-sm">
                 <span class="text-base-content/65">{g.laws.length > 1 ? `この定義の法令（${g.laws.length.toLocaleString()} 件）` : "この定義の法令"}：</span>
                 <ul class="mt-1 flex flex-col gap-1">
@@ -90,7 +93,7 @@ const FORMS = ["「○○」とは、…をいう", "次の各号に掲げる用
       <section class="card card-border bg-base-100">
         <div class="card-body gap-2 p-5">
           <h2 class="card-title text-base">集め方</h2>
-          <p class="text-base-content/70">本則の条文から、次の書き方で定義している箇所をプログラムで抜き出しています。附則の定義は含みません。</p>
+          <p class="text-base-content/70">本則の条文から、次の書き方で定義している箇所をプログラムで抜き出しています。附則の定義と、文中の語句に短い呼び名を付けるだけの「（以下「○○」という。）」は含みません。</p>
           <ul class="list-disc pl-5 text-base-content/70">
             {FORMS.map((f) => <li>{f}</li>)}
           </ul>
