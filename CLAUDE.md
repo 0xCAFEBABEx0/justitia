@@ -18,6 +18,7 @@ npm run typecheck        # tsc -p . (run it too; CI does not)
 
 npm run fetch-houritsu   # clone/fetch houritsu into ./houritsu, detached at origin/main
 npm run extract          # houritsu → ./data; add `-- --only <law ID>,…` for a quick partial run
+npm run bills            # bills pending in the Diet → ./data/bills.json (optional; law pages show them)
 npm run build            # ./data + ./houritsu → dist/; JUSTITIA_ONLY_LAWS=<ID>,… limits law pages
 npm run search-index     # Pagefind shards from dist/ into data/pagefind/
 npm run preview          # serve dist/ + data/ at http://localhost:4321/

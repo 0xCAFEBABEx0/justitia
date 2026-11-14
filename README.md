@@ -106,7 +106,7 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | --- | --- |
 | `/` | Search, newly enacted laws (recent and upcoming), recent amendments, upcoming amendments, and a few counts (with the number of laws never amended, linking to `/stats/unamended/`) |
 | `/browse/`, `/browse/kana/<row>/`, `/browse/type/<type>/`, `/browse/category/<category>/` | Law lists |
-| `/laws/<law ID>/` | Law text (an anchor per heading), table of contents, amendment history, the terms the law defines that have a `/terms/` page, and the law's calendar (`.ics`) and RSS feed |
+| `/laws/<law ID>/` | Law text (an anchor per heading), table of contents, amendment history, the terms the law defines that have a `/terms/` page, and the law's calendar (`.ics`) and RSS feed. Bills pending in the Diet that would amend the law (see [Bills in the Diet](#bills-in-the-diet)) head the history (`#bills`), with a 「改正案を審議中」 badge by the title |
 | `/amendment/<amendment key>/` | Old and new text of the articles an amendment changed (side by side, or inline), as a static page with its own title, description and structured data, served by the amendment Workers (see [Amendment Workers](#amendment-workers)). Like a law page, it has a row of actions (the amendment graph of the laws it changes, share, print), and under each changed law, links to its text after the change, the whole text compared with the revision before, and both revisions on e-Gov 法令検索 |
 | `/amendment/?k=<amendment key>` | The address the site linked before the static pages: its script forwards to `/amendment/<amendment key>/`, keeping the `#fragment` |
 | `/new/`, `/new/<year>/` | Newly enacted laws (a law whose file first appears in houritsu through the law itself), by year of entry into force, with a type filter. Later parts of a new law coming into force are labeled 段階施行, not 改正, across the site |
@@ -128,6 +128,23 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | `/search/?q=<words>` | Full-text search over the current law text, with links to the matching articles |
 | `/graph/?laws=<ID>,<ID>,…` | Amendment graph: one lane per law, with laws changed by the same amending law joined by a line (git-graph style) |
 | (any other path) | The 404 page |
+
+### Bills in the Diet
+
+Law pages show the law bills (閣法, 衆法, 参法) under deliberation in the Diet that would amend the law. `npm run bills`
+(`scripts/bills.ts`) downloads `gian.json` of the House of Representatives bill database that SmartNews Media Research
+Institute keeps ([smartnews-smri/house-of-representatives](https://github.com/smartnews-smri/house-of-representatives),
+MIT, updated from the 衆議院 website around 23:00 JST every day) and writes the bills still pending to
+`data/bills.json`. A bill counts as pending when its row in the latest session says 審議中 or 閉会中審査 (a bill last
+listed in an earlier session has lapsed). The build reads that file (`src/lib/bills.ts`); without it, the pages show no
+bills. The publish workflow runs it before every build, and a failed download is a warning, not a failed run. The file
+is not uploaded to R2.
+
+A bill is matched to the laws it amends by its title alone: 「X及びYの一部を改正する法律案」 names X and Y, read as a run
+of the titles of Acts in force joined by 及び, 並びに or 、 (law titles contain those too). A title shared by two
+laws in force, or a run with one unknown title, matches nothing. Bills for new laws and 整備法, whose titles do not
+name the laws they change, are not shown. Only the bills' numbers, titles, steps and links to the 衆議院 pages are
+used, never their text. The database has the 衆議院's votes by group but not the 参議院's.
 
 ### Name and page metadata
 
@@ -211,7 +228,8 @@ It rebuilds only what changed:
    data date when the content it reads from houritsu is the same (`scripts/extract/source-version.ts`), so the date
    the pages show (最終更新, データ更新) moves only when the data does. A cached copy is used only when its date is the
    published one too;
-2. build the site, then the search index (`npm run search-index -- --skip-if-same <published input hash>`),
+2. `npm run bills` writes the bills pending in the Diet (see [Bills in the Diet](#bills-in-the-diet)), then build
+   the site, then the search index (`npm run search-index -- --skip-if-same <published input hash>`),
    unless the published index was built from the same input: `shards.json` records a hash of the indexed parts
    of the law pages, the indexer and the Pagefind version, and the upload publishes it as
    `_publish/pagefind-input.txt` once the whole index is uploaded (`incomplete` while it uploads);

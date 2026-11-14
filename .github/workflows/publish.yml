@@ -172,6 +172,12 @@ jobs:
         env:
           NODE_OPTIONS: --max-old-space-size=8192
 
+      # The law bills pending in the Diet, which the law pages they would amend show (src/lib/bills.ts), from the
+      # House of Representatives bill database (updated around 23:00 JST). When the download fails, the pages are
+      # built without them.
+      - name: Fetch the bills in the Diet
+        run: npm run bills
+
       - name: Build the site
         run: npm run build
 
