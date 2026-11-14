@@ -5,6 +5,7 @@ import {
   amendedLawTitles,
   billHeadline,
   billsByLaw,
+  billStage,
   billSteps,
   firstHouse,
   isoDate,
@@ -188,4 +189,12 @@ test("a 参法 starts in the 参議院", () => {
     { date: null, text: "成立・公布", state: "todo" },
   ]);
   assert.deepEqual(billHeadline(b), { date: "2026-11-04", text: "提出" });
+});
+
+test("billStage tells a bill one house has passed from one still in its first house", () => {
+  const [passed] = pendingBills([HEADER, row(keishoku)]);
+  assert.deepEqual(billStage(passed), { stage: "passed", house: "衆議院" });
+  const blank = { "衆議院審査終了年月日／衆議院審査結果": "／", "衆議院審議終了年月日／衆議院審議結果": "／", 審議状況: "衆議院で審議中" };
+  const [first] = pendingBills([HEADER, row({ ...keishoku, ...blank })]);
+  assert.deepEqual(billStage(first), { stage: "first", house: "衆議院" });
 });

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { currentGroup, isCurrent, NAV_GROUPS, type NavKey } from "./nav.ts";
 
 test("every nav key belongs to exactly one group", () => {
-  const keys: NavKey[] = ["laws", "new", "upcoming", "repealed", "timeline", "graph", "stats", "terms", "search", "about"];
+  const keys: NavKey[] = ["laws", "new", "upcoming", "bills", "repealed", "timeline", "graph", "stats", "terms", "search", "about"];
   for (const k of keys) assert.equal(NAV_GROUPS.filter((g) => g.keys.includes(k)).length, 1, k);
   assert.equal(currentGroup("terms")?.id, "find");
   assert.equal(currentGroup("graph")?.id, "change");

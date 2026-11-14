@@ -3,7 +3,7 @@
 // built HTML, so search engines follow them whether a menu is open or not.
 
 /** The `nav` keys pages pass to Base.astro; they mark the group (and header button) of the current page. */
-export type NavKey = "laws" | "new" | "upcoming" | "repealed" | "timeline" | "graph" | "stats" | "terms" | "search" | "about";
+export type NavKey = "laws" | "new" | "upcoming" | "bills" | "repealed" | "timeline" | "graph" | "stats" | "terms" | "search" | "about";
 
 export interface NavItem {
   href: string;
@@ -38,10 +38,11 @@ export const NAV_GROUPS: readonly NavGroup[] = [
   {
     id: "change",
     label: "改正・施行",
-    keys: ["timeline", "upcoming", "new", "repealed", "graph"],
+    keys: ["timeline", "upcoming", "bills", "new", "repealed", "graph"],
     items: [
       { href: "/timeline/", label: "改正の年表", desc: "いつ、どの法令が改正されたか" },
       { href: "/upcoming/", label: "施行予定", desc: "公布済みで、まだ施行されていない改正" },
+      { href: "/bills/", label: "国会で審議中の法律案", desc: "まだ成立していない改正案や新しい法律案" },
       { href: "/new/", label: "新しい法令", desc: "新しく制定された法令" },
       { href: "/repealed/", label: "廃止された法令", desc: "効力を失った法令" },
       { href: "/graph/", label: "改正のグラフ", desc: "改正のつながりを図で見る" },

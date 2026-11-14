@@ -25,6 +25,7 @@ import { badgeClass } from "../../lib/badges.ts";
 import { billHeadline, billName, billsFile, billSteps, BILLS_LICENSE_URL, BILLS_SOURCE_CREDIT, BILLS_SOURCE_NAME, BILLS_SOURCE_URL, pendingBillsOf } from "../../lib/bills.ts";
 import PageHeader from "../../components/PageHeader.astro";
 import StatusBadge from "../../components/StatusBadge.astro";
+import BillSteps from "../../components/BillSteps.astro";
 
 export function getStaticPaths() {
   return pageLaws().map((l) => ({ params: { id: l.id } }));
@@ -74,7 +75,6 @@ const TERMS_SHOWN = 20;
 const bills = law.status === "repealed" ? [] : pendingBillsOf(law.id);
 const billsUpdated = billsFile()?.updated ?? null;
 // Step dates without the year when it is the year of the line above them.
-const stepDate = (d: string | null, year: string | undefined) => (d ? (d.startsWith(`${year}-`) ? jpDate(d).replace(/^\d+年/, "") : jpDate(d)) : "");
 const timelineLength = bills.length + revisions.length;
 const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => r.id)].join(",")}`;
 const legislationLd = jsonLdText(
@@ -168,29 +168,12 @@ const legislationLd = jsonLdText(
                       {b.honbunUrl ? <a class="link link-primary" href={b.honbunUrl} rel="noopener">{b.title}</a> : b.title}
                       <span class="text-xs text-base-content/65">（{billName(b)}{b.kind !== "閣法" && b.submitter ? `、提出：${b.submitter}` : ""}）</span>
                     </div>
-                    <ul class="timeline timeline-vertical timeline-compact timeline-snap-icon mt-1.5 text-xs [&>li]:[--timeline-col-start:0]">
-                      {steps.map((s, j) => (
-                        <li>
-                          {j > 0 && <hr />}
-                          <div class="timeline-middle">
-                            <span class:list={[
-                              "mt-1 block h-2.5 w-2.5 rounded-full border-2",
-                              s.state === "done" ? "border-primary bg-primary" : s.state === "current" ? "border-dashed border-secondary bg-base-100" : "border-base-300 bg-base-100",
-                            ]}></span>
-                          </div>
-                          <div class:list={["timeline-end ml-1 min-w-0", { "mb-1.5": j < steps.length - 1 }]}>
-                            <span class:list={{ "font-bold": s.state === "current", "text-base-content/65": s.state === "todo" }}>{s.date && `${stepDate(s.date, year)} `}{s.text}</span>
-                            {s.note && <div class="text-base-content/65">{s.note}</div>}
-                          </div>
-                          {j < steps.length - 1 && <hr />}
-                        </li>
-                      ))}
-                    </ul>
+                    <BillSteps steps={steps} year={year} />
                     {b.keikaUrl && (
                       <div class="mt-0.5 text-xs"><a class="link link-hover link-primary inline-block py-1" href={b.keikaUrl} rel="noopener">審議経過（衆議院）</a></div>
                     )}
                     {i === bills.length - 1 && (
-                      <p class="mt-1 text-xs text-base-content/65">成立前の法律案です。修正されたり、成立しなかったりすることがあります。{billsUpdated && `${jpDate(billsUpdated)}時点。`}出典：<a class="link" href={BILLS_SOURCE_URL} rel="noopener">{BILLS_SOURCE_NAME}</a>（{BILLS_SOURCE_CREDIT}、<a class="link" href={BILLS_LICENSE_URL} rel="noopener">MIT ライセンス</a>）</p>
+                      <p class="mt-1 text-xs text-base-content/65">成立前の法律案です。修正されたり、成立しなかったりすることがあります。{billsUpdated && `${jpDate(billsUpdated)}時点。`}出典：<a class="link" href={BILLS_SOURCE_URL} rel="noopener">{BILLS_SOURCE_NAME}</a>（{BILLS_SOURCE_CREDIT}、<a class="link" href={BILLS_LICENSE_URL} rel="noopener">MIT ライセンス</a>）。<a class="link" href="/bills/">国会で審議中の法律案をすべて見る</a></p>
                     )}
                   </div>
                   {i < timelineLength - 1 && <hr />}
