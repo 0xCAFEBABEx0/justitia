@@ -1,0 +1,115 @@
+---
+import Base from "../../../layouts/Base.astro";
+import PageHeader from "../../../components/PageHeader.astro";
+import StatsNote from "../../../components/StatsNote.astro";
+import StatsLinks from "../../../components/StatsLinks.astro";
+import TypeFilter from "../../../components/TypeFilter.astro";
+import { amendmentUrl, buildDate, jpDate, lawUrl, timeline, timelineYears, typeLabel } from "../../../lib/data.ts";
+import { statLaws, wideAmendments, type StatDiff, type StatLaw } from "../../../lib/stats.ts";
+
+/** Rows in the main ranking and in each list of the side column. */
+const LIMIT = 100;
+const LIMIT_SIDE = 30;
+
+interface Row extends StatDiff {
+  law: StatLaw;
+  lines: number;
+}
+const today = buildDate();
+const rows: Row[] = statLaws(today).flatMap((law) => law.diffs.map((d) => ({ ...d, law, lines: d.additions + d.deletions })));
+const tie = (a: Row, b: Row) => (a.key < b.key ? -1 : a.key > b.key ? 1 : a.law.id < b.law.id ? -1 : 1);
+const items = rows.filter((r) => r.lines > 0).sort((a, b) => b.lines - a.lines || tie(a, b)).slice(0, LIMIT);
+const byBlocks = rows.filter((r) => r.blocks > 0).sort((a, b) => b.blocks - a.blocks || tie(a, b)).slice(0, LIMIT_SIDE);
+const wide = wideAmendments(timelineYears().flatMap((y) => timeline(y)))
+  .sort((a, b) => b.laws - a.laws || (a.key < b.key ? -1 : 1))
+  .slice(0, LIMIT_SIDE);
+
+const href = (r: Row) => `${amendmentUrl(r.key)}#law-${r.law.id}`;
+const year = (iso: string | null) => (iso ? `${iso.slice(0, 4)}年` : "施行日未定");
+const top = items[0];
+const title = "差分が大きい法改正ランキング";
+const description = top
+  ? `1回の改正で条文が最も大きく変わったのは、${year(top.enforced)}の${top.law.title}の改正（${top.lines.toLocaleString()}行）。${items.slice(1, 4).map((r) => `${r.law.title}（${year(r.enforced)}）`).join("、")}など、追加・削除された行数が多い改正の上位 ${items.length} 件と、変更された箇所の数、一度に改正した法令の数のランキングです。`
+  : "1回の改正で追加・削除された行数が多い改正のランキングです。";
+---
+<Base title={title} description={description} nav="stats">
+  <PageHeader title={title} crumbs={[{ href: "/stats/", label: "法令の統計" }]}>
+    {top && <>1回の改正で条文が最も大きく変わったのは、{jpDate(top.enforced)}施行の<b>{top.law.title}</b>の改正で、{top.lines.toLocaleString()} 行が追加・削除されました。</>}houritsu に記録された施行済みの改正（主に2000年代以降）を、法令ごとに比べています。
+  </PageHeader>
+  <StatsNote />
+
+  <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <section class="min-w-0" data-type-filter-root>
+      <h2 class="mb-3 text-xl font-bold">追加・削除された行数が多い改正（上位 {items.length} 件）</h2>
+      <TypeFilter dirs={items.map((r) => r.law.dir)} />
+      <ol class="list rounded-box border border-base-300 bg-base-100">
+        {items.map((r, i) => (
+          <li class="list-row items-baseline py-3" data-type={r.law.dir}>
+            <span class="w-8 text-right text-sm tabular-nums text-base-content/65" aria-hidden="true">{i + 1}</span>
+            <div class="list-col-grow min-w-0">
+              <a class="link link-hover font-bold text-primary" href={href(r)}>{r.law.title}</a>
+              <div class="mt-1 text-xs text-base-content/65">
+                {typeLabel(r.law.dir)}・{jpDate(r.enforced)}施行・{r.title}・変更 {r.blocks.toLocaleString()} か所
+              </div>
+            </div>
+            <span class="shrink-0 text-right tabular-nums">
+              <b class="text-lg">{r.lines.toLocaleString()}</b><span class="ml-0.5 text-xs text-base-content/65">行</span>
+              <span class="block text-xs"><span class="text-add">+{r.additions.toLocaleString()}</span> <span class="text-del">−{r.deletions.toLocaleString()}</span></span>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </section>
+
+    <aside class="flex flex-col gap-4 text-sm">
+      {byBlocks.length > 0 && (
+        <section class="card card-border bg-base-100">
+          <div class="card-body gap-2 p-5">
+            <h2 class="card-title text-base">変更された箇所が多い改正</h2>
+            <p class="text-xs text-base-content/65">1回の改正で追加・削除・変更された条や章、附則、別表の数です。</p>
+            <ol class="list">
+              {byBlocks.map((r, i) => (
+                <li class="list-row items-baseline px-0 py-2">
+                  <span class="w-5 text-right text-xs tabular-nums text-base-content/65" aria-hidden="true">{i + 1}</span>
+                  <div class="list-col-grow min-w-0">
+                    <a class="link link-hover font-bold text-primary" href={href(r)}>{r.law.title}</a>
+                    <div class="text-xs text-base-content/65">{jpDate(r.enforced)}施行</div>
+                  </div>
+                  <span class="tabular-nums"><b>{r.blocks.toLocaleString()}</b><span class="ml-0.5 text-xs text-base-content/65">か所</span></span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+      )}
+      {wide.length > 0 && (
+        <section class="card card-border bg-base-100">
+          <div class="card-body gap-2 p-5">
+            <h2 class="card-title text-base">一度に多くの法令を改正した改正</h2>
+            <p class="text-xs text-base-content/65">1回の施行で条文が改正された法令の数です。廃止された法令も含みます。</p>
+            <ol class="list">
+              {wide.map((a, i) => (
+                <li class="list-row items-baseline px-0 py-2">
+                  <span class="w-5 text-right text-xs tabular-nums text-base-content/65" aria-hidden="true">{i + 1}</span>
+                  <div class="list-col-grow min-w-0">
+                    <a class="link link-hover font-bold text-primary" href={amendmentUrl(a.key)}>{a.title}</a>
+                    <div class="text-xs text-base-content/65">{jpDate(a.enforced)}施行</div>
+                  </div>
+                  <span class="tabular-nums"><b>{a.laws.toLocaleString()}</b><span class="ml-0.5 text-xs text-base-content/65">件</span></span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+      )}
+      <section class="card card-border bg-base-100">
+        <div class="card-body gap-2 p-5">
+          <h2 class="card-title text-base">数え方</h2>
+          <p class="text-base-content/70">改正のページと同じく、改正前と改正後の条文を行ごとに比べた、追加と削除の行数の合計です。行は条文の項や号、表の1行などで、書き換えられた行は削除1行と追加1行と数えます。表を改める改正は行数が大きくなります。</p>
+          <p class="text-base-content/70">同じ改正法令でも、改正された法令ごと、施行日ごとに分けて数えます。新しい法令の一部が後から施行される段階施行は含みません。現行の法令が対象です。</p>
+        </div>
+      </section>
+      <StatsLinks current="/stats/diff/" />
+    </aside>
+  </div>
+</Base>
