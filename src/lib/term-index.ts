@@ -104,14 +104,34 @@ export function termIndex(): TermIndex {
 }
 
 /**
+ * What a definition by reference says in parentheses beyond the reference: 「法人税法（昭和四十年法律
+ * 第三十四号）第二条第四号に規定する外国法人（公益法人等を除く。）」 → 公益法人等を除く。 The number
+ * of the law and a short name given to it (以下「法」という。) are not part of it.
+ */
+export function qualifiers(text: string): string {
+  const out: string[] = [];
+  let depth = 0;
+  let start = 0;
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "（" && depth++ === 0) start = i + 1;
+    else if (text[i] === "）" && depth > 0 && --depth === 0) {
+      const inner = text.slice(start, i);
+      if (!/^(?:(?:明治|大正|昭和|平成|令和)[元〇一二三四五六七八九十]+年[^（）。]*第[〇一二三四五六七八九十百千]+号。?)?(?:[^。「」]*「[^「」]*」という。?)?$/.test(inner)) out.push(inner);
+    }
+  }
+  return out.join("\n");
+}
+
+/**
  * A term's laws grouped by the wording of their definitions, the group with the first law first. The
  * definitions that refer to the same provision of another law make one group, however they word it
- * (with or without the law number), quoted from a law that names the other law by its title.
+ * (with or without the law number), quoted from a law that names the other law by its title. What a
+ * reference adds in parentheses (公益法人等を除く。) changes its meaning, and keeps it apart.
  */
 export function definitionGroups(t: Term): { def: Definition; laws: TermLaw[]; source?: TermSource }[] {
   const groups = new Map<string, { def: Definition; laws: TermLaw[]; source?: TermSource }>();
   for (const l of t.laws) {
-    const key = l.source ? `\0${l.source.law}\0${l.source.provision}` : `${l.def.text}\n${(l.def.items ?? []).join("\n")}`;
+    const key = l.source ? `\0${l.source.law}\0${l.source.provision}\0${qualifiers(l.def.text)}` : `${l.def.text}\n${(l.def.items ?? []).join("\n")}`;
     const g = groups.get(key);
     if (!g) groups.set(key, { def: l.def, laws: [l], ...(l.source ? { source: l.source } : {}) });
     else {
