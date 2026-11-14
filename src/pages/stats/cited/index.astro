@@ -22,7 +22,8 @@ const isAct = (l: StatLaw) => l.dir === "act" || l.dir === "constitution";
 const cited = measured.filter((l) => citers(l).length > 0).sort((a, b) => citers(b).length - citers(a).length || byId(a, b)).slice(0, LIMIT);
 const acts = measured.filter(isAct);
 const uncited = acts.filter((l) => citers(l).length === 0).sort(byAge);
-const citing = measured.filter((l) => (scan.cites.get(l.id) ?? 0) > 0).sort((a, b) => scan.cites.get(b.id)! - scan.cites.get(a.id)! || byId(a, b)).slice(0, LIMIT_SIDE);
+const citesCount = (l: StatLaw) => scan.cites.get(l.id)?.length ?? 0;
+const citing = measured.filter((l) => citesCount(l) > 0).sort((a, b) => citesCount(b) - citesCount(a) || byId(a, b)).slice(0, LIMIT_SIDE);
 const top = cited[0];
 
 const count = (l: StatLaw) => ({ n: citers(l).length.toLocaleString(), unit: "件" });
@@ -65,7 +66,7 @@ const description = `ほかの法令から最も多く引用されている法�
                     <a class="link link-hover font-bold text-primary" href={lawUrl(l.id)}>{l.title}</a>
                     <div class="text-xs text-base-content/65">{typeLabel(l.dir)}</div>
                   </div>
-                  <span class="shrink-0 text-right tabular-nums"><b>{scan.cites.get(l.id)!.toLocaleString()}</b><span class="ml-0.5 text-xs text-base-content/65">件</span></span>
+                  <span class="shrink-0 text-right tabular-nums"><b>{citesCount(l).toLocaleString()}</b><span class="ml-0.5 text-xs text-base-content/65">件</span></span>
                 </li>
               ))}
             </ol>
