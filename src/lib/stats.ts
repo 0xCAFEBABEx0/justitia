@@ -168,13 +168,18 @@ export function yearBefore(iso: string): string {
 }
 
 /** The stats of one law in force. `today` bounds the amendments of the last year. */
+/**
+ * The amendments of a law in force. The enactment and a later part of a new law coming into force (段階施行) are
+ * not amendments. The first revision houritsu has can also be an amendment by another law (収録開始,
+ * coverage_start), which counts.
+ */
+export function amendmentsInForce(detail: Pick<LawDetail, "id" | "revisions">): LawRevision[] {
+  return detail.revisions.filter((r) => r.branch === "main" && r.kind !== "enacted" && !isStaged(r.kind, detail.id, r.amendmentLawId));
+}
+
 export function statLaw(detail: LawDetail, today: string): StatLaw {
   const since = yearBefore(today);
-  const inForce = detail.revisions.filter((r) => r.branch === "main");
-  // The enactment and a later part of a new law coming into force (段階施行) are not amendments. The
-  // first revision houritsu has can also be an amendment by another law (収録開始, coverage_start),
-  // which counts.
-  const amendments = inForce.filter((r) => r.kind !== "enacted" && !isStaged(r.kind, detail.id, r.amendmentLawId));
+  const amendments = amendmentsInForce(detail);
   return {
     id: detail.id,
     title: listTitle(detail.title, detail.num),

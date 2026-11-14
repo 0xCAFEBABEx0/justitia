@@ -22,7 +22,7 @@ import { shareToolsHtml } from "../../lib/share.ts";
 import { isStaged } from "../../lib/new-laws.ts";
 import { lastTextBeforeRepeal, REPEAL_WAY_LABELS } from "../../lib/repealed-laws.ts";
 import { jsonLdText, legislation } from "../../lib/seo.ts";
-import { isUnamended, listTitle, scanLaws } from "../../lib/stats.ts";
+import { amendmentsInForce, isUnamended, listTitle, scanLaws } from "../../lib/stats.ts";
 import { lawSummary, topCitations, type CitationLaw } from "../../lib/law-summary.ts";
 import { termIndex, termUrl } from "../../lib/term-index.ts";
 import { badgeClass } from "../../lib/badges.ts";
@@ -51,7 +51,9 @@ const beforeRepealUrl = beforeRepeal ? `/versions/?law=${law.id}&at=${encodeURIC
 const anchor = `#law-${law.id}`;
 // Never amended since it was made, according to e-Gov: links to the list of such laws.
 const unamended = law.status === "in_force" && isUnamended(law.frontmatter);
-const amendments = law.revisionCount - 1; // the first revision is the enactment or the start of coverage
+// Amendments in force, counted as on the stats pages: not the enactment or 段階施行, but a first revision recorded
+// from an amendment (収録開始) is one.
+const amendments = amendmentsInForce(law).length;
 const named = `${law.title}（${law.num}${law.abbrev ? `、略称：${law.abbrev}` : ""}）`;
 const pageTitle = law.status === "repealed" ? `${law.title}（廃止）の改正履歴` : `${law.title}の条文と改正履歴`;
 const description =
