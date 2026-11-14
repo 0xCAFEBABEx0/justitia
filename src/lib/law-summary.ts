@@ -16,7 +16,7 @@ export interface LawSummaryFacts {
   type: string;
   /** The day the law came into force, written out (jpDate), when houritsu records its enactment. */
   enforced: string | null;
-  /** Amendments in force (the revisions after the first). */
+  /** Amendments in force that houritsu records (amendmentsInForce in stats.ts). */
   amendments: number;
   /** The last amendment in force by another law, with the day it came into force written out. */
   latest: { enforced: string; title: string; href: string } | null;
@@ -51,11 +51,13 @@ export function lawSummary(f: LawSummaryFacts): SummaryPart[] {
     text(f.enforced ? `${f.name}は、${f.enforced}に施行された${f.type}です。` : `${f.name}は${f.type}です。`);
   }
   if (f.latest) {
-    text(`これまでに ${n(f.amendments)} 件改正され、最後の改正は${f.latest.enforced}施行の`);
+    // houritsu's history of most laws starts in the 2000s, so the count is of the amendments recorded here, not of
+    // every amendment since the law was made.
+    text(`このサイトで見られる改正は ${n(f.amendments)} 件で、最後の改正は${f.latest.enforced}施行の`);
     link(f.latest.title, f.latest.href);
     text("です。");
   } else if (f.amendments > 0) {
-    text(`これまでに ${n(f.amendments)} 件改正されています。`);
+    text(`このサイトで見られる改正は ${n(f.amendments)} 件です。`);
   } else if (f.unamended) {
     text("制定されてから一度も改正されていません。");
   }

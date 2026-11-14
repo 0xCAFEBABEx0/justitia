@@ -23,7 +23,7 @@ test("lawSummary writes the facts of a law in sentences", () => {
   assert.equal(
     plain(lawSummary(base)),
     "民法は、明治二十九年法律第八十九号の法律です。1898年7月16日に施行されました。" +
-      "これまでに 31 件改正され、最後の改正は2026年4月1日施行の民法等の一部を改正する法律です。" +
+      "このサイトで見られる改正は 31 件で、最後の改正は2026年4月1日施行の民法等の一部を改正する法律です。" +
       "まだ施行されていない改正が 5 件あります。" +
       "この法律は 12 の法令を引用し、1,234 の法令から引用されています。" +
       "ほかの法令でも定義されている用語を 45 語定義しています。",
@@ -52,7 +52,7 @@ test("lawSummary leaves out what the law does not have", () => {
   assert.equal(plain(lawSummary({ ...facts, unamended: true })), "民法は、明治二十九年法律第八十九号の法律です。制定されてから一度も改正されていません。");
   assert.equal(plain(lawSummary({ ...facts, citedBy: 3 })), "民法は、明治二十九年法律第八十九号の法律です。この法律は 3 の法令から引用されています。");
   assert.equal(plain(lawSummary({ ...facts, cites: 3 })), "民法は、明治二十九年法律第八十九号の法律です。この法律は 3 の法令を引用しています。");
-  assert.equal(plain(lawSummary({ ...facts, amendments: 2 })), "民法は、明治二十九年法律第八十九号の法律です。これまでに 2 件改正されています。");
+  assert.equal(plain(lawSummary({ ...facts, amendments: 2 })), "民法は、明治二十九年法律第八十九号の法律です。このサイトで見られる改正は 2 件です。");
 });
 
 test("topCitations puts the constitution and Acts first, the most cited first within a type", () => {
