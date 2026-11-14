@@ -129,6 +129,22 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | `/graph/?laws=<ID>,<ID>,…` | Amendment graph: one lane per law, with laws changed by the same amending law joined by a line (git-graph style) |
 | (any other path) | The 404 page |
 
+### Navigation
+
+The pages are grouped in `src/lib/nav.ts` (法令を探す, 改正・施行, 統計, このサイトについて), and the same list drives
+three menus in `src/layouts/Base.astro`:
+
+- From 768 px wide, the header has a button per group (このサイトについて aside) that opens a dropdown of its pages,
+  with a one-line description for the first two groups. The dropdowns are HTML popovers (`popovertarget`), so they
+  need no script: a click outside or Esc closes them, and opening one closes the other. Where the browser supports
+  CSS anchor positioning, a dropdown opens under its button; elsewhere it opens centered under the header. The
+  group of the current page is highlighted (the `nav` prop of `Base.astro`), and the link to the current page has
+  `aria-current="page"`.
+- Below 768 px, the 「メニュー」 button opens the drawer, which lists every group with its heading.
+- The footer of every page has the same list as a site map, above the disclaimer.
+
+Every menu link is a plain `<a href>` in the built HTML, so crawlers find them whether a menu is open or not.
+
 ### Bills in the Diet
 
 Law pages show the law bills (閣法, 衆法, 参法) under deliberation in the Diet that would amend the law. `npm run bills`

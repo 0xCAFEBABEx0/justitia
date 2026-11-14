@@ -309,6 +309,49 @@ select.select {
   appearance: none;
 }
 
+/* ---- Header dropdowns (src/layouts/Base.astro, groups in src/lib/nav.ts) ---- */
+
+/*
+ * Each group's links are a popover opened by its button (popovertarget): no script, and the
+ * browser closes it on Esc or a click outside and sets aria-expanded on the button. daisyUI's
+ * .menu makes a direct child of an <li> a grid and draws a line left of a nested <ul>, which
+ * would show the panel while it is closed; these rules are unlayered, so they win.
+ *
+ * The panel sits under its button with CSS anchor positioning (anchor-name / position-anchor
+ * are set on the elements). Without anchor positioning it is centered under the header.
+ */
+.gnav-pop {
+  margin: 0;
+  inset: auto;
+  top: 3.5rem;
+  left: 50%;
+  translate: -50% 0;
+}
+.gnav-pop:not(:popover-open) {
+  display: none;
+}
+.gnav-pop:popover-open {
+  display: block;
+}
+.gnav-pop ul.menu {
+  margin-inline-start: 0;
+  padding-inline-start: 0;
+}
+.gnav-pop ul.menu::before {
+  display: none;
+}
+@supports (anchor-name: --a) {
+  .gnav-pop {
+    top: anchor(bottom);
+    left: anchor(left);
+    translate: 0 0.25rem;
+    position-try-fallbacks: flip-inline;
+  }
+}
+.gnav-btn:has(+ :popover-open) svg {
+  rotate: 180deg;
+}
+
 /* ---- Share and print (src/lib/share.ts, src/scripts/share.ts) ---- */
 @layer components {
   /* The tools under the block a #fragment points at. */

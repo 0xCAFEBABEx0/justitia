@@ -6,11 +6,13 @@ import { CODE_LICENSE_URL, CODE_REPO, DATA_BASE, DATA_LICENSE_URL, PDL_URL, SITE
 import { feedFile, feedUrl } from "../lib/feeds.ts";
 import { DISCLAIMER_URL, EGOV_URL } from "../lib/disclaimer.ts";
 import { dataDate, jpDate } from "../lib/data.ts";
+import { currentGroup, isCurrent, NAV_GROUPS, type NavKey } from "../lib/nav.ts";
 
 interface Props {
   title?: string;
   description?: string;
-  nav?: "laws" | "new" | "upcoming" | "repealed" | "timeline" | "graph" | "stats" | "terms" | "search" | "about";
+  /** The page's place in the navigation (src/lib/nav.ts): marks its group in the header and menu. */
+  nav?: NavKey;
   narrow?: boolean;
   /**
    * Whether this URL (without its query string) is the page's address. False for pages whose
@@ -25,19 +27,10 @@ interface Props {
 }
 const { title, description, nav, narrow = false, canonical = true, feed, noindex = false } = Astro.props;
 const siteFeed = { title: `法令の改正（${SITE_NAME}）`, href: feedUrl(DATA_BASE, feedFile.all("xml")) };
-const NAV = [
-  { key: "laws", href: "/browse/", label: "法令一覧" },
-  { key: "new", href: "/new/", label: "新しい法令" },
-  { key: "upcoming", href: "/upcoming/", label: "施行予定" },
-  { key: "repealed", href: "/repealed/", label: "廃止された法令" },
-  { key: "timeline", href: "/timeline/", label: "改正の年表" },
-  { key: "graph", href: "/graph/", label: "改正のグラフ" },
-  { key: "stats", href: "/stats/", label: "統計" },
-  { key: "search", href: "/search/", label: "全文検索" },
-  // Not in the header row (it does not fit beside the search box at 1280px); in the menu, and the footer links to it.
-  { key: "terms", href: "/terms/", label: "法令用語の定義集", menuOnly: true },
-  { key: "about", href: "/about/", label: "このサイトについて", menuOnly: true },
-] as const;
+const group = currentGroup(nav);
+const here = Astro.url.pathname;
+// Marks the link to the current page, as the header and menus did before they were grouped.
+const linkCls = "aria-[current=page]:bg-primary/10 aria-[current=page]:font-bold aria-[current=page]:text-primary";
 const fullTitle = title ? `${title} | ${SITE_NAME}` : `${SITE_NAME} — ${SITE_TAGLINE}`;
 const desc = description ?? "日本の法令の条文と、いつ・どこが・どう改正されたかを、改正ごとの新旧対照で見られるサイトです。";
 const url = canonical ? new URL(Astro.url.pathname, Astro.site).href : null;
@@ -88,10 +81,27 @@ const ogImage = new URL("/og-image.png", Astro.site).href;
         <header class="navbar sticky top-0 z-30 print:hidden min-h-14 gap-2 border-b border-base-300 bg-base-100 px-4 py-0">
           <div class="mx-auto flex w-full max-w-[1180px] items-center gap-2">
             <a class="mr-2 shrink-0 text-lg font-bold tracking-wide" href="/">Anisotro<span class="text-primary">pics</span></a>
-            <nav class="hidden xl:block" aria-label="サイト">
+            <nav class="hidden md:block" aria-label="サイト">
               <ul class="menu menu-horizontal menu-sm gap-1 px-0">
-                {NAV.filter((n) => !("menuOnly" in n)).map((n) => (
-                  <li><a class="aria-[current=page]:bg-primary/10 aria-[current=page]:font-bold aria-[current=page]:text-primary" href={n.href} aria-current={nav === n.key ? "page" : undefined}>{n.label}</a></li>
+                {NAV_GROUPS.filter((g) => !g.headerless).map((g) => (
+                  <li>
+                    <button type="button" class:list={["gnav-btn", g === group && "bg-primary/10 font-bold text-primary"]} popovertarget={`gnav-${g.id}`} style={`anchor-name: --gnav-${g.id}`}>
+                      {g.label}
+                      <svg class="h-3.5 w-3.5 opacity-70 transition-transform" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" d="m19.5 8.25-7.5 7.5-7.5-7.5" /></svg>
+                    </button>
+                    <div id={`gnav-${g.id}`} popover class="gnav-pop w-72 rounded-box border border-base-300 bg-base-100 p-2 shadow-lg" style={`position-anchor: --gnav-${g.id}`}>
+                      <ul class="menu w-full p-0">
+                        {g.items.map((i) => (
+                          <li>
+                            <a class:list={[linkCls, "grid-flow-row gap-0"]} href={i.href} aria-current={isCurrent(i.href, here) ? "page" : undefined}>
+                              <span>{i.label}</span>
+                              {i.desc && <span class="text-xs font-normal text-base-content/65">{i.desc}</span>}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </li>
                 ))}
               </ul>
             </nav>
@@ -106,8 +116,9 @@ const ogImage = new URL("/og-image.png", Astro.site).href;
               <svg class="swap-off h-5 w-5 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M5.64,17l-.71.71a1,1,0,0,0,0,1.41,1,1,0,0,0,1.41,0l.71-.71A1,1,0,0,0,5.64,17ZM5,12a1,1,0,0,0-1-1H3a1,1,0,0,0,0,2H4A1,1,0,0,0,5,12Zm7-7a1,1,0,0,0,1-1V3a1,1,0,0,0-2,0V4A1,1,0,0,0,12,5ZM5.64,7.05a1,1,0,0,0,.7.29,1,1,0,0,0,.71-.29,1,1,0,0,0,0-1.41l-.71-.71A1,1,0,0,0,4.93,6.34Zm12,.29a1,1,0,0,0,.7-.29l.71-.71a1,1,0,1,0-1.41-1.41L17,5.64a1,1,0,0,0,0,1.41A1,1,0,0,0,17.66,7.34ZM21,11H20a1,1,0,0,0,0,2h1a1,1,0,0,0,0-2Zm-9,8a1,1,0,0,0-1,1v1a1,1,0,0,0,2,0V20A1,1,0,0,0,12,19ZM18.36,17A1,1,0,0,0,17,18.36l.71.71a1,1,0,0,0,1.41,0,1,1,0,0,0,0-1.41ZM12,6.5A5.5,5.5,0,1,0,17.5,12,5.51,5.51,0,0,0,12,6.5Zm0,9A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z" /></svg>
               <svg class="swap-on h-5 w-5 fill-current" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" aria-hidden="true"><path d="M21.64,13a1,1,0,0,0-1.05-.14,8.05,8.05,0,0,1-3.37.73A8.15,8.15,0,0,1,9.08,5.49a8.59,8.59,0,0,1,.25-2A1,1,0,0,0,8,2.36,10.14,10.14,0,1,0,22,14.05,1,1,0,0,0,21.64,13Zm-9.5,6.69A8.14,8.14,0,0,1,7.08,5.22v.27A10.15,10.15,0,0,0,17.22,15.63a9.79,9.79,0,0,0,2.1-.22A8.11,8.11,0,0,1,12.14,19.73Z" /></svg>
             </label>
-            <label for="site-menu" class="drawer-button btn btn-square btn-ghost btn-sm xl:hidden" title="メニュー">
+            <label for="site-menu" class="drawer-button btn btn-ghost h-auto min-h-8 w-11 flex-col gap-0 px-0 py-0.5 md:hidden">
               <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16" /></svg>
+              <span class="text-[0.625rem] leading-tight font-normal">メニュー</span>
             </label>
           </div>
         </header>
@@ -123,6 +134,16 @@ const ogImage = new URL("/og-image.png", Astro.site).href;
         </main>
         <footer class="border-t border-base-300 bg-base-100 py-6 text-sm text-base-content/70 print:py-3 print:text-xs">
           <div class="mx-auto max-w-[1180px] space-y-2 px-4 print:max-w-none print:px-0">
+            <nav class="mb-6 grid grid-cols-2 gap-x-6 gap-y-6 border-b border-base-300 pb-6 md:grid-cols-4 print:hidden" aria-label="サイトマップ">
+              {NAV_GROUPS.map((g) => (
+                <div>
+                  <h2 class="mb-2 font-bold text-base-content">{g.label}</h2>
+                  <ul class="space-y-2">
+                    {g.items.map((i) => <li><a class="link link-hover" href={i.href}>{i.label}</a></li>)}
+                  </ul>
+                </div>
+              ))}
+            </nav>
             <p>
               条文と改正履歴は <a class="link" href={SOURCE_REPO}>houritsu</a>（e-Gov 法令データを Git の履歴にしたもの）からプログラムで自動的に生成しています。変換の誤りや不具合により、条文の表示が崩れたり、誤った新旧対照が表示されたりすることがあります。正式な法令の内容は <a class="link" href={EGOV_URL}>e-Gov 法令検索</a> で確認してください。
             </p>
@@ -139,11 +160,14 @@ const ogImage = new URL("/og-image.png", Astro.site).href;
         <label for="site-menu" class="drawer-overlay" aria-hidden="true"></label>
         <nav class="min-h-full w-72 bg-base-100 p-4" aria-label="サイト">
           <a class="mb-2 block px-3 text-lg font-bold" href="/">Anisotro<span class="text-primary">pics</span></a>
-          <ul class="menu w-full">
-            {NAV.map((n) => (
-              <li><a class="aria-[current=page]:bg-primary/10 aria-[current=page]:font-bold aria-[current=page]:text-primary" href={n.href} aria-current={nav === n.key ? "page" : undefined}>{n.label}</a></li>
-            ))}
-          </ul>
+          {NAV_GROUPS.map((g) => (
+            <ul class="menu menu-sm w-full border-t border-base-300 py-2">
+              <li class="menu-title text-base-content">{g.label}</li>
+              {g.items.map((i) => (
+                <li><a class:list={[linkCls, "py-2"]} href={i.href} aria-current={isCurrent(i.href, here) ? "page" : undefined}>{i.label}</a></li>
+              ))}
+            </ul>
+          ))}
         </nav>
       </div>
     </div>
