@@ -69,7 +69,8 @@ function lawOf(id: string, page: string): Law | null {
   }
   const article = page.slice(start, page.indexOf("</article>", start));
   if (!article.includes('<section class="blk')) return null;
-  const title = text(/<h1[^>]*data-page-title[^>]*>([\s\S]*?)<\/h1>/.exec(page)?.[1].replace(/<span class="badge[\s\S]*?<\/span>/g, "") ?? "");
+  // The badges by the title (施行予定, 制定以来改正なし, 改正案を審議中) are spans or links; none is part of the title.
+  const title = text(/<h1[^>]*data-page-title[^>]*>([\s\S]*?)<\/h1>/.exec(page)?.[1].replace(/<(span|a) class="badge[\s\S]*?<\/\1>/g, "") ?? "");
   const num = /<span data-law-num[^>]*>([^<]*)<\/span>/.exec(page)?.[1] ?? "";
   return { id, title, num, article };
 }
