@@ -22,6 +22,7 @@ import { jsonLdText, legislation } from "../../lib/seo.ts";
 import { isUnamended } from "../../lib/stats.ts";
 import { termIndex, termUrl } from "../../lib/term-index.ts";
 import { badgeClass } from "../../lib/badges.ts";
+import { billHeadline, billName, billsFile, billSteps, BILLS_SOURCE_CREDIT, BILLS_SOURCE_NAME, BILLS_SOURCE_URL, pendingBillsOf } from "../../lib/bills.ts";
 import PageHeader from "../../components/PageHeader.astro";
 import StatusBadge from "../../components/StatusBadge.astro";
 
@@ -69,6 +70,12 @@ const rssUrl = law.status === "repealed" ? null : feedUrl(DATA_BASE, feedFile.la
 // The terms this law defines that have a page on /terms/, the most widely defined first.
 const definedTerms = law.status === "in_force" ? (termIndex().byLaw.get(law.id) ?? []) : [];
 const TERMS_SHOWN = 20;
+// Bills in the Diet that would amend the law (src/lib/bills.ts), shown above its history.
+const bills = law.status === "repealed" ? [] : pendingBillsOf(law.id);
+const billsUpdated = billsFile()?.updated ?? null;
+// Step dates without the year when it is the year of the line above them.
+const stepDate = (d: string | null, year: string | undefined) => (d ? (d.startsWith(`${year}-`) ? jpDate(d).replace(/^\d+年/, "") : jpDate(d)) : "");
+const timelineLength = bills.length + revisions.length;
 const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => r.id)].join(",")}`;
 const legislationLd = jsonLdText(
   legislation({
@@ -93,6 +100,7 @@ const legislationLd = jsonLdText(
     ]}
   >
     {law.status !== "in_force" && <StatusBadge slot="badge" kind={law.status === "repealed" ? "repealed" : "upcoming"} label={STATUS_LABELS[law.status]} />}
+    {bills.length > 0 && <Fragment slot="badge">{" "}<a class={`${badgeClass("pending")} ml-0.5 hover:bg-base-200`} href="#bills">改正案を審議中</a></Fragment>}
     {unamended && <Fragment slot="badge">{" "}<a class={`${badgeClass("unamended")} ml-0.5 hover:bg-base-200`} href="/stats/unamended/">制定以来改正なし</a></Fragment>}
     <div class="flex flex-wrap gap-x-4 gap-y-1">
       <span data-law-num>{law.num}</span>
@@ -141,9 +149,57 @@ const legislationLd = jsonLdText(
         <div class="card-body p-4">
           <h2 class="card-title text-base">改正履歴（{revisions.length} 件）</h2>
           <ul class="timeline timeline-vertical timeline-compact timeline-snap-icon [&>li]:[--timeline-col-start:0]">
+            {bills.map((b, i) => {
+              const head = billHeadline(b);
+              const year = head.date?.slice(0, 4);
+              const steps = billSteps(b);
+              return (
+                <li id={i === 0 ? "bills" : undefined} class="scroll-mt-20">
+                  {i > 0 && <hr />}
+                  <div class="timeline-middle">
+                    <span class="mt-1.5 block h-2.5 w-2.5 rounded-full border-2 border-dashed border-secondary bg-base-100"></span>
+                  </div>
+                  <div class:list={["timeline-end ml-1 min-w-0", { "mb-4": i < timelineLength - 1 }]}>
+                    <div class="font-bold">
+                      {head.date ? `${jpDate(head.date)} ` : ""}{head.text}
+                      <StatusBadge kind="pending" label="審議中" />
+                    </div>
+                    <div>
+                      {b.honbunUrl ? <a class="link link-primary" href={b.honbunUrl} rel="noopener">{b.title}</a> : b.title}
+                      <span class="text-xs text-base-content/65">（{billName(b)}{b.kind !== "閣法" && b.submitter ? `、提出：${b.submitter}` : ""}）</span>
+                    </div>
+                    <ul class="timeline timeline-vertical timeline-compact timeline-snap-icon mt-1.5 text-xs [&>li]:[--timeline-col-start:0]">
+                      {steps.map((s, j) => (
+                        <li>
+                          {j > 0 && <hr />}
+                          <div class="timeline-middle">
+                            <span class:list={[
+                              "mt-1 block h-2.5 w-2.5 rounded-full border-2",
+                              s.state === "done" ? "border-primary bg-primary" : s.state === "current" ? "border-dashed border-secondary bg-base-100" : "border-base-300 bg-base-100",
+                            ]}></span>
+                          </div>
+                          <div class:list={["timeline-end ml-1 min-w-0", { "mb-1.5": j < steps.length - 1 }]}>
+                            <span class:list={{ "font-bold": s.state === "current", "text-base-content/65": s.state === "todo" }}>{s.date && `${stepDate(s.date, year)} `}{s.text}</span>
+                            {s.note && <div class="text-base-content/65">{s.note}</div>}
+                          </div>
+                          {j < steps.length - 1 && <hr />}
+                        </li>
+                      ))}
+                    </ul>
+                    {b.keikaUrl && (
+                      <div class="mt-0.5 text-xs"><a class="link link-hover link-primary inline-block py-1" href={b.keikaUrl} rel="noopener">審議経過（衆議院）</a></div>
+                    )}
+                    {i === bills.length - 1 && (
+                      <p class="mt-1 text-xs text-base-content/65">成立前の法律案です。修正されたり、成立しなかったりすることがあります。{billsUpdated && `${jpDate(billsUpdated)}時点。`}出典：<a class="link" href={BILLS_SOURCE_URL} rel="noopener">{BILLS_SOURCE_NAME}</a>（{BILLS_SOURCE_CREDIT}、MIT ライセンス）</p>
+                    )}
+                  </div>
+                  {i < timelineLength - 1 && <hr />}
+                </li>
+              );
+            })}
             {revisions.map((r, i) => (
               <li>
-                {i > 0 && <hr />}
+                {i + bills.length > 0 && <hr />}
                 <div class="timeline-middle">
                   <span class:list={["mt-1.5 block h-2.5 w-2.5 rounded-full border-2", r.branch === "upcoming" ? "border-dashed border-primary bg-base-100" : "border-primary bg-primary"]}></span>
                 </div>

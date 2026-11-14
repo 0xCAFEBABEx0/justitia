@@ -53,6 +53,7 @@ Brotli CVE-2026-111497 fix). Package manager: **npm**.
 | `npm run typecheck` | `tsc -p .` |
 | `npm run fetch-houritsu` | clone or fetch houritsu into `./houritsu` |
 | `npm run extract` | houritsu → `./data` (full run: ~15 min, ~1.5 GB heap) |
+| `npm run bills` | bills pending in the Diet → `./data/bills.json` (optional; the law pages show them) |
 | `npm run build` | `./data` + `./houritsu` → `dist/` |
 | `npm run search-index` | Pagefind shards from `dist/` into `data/pagefind/` (~17 min for all laws) |
 | `npm run preview` | serve `dist/` and `data/` at `http://localhost:4321/` |

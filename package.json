@@ -11,6 +11,7 @@
     "build": "astro build",
     "search-index": "node scripts/search-index.ts",
     "feeds": "node scripts/feeds.ts",
+    "bills": "node scripts/bills.ts",
     "preview": "node scripts/preview.ts",
     "upload-data": "scripts/upload-data.sh",
     "split-amendments": "node scripts/split-amendments.ts",
