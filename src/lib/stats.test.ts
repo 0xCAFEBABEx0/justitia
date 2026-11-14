@@ -199,6 +199,9 @@ test("lawDiffs lists the amendments in force with their size, without 段階施�
   // The enactment, 段階施行 and upcoming revisions are left out.
   const diffs = lawDiffs(id, [rev("enacted", id, 500, 0), rev("amended", id, 40, 0), rev("amended", "502AC0000000001", 5, 4), rev("amended", "508AC0000000009", 9, 9, "upcoming")]);
   assert.deepEqual(diffs.map((d) => d.key), ["502AC0000000001_x"]);
+  // A short law with provisions is no empty record: its amendments count.
+  const short = lawDiffs("505AC0000000056", [rev("enacted", "505AC0000000056", 8, 0), rev("amended", "505AC0000000063", 8, 1)]);
+  assert.deepEqual(short.map((d) => d.key), ["505AC0000000063_x"]);
 });
 
 test("wideAmendments counts the laws an amendment in force amended", () => {

@@ -104,16 +104,17 @@ export interface StatDiff {
 }
 
 /**
- * Below this many lines, the text of a law before a revision is taken for an empty record: houritsu
- * first recorded a few laws (地方税法, 地方交付税法 in 2017) with no text, and the next revision added all of
- * it, which is no amendment.
+ * The length in lines of a law text that has only its title heading and no provisions. houritsu first
+ * recorded 11 laws (地方税法 and 地方交付税法 in 2017, among others) like that, and a later revision added
+ * the whole text, which is no amendment. Every other law starts with at least 4 lines, so a text this
+ * short is such an empty record, not a short law.
  */
-export const STUB_LINES = 10;
+export const EMPTY_TEXT_LINES = 2;
 
 /**
  * The diffs of the amendments in force of a law, oldest first: revisions of kind "amended" on main,
  * without 段階施行 (a later part of the law itself coming into force) and without a revision that
- * filled in a text recorded empty (STUB_LINES). The length of the text before each revision is
+ * filled in a text recorded empty (EMPTY_TEXT_LINES). The length of the text before each revision is
  * the running sum of the lines added and deleted, from the first revision on (whose additions are
  * the whole text).
  */
@@ -124,7 +125,7 @@ export function lawDiffs(id: string, revisions: LawRevision[]): StatDiff[] {
     if (r.branch !== "main") continue;
     const before = lines;
     lines += r.additions - r.deletions;
-    if (r.kind !== "amended" || isStaged(r.kind, id, r.amendmentLawId) || before < STUB_LINES) continue;
+    if (r.kind !== "amended" || isStaged(r.kind, id, r.amendmentLawId) || before <= EMPTY_TEXT_LINES) continue;
     out.push({ key: r.amendment, title: r.amendmentTitle, enforced: r.enforced, additions: r.additions, deletions: r.deletions, blocks: r.changedCount });
   }
   return out;
