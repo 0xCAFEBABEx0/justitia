@@ -168,13 +168,18 @@ export function yearBefore(iso: string): string {
 }
 
 /** The stats of one law in force. `today` bounds the amendments of the last year. */
+/**
+ * The amendments of a law in force. The enactment and a later part of a new law coming into force (段階施行) are
+ * not amendments. The first revision houritsu has can also be an amendment by another law (収録開始,
+ * coverage_start), which counts.
+ */
+export function amendmentsInForce(detail: Pick<LawDetail, "id" | "revisions">): LawRevision[] {
+  return detail.revisions.filter((r) => r.branch === "main" && r.kind !== "enacted" && !isStaged(r.kind, detail.id, r.amendmentLawId));
+}
+
 export function statLaw(detail: LawDetail, today: string): StatLaw {
   const since = yearBefore(today);
-  const inForce = detail.revisions.filter((r) => r.branch === "main");
-  // The enactment and a later part of a new law coming into force (段階施行) are not amendments. The
-  // first revision houritsu has can also be an amendment by another law (収録開始, coverage_start),
-  // which counts.
-  const amendments = inForce.filter((r) => r.kind !== "enacted" && !isStaged(r.kind, detail.id, r.amendmentLawId));
+  const amendments = amendmentsInForce(detail);
   return {
     id: detail.id,
     title: listTitle(detail.title, detail.num),
@@ -341,8 +346,8 @@ export interface LawScan {
   text: Map<string, TextStats>;
   /** For each law in force, the other laws in force that cite it, by law ID. */
   citedBy: Map<string, string[]>;
-  /** For each law in force, how many other laws in force it cites. */
-  cites: Map<string, number>;
+  /** For each law in force, the other laws in force it cites, by law ID. */
+  cites: Map<string, string[]>;
   /** For each entry of COMPANIES, in the same order, the laws in force that name it. */
   companies: string[][];
   /** For each defined term, the laws in force that define it and how, in the order of laws.json. */
@@ -377,7 +382,7 @@ export function scanLaws(): LawScan {
   const matchers = COMPANIES.map((c) => companyMatcher(c, titles));
   const text = new Map<string, TextStats>();
   const citedBy = new Map<string, string[]>();
-  const cites = new Map<string, number>();
+  const cites = new Map<string, string[]>();
   const companies: string[][] = COMPANIES.map(() => []);
   const definitions = new Map<string, { id: string; def: Definition }[]>();
   const articles = new Map<string, Map<string, string>>();
@@ -419,7 +424,7 @@ export function scanLaws(): LawScan {
       if (list) list.push(l.id);
       else citedBy.set(id, [l.id]);
     }
-    cites.set(l.id, targets.size);
+    cites.set(l.id, [...targets]);
     matchers.forEach((m, i) => {
       if (m(doc.body)) companies[i].push(l.id);
     });

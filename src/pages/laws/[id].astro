@@ -6,9 +6,12 @@ import {
   jpDate,
   KIND_LABELS,
   law as loadLaw,
+  lawsById,
+  lawUrl,
   pageLaws,
   repealOf,
   STATUS_LABELS,
+  TYPE_ORDER,
   typeLabel,
 } from "../../lib/data.ts";
 import { renderLawFile, renderInline } from "../../lib/lawtext.ts";
@@ -19,7 +22,8 @@ import { shareToolsHtml } from "../../lib/share.ts";
 import { isStaged } from "../../lib/new-laws.ts";
 import { lastTextBeforeRepeal, REPEAL_WAY_LABELS } from "../../lib/repealed-laws.ts";
 import { jsonLdText, legislation } from "../../lib/seo.ts";
-import { isUnamended } from "../../lib/stats.ts";
+import { amendmentsInForce, isUnamended, listTitle, scanLaws } from "../../lib/stats.ts";
+import { lawSummary, topCitations } from "../../lib/law-summary.ts";
 import { termIndex, termUrl } from "../../lib/term-index.ts";
 import { badgeClass } from "../../lib/badges.ts";
 import { amendingLawNum } from "../../lib/law-num.ts";
@@ -47,7 +51,9 @@ const beforeRepealUrl = beforeRepeal ? `/versions/?law=${law.id}&at=${encodeURIC
 const anchor = `#law-${law.id}`;
 // Never amended since it was made, according to e-Gov: links to the list of such laws.
 const unamended = law.status === "in_force" && isUnamended(law.frontmatter);
-const amendments = law.revisionCount - 1; // the first revision is the enactment or the start of coverage
+// Amendments in force, counted as on the stats pages: not the enactment or 段階施行, but a first revision recorded
+// from an amendment (収録開始) is one.
+const amendments = amendmentsInForce(law).length;
 const named = `${law.title}（${law.num}${law.abbrev ? `、略称：${law.abbrev}` : ""}）`;
 const pageTitle = law.status === "repealed" ? `${law.title}（廃止）の改正履歴` : `${law.title}の条文と改正履歴`;
 const description =
@@ -77,6 +83,36 @@ const bills = law.status === "repealed" ? [] : pendingBillsOf(law.id);
 const billsUpdated = billsFile()?.updated ?? null;
 // Step dates without the year when it is the year of the line above them.
 const timelineLength = bills.length + revisions.length;
+// The laws in force that cite this law and that it cites (scanLaws), the constitution and Acts first. Only a few are
+// listed: 民法 is cited by more than a thousand laws.
+const CITATIONS_SHOWN = 10;
+const scan = law.status === "in_force" ? scanLaws() : null;
+const citedByIds = scan?.citedBy.get(law.id) ?? [];
+const citesIds = scan?.cites.get(law.id) ?? [];
+const citedCount = (lawId: string) => scan?.citedBy.get(lawId)?.length ?? 0;
+const citedByTop = topCitations(citedByIds, lawsById(), citedCount, TYPE_ORDER, CITATIONS_SHOWN);
+const citesTop = topCitations(citesIds, lawsById(), citedCount, TYPE_ORDER, CITATIONS_SHOWN);
+// A summary of the facts above and on the rest of the page, in sentences (src/lib/law-summary.ts).
+const summary =
+  law.status === "in_force"
+    ? lawSummary({
+        name: listTitle(law.title, law.num),
+        num: law.num,
+        type: typeLabel(law.dir),
+        enforced: enacted?.branch === "main" && enacted.enforced ? jpDate(enacted.enforced) : null,
+        amendments,
+        latest:
+          latest?.kind === "amended" && latest.enforced
+            ? { enforced: jpDate(latest.enforced), title: latest.amendmentTitle, href: amendmentUrl(latest.amendment) + anchor }
+            : null,
+        unamended,
+        upcoming: law.upcomingCount,
+        bills: bills.length,
+        citedBy: citedByIds.length,
+        cites: citesIds.length,
+        terms: definedTerms.length,
+      })
+    : [];
 const graphUrl = `/graph/?laws=${[law.id, ...law.related.slice(0, 3).map((r) => r.id)].join(",")}`;
 const legislationLd = jsonLdText(
   legislation({
@@ -139,6 +175,7 @@ const legislationLd = jsonLdText(
     <Fragment set:html={shareToolsHtml("sm:ml-auto", "sm:dropdown-end")} />
   </div>
   <Fragment set:html={DISCLAIMER_NOTE_HTML} />
+  {summary.length > 0 && <p class="mb-4 text-sm leading-relaxed" data-law-summary>{summary.map((p) => (p.href ? <a class="link link-primary" href={p.href}>{p.text}</a> : p.text))}</p>}
   {rendered && <p class="-mt-2 mb-4 text-xs text-base-content/65 print:hidden">条の見出しを押すと、その条へのリンクや引用文をコピーできます。</p>}
 
   <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px] print:block">
@@ -228,7 +265,7 @@ const legislationLd = jsonLdText(
         </details>
       )}
       {definedTerms.length > 0 && (
-        <section class="card card-border bg-base-100">
+        <section id="terms" class="card card-border scroll-mt-20 bg-base-100">
           <div class="card-body gap-2 p-4">
             <h2 class="card-title text-base">この法令が定義している用語</h2>
             <p class="text-xs text-base-content/65">ほかの法令での定義と比べられます。</p>
@@ -243,6 +280,26 @@ const legislationLd = jsonLdText(
                 </ul>
               </details>
             )}
+          </div>
+        </section>
+      )}
+      {(citedByTop.length > 0 || citesTop.length > 0) && (
+        <section class="card card-border bg-base-100">
+          <div class="card-body gap-3 p-4">
+            <h2 class="card-title text-base">引用関係</h2>
+            {[
+              { id: "cited-by", heading: "この法令を引用している法令", count: citedByIds.length, top: citedByTop },
+              { id: "cites", heading: "この法令が引用している法令", count: citesIds.length, top: citesTop },
+            ].filter((c) => c.top.length > 0).map((c) => (
+              <div id={c.id} class="scroll-mt-20">
+                <h3 class="font-bold">{c.heading}<span class="ml-1 font-normal text-base-content/65">（{c.count.toLocaleString()} 件）</span></h3>
+                <ul class="mt-1 flex flex-col gap-1.5">
+                  {c.top.map((l) => <li><a class="link link-primary" href={lawUrl(l.id)}>{listTitle(l.title, l.num)}</a><span class="ml-1 text-xs text-base-content/65">{typeLabel(l.dir)}</span></li>)}
+                </ul>
+                {c.count > c.top.length && <p class="mt-1 text-xs text-base-content/65">憲法・法律から順に、よく引用されている {c.top.length} 件を表示しています。</p>}
+              </div>
+            ))}
+            <p class="text-xs"><a class="link" href="/stats/cited/">法令の被引用数ランキング</a></p>
           </div>
         </section>
       )}

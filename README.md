@@ -109,7 +109,7 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | --- | --- |
 | `/` | Search, newly enacted laws (recent and upcoming), recent amendments, upcoming amendments, bills pending in the Diet (those one house has passed first), and a few counts (with the number of laws never amended, linking to `/stats/unamended/`) |
 | `/browse/`, `/browse/kana/<row>/`, `/browse/type/<type>/`, `/browse/category/<category>/` | Law lists |
-| `/laws/<law ID>/` | Law text (an anchor per heading), table of contents, amendment history, the terms the law defines that have a `/terms/` page, and the law's calendar (`.ics`) and RSS feed. Bills pending in the Diet that would amend the law (see [Bills in the Diet](#bills-in-the-diet)) head the history (`#bills`), with a 「改正案を審議中」 badge by the title |
+| `/laws/<law ID>/` | Law text (an anchor per heading), table of contents, amendment history, the terms the law defines that have a `/terms/` page (`#terms`), and the law's calendar (`.ics`) and RSS feed. A law in force also gets a generated summary under the heading (`src/lib/law-summary.ts`: number and type, date in force, amendments with a link to the last one, amendments not in force yet, pending bills, citations and defined terms) and the laws in force that cite it (`#cited-by`) and that it cites (`#cites`), counted as on `/stats/cited/`, with up to 10 of each listed: the constitution and Acts first, the most cited first. Bills pending in the Diet that would amend the law (see [Bills in the Diet](#bills-in-the-diet)) head the history (`#bills`), with a 「改正案を審議中」 badge by the title |
 | `/amendment/<amendment key>/` | Old and new text of the articles an amendment changed (side by side, or inline), as a static page with its own title, description and structured data, served by the amendment Workers (see [Amendment Workers](#amendment-workers)). Like a law page, it has a row of actions (the amendment graph of the laws it changes, share, print), and under each changed law, links to its text after the change, the whole text compared with the revision before, and both revisions on e-Gov 法令検索 |
 | `/amendment/?k=<amendment key>` | The address the site linked before the static pages: its script forwards to `/amendment/<amendment key>/`, keeping the `#fragment` |
 | `/new/`, `/new/<year>/` | Newly enacted laws (a law whose file first appears in houritsu through the law itself), by year of entry into force, with a type filter. Later parts of a new law coming into force are labeled 段階施行, not 改正, across the site |
@@ -188,6 +188,8 @@ the name of this project and does not appear on the site.
 - Structured data (JSON-LD, `src/lib/seo.ts`): pages with breadcrumbs carry a schema.org `BreadcrumbList`
   (`PageHeader`), and law pages a `Legislation` (law number, type, legal force, date of the last amendment in force,
   the e-Gov page as `sameAs`).
+- Law pages lead with what only this site has: the generated summary, then the amendment history, the defined terms
+  and the citations, which link law pages to each other. The law text itself is also on e-Gov.
 - On law pages the amendment history and table of contents come before the law text in the HTML, and CSS places
   them to the right (wide screens) or after the text (narrow screens). Googlebot reads only the first 2 MB of a
   page, and the text of the largest laws is over 10 MB.
