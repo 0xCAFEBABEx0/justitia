@@ -426,12 +426,12 @@ export function scanLaws(): LawScan {
   }
   // 地方自治法第二百五十二条の十九第一項の指定都市（以下「指定都市」という。） takes the meaning that
   // 地方自治法 gives 「指定都市」, but 道路交通法第百八条の四第一項の指定（以下「指定」という。） only
-  // names what is done under that article: a reference in （以下「X」という。） counts only when the law
+  // names what is done under that article: a bare reference in （以下「X」という。） counts only when the law
   // it names has the term in brackets or defines it (暴力団員による不当な行為の防止等に関する法律 defines
   // 暴力団員 in an item of its glossary article, without brackets).
   for (const [term, uses] of definitions) {
     const kept = uses.filter(({ def }) => {
-      if (def.form !== "ika" || !def.source) return true;
+      if (!def.bare || !def.source) return true;
       const id = inForceByTitle.get(def.source.law);
       return id !== undefined && id !== null && (quoted.get(id)?.has(term) === true || defined.get(id)?.has(term) === true);
     });

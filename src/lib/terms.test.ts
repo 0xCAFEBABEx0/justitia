@@ -30,6 +30,10 @@ test("（以下「X」という。） is a definition only by reference to anoth
   ]);
   const [d] = definitionsIn("地方自治法第二百五十二条の十九第一項の指定都市（以下「指定都市」という。）", "本則|第二条", ctx);
   assert.deepEqual(d.source, { law: "地方自治法", provision: "第二百五十二条の十九第一項" });
+  assert.equal(d.bare, true);
+  // a definition in the parentheses is not a bare reference, even when it refers to another law
+  const [e] = definitionsIn("登録（道路交通法第二条に規定する登録をいう。以下「登録」という。）", "本則|第二条", ctx);
+  assert.deepEqual([e.form, e.source, e.bare], ["ika", { law: "道路交通法", provision: "第二条" }, undefined]);
   // the parenthesis can hold the definition itself
   assert.deepEqual(terms("暴力団員（法第二条第六号に規定する暴力団員をいう。以下「暴力団員」という。）"), [["暴力団員", "ika", "法第二条第六号に規定する暴力団員をいう"]]);
 });

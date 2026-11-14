@@ -32,6 +32,11 @@ export interface Definition {
   block: string;
   /** For a definition by reference to another law, the law and the provision it refers to. */
   source?: DefinitionSource;
+  /**
+   * True for a reference without をいう (△△法第二条に規定するX（以下「X」という。）): a definition only
+   * when the law it refers to names or defines X, which the caller checks (see scanLaws).
+   */
+  bare?: true;
 }
 
 /** The provision of another law that a definition refers to: 地方自治法第二百五十二条の十九第一項. */
@@ -278,7 +283,8 @@ const SHORT_NAME = /以下(?:[^「」。（）]{0,20}において)?(?:単に)?�
 /** The definitions in the text of one block. */
 export function definitionsIn(text: string, block: string, ctx?: DefinitionContext): Definition[] {
   const out: Definition[] = [];
-  const add = (term: string, form: DefinitionForm, def: string, items?: string[], source?: DefinitionSource) => {
+  const add = (term: string, form: DefinitionForm, def: string, items?: string[], bareSource?: DefinitionSource) => {
+    let source = bareSource;
     const t = clean(def);
     // A definition whose substance is in a list (次に掲げる者) means nothing without it.
     if (LIST.test(t) && !items?.length) return;
@@ -288,7 +294,7 @@ export function definitionsIn(text: string, block: string, ctx?: DefinitionConte
       const ref = referenceOf(t.replace(/をいう$/, ""), term, ctx);
       if (ref?.start === 0) source = ref.source;
     }
-    out.push({ term, form, text: t, block, ...(items?.length ? { items } : {}), ...(source ? { source } : {}) });
+    out.push({ term, form, text: t, block, ...(items?.length ? { items } : {}), ...(source ? { source } : {}), ...(bareSource ? { bare: true as const } : {}) });
   };
   // 「X」とは、…をいう / この法律で、X とは、…をいう
   for (const m of text.matchAll(/とは、/g)) {
@@ -376,12 +382,12 @@ export function definitionsIn(text: string, block: string, ctx?: DefinitionConte
 
 /**
  * How strongly a definition states the meaning of the term: とは and glossary items most, then the
- * parenthesized ones, then a reference to another law in （以下「X」という。）, which the caller may
- * still drop (see scanLaws).
+ * parenthesized ones, then a bare reference to another law in （以下「X」という。）, which the caller
+ * may still drop (see scanLaws).
  */
 function strength(d: Definition): number {
   if (d.form === "toha" || d.form === "item") return 2;
-  return d.form === "ika" && d.source ? 0 : 1;
+  return d.bare ? 0 : 1;
 }
 
 /** The definitions in the main provisions of a law, at most one for each term (the first of the strongest; see strength). */
