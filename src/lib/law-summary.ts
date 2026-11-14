@@ -70,11 +70,11 @@ export function lawSummary(f: LawSummaryFacts): SummaryPart[] {
   if (f.cites > 0 || f.citedBy > 0) {
     text(`この${f.type}は `);
     if (f.cites > 0) {
-      link(`${n(f.cites)} の法令を引用`, "#cites");
+      link(`${n(f.cites)} 件の法令を引用`, "#cites");
       text(f.citedBy > 0 ? "し、" : "しています。");
     }
     if (f.citedBy > 0) {
-      link(`${n(f.citedBy)} の法令から引用`, "#cited-by");
+      link(`${n(f.citedBy)} 件の法令から引用`, "#cited-by");
       text("されています。");
     }
   }
