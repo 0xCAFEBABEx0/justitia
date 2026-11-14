@@ -19,6 +19,9 @@ import { DATA_DIR } from "./site.ts";
 export const BILLS_SOURCE_URL = "https://github.com/smartnews-smri/house-of-representatives";
 export const BILLS_SOURCE_NAME = "衆議院議案データベース";
 export const BILLS_SOURCE_CREDIT = "スマートニュース メディア研究所";
+/** The database is MIT-licensed; its notice is shown on the about page with a link to the licence. */
+export const BILLS_LICENSE_URL = `${BILLS_SOURCE_URL}/blob/main/LICENSE`;
+export const BILLS_COPYRIGHT = "Copyright (c) 2022 smartnews-smri";
 
 export type BillKind = "閣法" | "衆法" | "参法";
 export type House = "衆議院" | "参議院";

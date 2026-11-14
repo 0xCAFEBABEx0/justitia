@@ -22,7 +22,7 @@ import { jsonLdText, legislation } from "../../lib/seo.ts";
 import { isUnamended } from "../../lib/stats.ts";
 import { termIndex, termUrl } from "../../lib/term-index.ts";
 import { badgeClass } from "../../lib/badges.ts";
-import { billHeadline, billName, billsFile, billSteps, BILLS_SOURCE_CREDIT, BILLS_SOURCE_NAME, BILLS_SOURCE_URL, pendingBillsOf } from "../../lib/bills.ts";
+import { billHeadline, billName, billsFile, billSteps, BILLS_LICENSE_URL, BILLS_SOURCE_CREDIT, BILLS_SOURCE_NAME, BILLS_SOURCE_URL, pendingBillsOf } from "../../lib/bills.ts";
 import PageHeader from "../../components/PageHeader.astro";
 import StatusBadge from "../../components/StatusBadge.astro";
 
@@ -190,7 +190,7 @@ const legislationLd = jsonLdText(
                       <div class="mt-0.5 text-xs"><a class="link link-hover link-primary inline-block py-1" href={b.keikaUrl} rel="noopener">審議経過（衆議院）</a></div>
                     )}
                     {i === bills.length - 1 && (
-                      <p class="mt-1 text-xs text-base-content/65">成立前の法律案です。修正されたり、成立しなかったりすることがあります。{billsUpdated && `${jpDate(billsUpdated)}時点。`}出典：<a class="link" href={BILLS_SOURCE_URL} rel="noopener">{BILLS_SOURCE_NAME}</a>（{BILLS_SOURCE_CREDIT}、MIT ライセンス）</p>
+                      <p class="mt-1 text-xs text-base-content/65">成立前の法律案です。修正されたり、成立しなかったりすることがあります。{billsUpdated && `${jpDate(billsUpdated)}時点。`}出典：<a class="link" href={BILLS_SOURCE_URL} rel="noopener">{BILLS_SOURCE_NAME}</a>（{BILLS_SOURCE_CREDIT}、<a class="link" href={BILLS_LICENSE_URL} rel="noopener">MIT ライセンス</a>）</p>
                     )}
                   </div>
                   {i < timelineLength - 1 && <hr />}

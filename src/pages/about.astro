@@ -4,7 +4,7 @@ import PageHeader from "../components/PageHeader.astro";
 import { dataDate, jpDate, meta } from "../lib/data.ts";
 import { CODE_LICENSE_URL, CODE_REPO, DATA_LICENSE_URL, PDL_URL, SITE_NAME, SOURCE_REPO } from "../lib/site.ts";
 import { EGOV_URL } from "../lib/disclaimer.ts";
-import { BILLS_SOURCE_CREDIT, BILLS_SOURCE_NAME, BILLS_SOURCE_URL } from "../lib/bills.ts";
+import { BILLS_COPYRIGHT, BILLS_LICENSE_URL, BILLS_SOURCE_CREDIT, BILLS_SOURCE_NAME, BILLS_SOURCE_URL } from "../lib/bills.ts";
 
 const m = meta();
 ---
@@ -65,7 +65,7 @@ const m = meta();
       （<a class="link link-primary" href={PDL_URL}>公共データ利用規約（第1.0版）</a>）です。
     </li>
     <li>本サイトでは、houritsu のデータを法令ごと・改正ごとに分け、新旧対照と検索用の索引を加えて表示しています。</li>
-    <li>法令ページの「審議中」の改正案は、<a class="link link-primary" href={BILLS_SOURCE_URL}>{BILLS_SOURCE_NAME}</a>（{BILLS_SOURCE_CREDIT}、MIT ライセンス）をもとに表示しています。議案の番号・件名・審議の経過と衆議院のページへのリンクのみを使い、法律案の本文は載せていません。</li>
+    <li>法令ページの「審議中」の改正案は、<a class="link link-primary" href={BILLS_SOURCE_URL}>{BILLS_SOURCE_NAME}</a>（{BILLS_SOURCE_CREDIT}、<a class="link link-primary" href={BILLS_LICENSE_URL}>MIT ライセンス</a>、{BILLS_COPYRIGHT}）をもとに表示しています。議案の番号・件名・審議の経過と衆議院のページへのリンクのみを使い、法律案の本文は載せていません。この部分は本サイトの CC BY 4.0 の対象外です。</li>
     <li>本サイトのデータも <a class="link link-primary" href={DATA_LICENSE_URL}>CC BY 4.0</a> で提供します。再利用するときは、houritsu と e-Gov 法令検索を出典として示してください。</li>
     <li>法令の条文そのものには著作権がありません（著作権法第13条）。</li>
     <li>
