@@ -155,10 +155,13 @@ resource "cloudflare_zone_setting" "always_use_https" {
 #   are set here too, so the plan shows them.
 # With Bot Preference Sync on, Cloudflare writes these policies into robots.txt: it
 # prepends its Content Signals and a Disallow for each blocked crawler to the site's
-# own robots.txt (public/robots.txt). is_robots_txt_managed is the older managed
-# robots.txt switch; it stays off (the provider's default), as the policies above
-# now decide what Cloudflare adds. ai_bots_protection, the older "Block AI bots"
-# toggle these policies replaced, is left as the API reports it.
+# own robots.txt (public/robots.txt). Bot Preference Sync is on in the dashboard and
+# is not set here: provider 5.29.0 accepts bot_preference_sync_enabled but never
+# sends it to the API or reads it back, so setting it could not converge.
+# is_robots_txt_managed is the older managed robots.txt switch; it stays off (the
+# provider's default), as the policies above now decide what Cloudflare adds.
+# ai_bots_protection, the older "Block AI bots" toggle these policies replaced, is
+# left as the API reports it.
 resource "cloudflare_bot_management" "zone" {
   zone_id    = var.cloudflare_zone_id
   fight_mode = true
@@ -174,7 +177,6 @@ resource "cloudflare_bot_management" "zone" {
     muse            = "disabled"
     openai_agent    = "disabled"
   }
-  bot_preference_sync_enabled = true
 }
 
 # The calendars (.ics) under data_domain/feeds/ (scripts/feeds.ts) are fetched by

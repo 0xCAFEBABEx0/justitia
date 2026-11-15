@@ -21,7 +21,8 @@ the site and the data on them.
 | Zone setting Browser Cache TTL (4 hours) | Terraform |
 | Zone setting Always Use HTTPS (on: http:// answers 301 to https://) | Terraform |
 | Bot Fight Mode (on) | Terraform |
-| AI Crawler and Agent access policies: Training blocked, Search and Agent (Personal Agents included) allowed, Bot Preference Sync on (see below) | Terraform |
+| AI Crawler and Agent access policies: Training blocked, Search and Agent (Personal Agents included) allowed (see below) | Terraform |
+| Bot Preference Sync (on), which writes those policies into `robots.txt` | Dashboard (the provider cannot set it, see below) |
 | Web Assets operation `GET data.anisotro.pics/feeds/{var1}` (the calendars) | Terraform |
 | Its managed label `cf-rss-feed`, which Bot Fight Mode lets through | Terraform, through the API on apply (see below) |
 | The bucket's custom domain `data.anisotro.pics` | Dashboard (cannot be imported, see below) |
@@ -61,9 +62,12 @@ as ChatGPT-User and Claude-User, with the Personal Agents set the same way) are 
 Sync** on, Cloudflare writes these policies into `https://anisotro.pics/robots.txt`: it prepends its Content Signals
 (`search=yes,ai-train=no`) and a `Disallow: /` for each blocked crawler to the site's own `public/robots.txt`. The
 older switches, managed robots.txt (`is_robots_txt_managed`, off) and *Block AI bots* (`ai_bots_protection`, left as
-the API reports it), are not used. The Personal Agents (`ai_agents`) need provider 5.29. After an apply, `robots.txt`
-should list the training crawlers (GPTBot, ClaudeBot, CCBot, Google-Extended and the like) and no `# AI Agents`
-section.
+the API reports it), are not used. The Personal Agents (`ai_agents`) need provider 5.29.
+
+Bot Preference Sync itself stays in the dashboard (Security → Settings → Bot traffic → AI Crawler and Agent access
+policies → *Enable Bot Preference Sync*, on): provider 5.29.0 has a `bot_preference_sync_enabled` argument but never
+sends it to the API or reads it back, so an apply that set it could not converge. After an apply, `robots.txt` should
+list the training crawlers (GPTBot, ClaudeBot, CCBot, Google-Extended and the like) and no `# AI Agents` section.
 
 ## Layout
 
