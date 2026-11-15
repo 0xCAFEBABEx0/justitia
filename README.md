@@ -131,7 +131,7 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | `/versions/?law=<law ID>&at=<amendment key or YYYY-MM-DD>[&from=<…>]` | The law's text at any revision, past or upcoming; with `from`, what changed between two revisions (like `git diff from..at`) |
 | `/search/?q=<words>` | Full-text search over the current law text, with links to the matching articles |
 | `/graph/?laws=<ID>,<ID>,…` | Amendment graph: one lane per law, with laws changed by the same amending law joined by a line (git-graph style) |
-| `/llms.txt` | A Markdown summary of the site for AI search engines and assistants ([llms.txt](https://llmstxt.org/), `src/lib/llms-txt.ts`): what the site is, the data date and the number of laws in force, how law, amendment and term URLs are formed, the pages of the menus, and the same sources, licenses and disclaimer as `/about/` |
+| `/llms.txt` | A Markdown summary of the site for AI search engines and assistants ([llms.txt](https://llmstxt.org/), `src/lib/llms-txt.ts`): what the site is, the data date and the number of laws in force, how law, amendment and term URLs are formed, the pages of the menus, and the same sources, licenses and disclaimer as `/about/`. `public/_headers` serves it as `text/plain; charset=utf-8` (Wrangler's default for `.txt` has no charset, and browsers then garble the Japanese) |
 | (any other path) | The 404 page |
 
 ### Navigation
