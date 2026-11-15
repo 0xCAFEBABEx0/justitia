@@ -131,6 +131,7 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | `/versions/?law=<law ID>&at=<amendment key or YYYY-MM-DD>[&from=<…>]` | The law's text at any revision, past or upcoming; with `from`, what changed between two revisions (like `git diff from..at`) |
 | `/search/?q=<words>` | Full-text search over the current law text, with links to the matching articles |
 | `/graph/?laws=<ID>,<ID>,…` | Amendment graph: one lane per law, with laws changed by the same amending law joined by a line (git-graph style) |
+| `/llms.txt` | A Markdown summary of the site for AI search engines and assistants ([llms.txt](https://llmstxt.org/), `src/lib/llms-txt.ts`): what the site is, the data date and the number of laws in force, how law, amendment and term URLs are formed, the pages of the menus, and the same sources, licenses and disclaimer as `/about/` |
 | (any other path) | The 404 page |
 
 ### Navigation
@@ -185,6 +186,11 @@ the name of this project and does not appear on the site.
   pages link it once per revision, tens of thousands of URLs), search results (`/search/?q=`) and the old
   amendment address (`/amendment/?k=`). Google's crawl budget guide asks sites to block such URLs with robots.txt
   rather than `noindex`, which still costs a crawl each.
+- Cloudflare prepends its own block to that file (Bot Preference Sync, see
+  [infra/README.md](infra/README.md#who-manages-what)): Content Signals (`search=yes,ai-train=no`) and a `Disallow: /`
+  for each AI training crawler. AI search crawlers and the agents that fetch a page for a person (ChatGPT-User,
+  Claude-User and the like) are not blocked, so AI search and assistants can read and cite the pages; `/llms.txt`
+  tells them how the site is laid out.
 - Structured data (JSON-LD, `src/lib/seo.ts`): pages with breadcrumbs carry a schema.org `BreadcrumbList`
   (`PageHeader`), and law pages a `Legislation` (law number, type, legal force, date of the last amendment in force,
   the e-Gov page as `sameAs`).
