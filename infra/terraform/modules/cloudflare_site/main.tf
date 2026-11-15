@@ -141,12 +141,40 @@ resource "cloudflare_zone_setting" "always_use_https" {
 # Bot Fight Mode (Security > Bots) is on. It challenges automated clients, such as
 # GitHub's runners, on non-static file extensions (.json) but not on the static
 # ones (.txt), which is why the Publish workflow fetches only .txt files from
-# data_domain. Only fight_mode is set here, and the other settings keep their
-# values, except is_robots_txt_managed, which the provider sets to false when it is
-# left out: the site serves its own robots.txt (public/robots.txt).
+# data_domain.
+#
+# AI Crawler and Agent access policies (Security > Settings > Bot traffic; Cloudflare
+# docs, Bots > Additional configurations): one action per behavior, for verified
+# bots with that behavior and unverified bots that match them.
+# - Training (crawlers that take the content to train or fine-tune a model, mixed
+#   Search-and-Training crawlers included): blocked at the edge.
+# - Search (crawlers that index the content to answer questions about it later) and
+#   Agent (fetches made in real time for a person, such as ChatGPT-User or
+#   Claude-User): not blocked, so AI search and assistants can read and cite the
+#   pages. Personal Agents (ai_agents) follow the Agent policy unless set apart; they
+#   are set here too, so the plan shows them.
+# With Bot Preference Sync on, Cloudflare writes these policies into robots.txt: it
+# prepends its Content Signals and a Disallow for each blocked crawler to the site's
+# own robots.txt (public/robots.txt). is_robots_txt_managed is the older managed
+# robots.txt switch; it stays off (the provider's default), as the policies above
+# now decide what Cloudflare adds. ai_bots_protection, the older "Block AI bots"
+# toggle these policies replaced, is left as the API reports it.
 resource "cloudflare_bot_management" "zone" {
   zone_id    = var.cloudflare_zone_id
   fight_mode = true
+
+  # "disabled" is the dashboard's "Allow (do not block)".
+  ai_training = "block"
+  aisearch    = "disabled"
+  ai_user     = "disabled"
+  ai_agents = {
+    anthropic_agent = "disabled"
+    google_agent    = "disabled"
+    instinct        = "disabled"
+    muse            = "disabled"
+    openai_agent    = "disabled"
+  }
+  bot_preference_sync_enabled = true
 }
 
 # The calendars (.ics) under data_domain/feeds/ (scripts/feeds.ts) are fetched by

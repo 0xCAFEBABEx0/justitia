@@ -21,6 +21,7 @@ the site and the data on them.
 | Zone setting Browser Cache TTL (4 hours) | Terraform |
 | Zone setting Always Use HTTPS (on: http:// answers 301 to https://) | Terraform |
 | Bot Fight Mode (on) | Terraform |
+| AI Crawler and Agent access policies: Training blocked, Search and Agent (Personal Agents included) allowed, Bot Preference Sync on (see below) | Terraform |
 | Web Assets operation `GET data.anisotro.pics/feeds/{var1}` (the calendars) | Terraform |
 | Its managed label `cf-rss-feed`, which Bot Fight Mode lets through | Terraform, through the API on apply (see below) |
 | The bucket's custom domain `data.anisotro.pics` | Dashboard (cannot be imported, see below) |
@@ -52,6 +53,18 @@ back, so a label removed in the dashboard does not show in a plan; after an appl
 has `cf-rss-feed` under Security → Web Assets → Operations, and set it again with
 `terraform apply -replace=module.site.terraform_data.feeds_rss_label`.
 
+AI crawlers and agents are handled by the zone's *AI Crawler and Agent access policies* (Security → Settings → Bot
+traffic), set on `cloudflare_bot_management`: **Training** (crawlers that take the content to train or fine-tune a
+model, mixed Search-and-Training crawlers included) is blocked at the edge, while **Search** (crawlers that index the
+content to answer questions later, such as OAI-SearchBot) and **Agent** (fetches made for a person in real time, such
+as ChatGPT-User and Claude-User, with the Personal Agents set the same way) are not blocked. With **Bot Preference
+Sync** on, Cloudflare writes these policies into `https://anisotro.pics/robots.txt`: it prepends its Content Signals
+(`search=yes,ai-train=no`) and a `Disallow: /` for each blocked crawler to the site's own `public/robots.txt`. The
+older switches, managed robots.txt (`is_robots_txt_managed`, off) and *Block AI bots* (`ai_bots_protection`, left as
+the API reports it), are not used. The Personal Agents (`ai_agents`) need provider 5.29. After an apply, `robots.txt`
+should list the training crawlers (GPTBot, ClaudeBot, CCBot, Google-Extended and the like) and no `# AI Agents`
+section.
+
 ## Layout
 
 ```text
@@ -70,7 +83,7 @@ infra/terraform/
    └─ versions.tf
 ```
 
-The provider is `cloudflare/cloudflare` `~> 5.28` (v5 renamed and changed many resources: do not copy v3 or v4
+The provider is `cloudflare/cloudflare` `~> 5.29` (v5 renamed and changed many resources: do not copy v3 or v4
 examples), with Terraform 1.7 or later. The layout and the way Terraform is run follow the `chronos` repository.
 
 ## Amendment Workers' routes
