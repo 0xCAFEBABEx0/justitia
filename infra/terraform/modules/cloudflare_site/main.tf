@@ -146,8 +146,11 @@ resource "cloudflare_zone_setting" "always_use_https" {
 # AI Crawler and Agent access policies (Security > Settings > Bot traffic; Cloudflare
 # docs, Bots > Additional configurations): one action per behavior, for verified
 # bots with that behavior and unverified bots that match them.
-# - Training (crawlers that take the content to train or fine-tune a model, mixed
-#   Search-and-Training crawlers included): blocked at the edge.
+# - Training (crawlers that take the content to train or fine-tune a model):
+#   "disallow", which with Bot Preference Sync on both disallows them in robots.txt
+#   and blocks them at the edge. Crawlers used for both Search and Training (such
+#   as Baiduspider) are only disallowed, not blocked, so that no search crawler is
+#   blocked; "block" would block them too.
 # - Search (crawlers that index the content to answer questions about it later) and
 #   Agent (fetches made in real time for a person, such as ChatGPT-User or
 #   Claude-User): not blocked, so AI search and assistants can read and cite the
@@ -167,7 +170,7 @@ resource "cloudflare_bot_management" "zone" {
   fight_mode = true
 
   # "disabled" is the dashboard's "Allow (do not block)".
-  ai_training = "block"
+  ai_training = "disallow"
   aisearch    = "disabled"
   ai_user     = "disabled"
   ai_agents = {

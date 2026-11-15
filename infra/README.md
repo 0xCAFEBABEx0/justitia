@@ -21,7 +21,7 @@ the site and the data on them.
 | Zone setting Browser Cache TTL (4 hours) | Terraform |
 | Zone setting Always Use HTTPS (on: http:// answers 301 to https://) | Terraform |
 | Bot Fight Mode (on) | Terraform |
-| AI Crawler and Agent access policies: Training blocked, Search and Agent (Personal Agents included) allowed (see below) | Terraform |
+| AI Crawler and Agent access policies: Training disallowed (and blocked at the edge), Search and Agent (Personal Agents included) allowed (see below) | Terraform |
 | Bot Preference Sync (on), which writes those policies into `robots.txt` | Dashboard (the provider cannot set it, see below) |
 | Web Assets operation `GET data.anisotro.pics/feeds/{var1}` (the calendars) | Terraform |
 | Its managed label `cf-rss-feed`, which Bot Fight Mode lets through | Terraform, through the API on apply (see below) |
@@ -56,7 +56,9 @@ has `cf-rss-feed` under Security → Web Assets → Operations, and set it again
 
 AI crawlers and agents are handled by the zone's *AI Crawler and Agent access policies* (Security → Settings → Bot
 traffic), set on `cloudflare_bot_management`: **Training** (crawlers that take the content to train or fine-tune a
-model, mixed Search-and-Training crawlers included) is blocked at the edge, while **Search** (crawlers that index the
+model) is *Disallow*, which with Bot Preference Sync on disallows them in `robots.txt` and blocks them at the edge
+(crawlers used for both Search and Training, such as Baiduspider, are only disallowed, so no search crawler is
+blocked), while **Search** (crawlers that index the
 content to answer questions later, such as OAI-SearchBot) and **Agent** (fetches made for a person in real time, such
 as ChatGPT-User and Claude-User, with the Personal Agents set the same way) are not blocked. With **Bot Preference
 Sync** on, Cloudflare writes these policies into `https://anisotro.pics/robots.txt`: it prepends its Content Signals
