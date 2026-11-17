@@ -172,6 +172,11 @@ used, never their text. The database has the 衆議院's votes by group but not 
 The site is called **Anisotropics** after its domain (`SITE_NAME` in `src/lib/site-name.ts`); "justitia" is only
 the name of this project and does not appear on the site.
 
+- Titles and descriptions use the words people search for (Google Trends and autocomplete, 2026-11): searches for
+  changes name a law with 改正履歴, or a law with 改正 and a year or いつから. So a law page is 「<law>の条文と改正履歴」
+  and its description gives the date of its next dated amendment (「次の改正は…に施行予定」), and `/upcoming/` is
+  「施行予定の法改正一覧（<this year>年・<next year>年）」 with the number of amendments coming into force within 90 days.
+  新旧対照表 is avoided in titles: its searches are about writing one.
 - Every page has its own title (`<page> | Anisotropics`) and description, plus Open Graph and X card tags. All pages
   share one card image, `public/og-image.png` (an image per law would add about 9,000 files). The versions page is
   filled in by the browser from its query string, so link previews (which do not run scripts) show its generic

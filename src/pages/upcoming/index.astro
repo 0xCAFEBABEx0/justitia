@@ -34,13 +34,19 @@ const categories = [...counts].sort((a, b) => a[0].localeCompare(b[0], "ja"));
 const allUrl = feedUrl(DATA_BASE, feedFile.all("ics"));
 const allRssUrl = feedUrl(DATA_BASE, feedFile.all("xml"));
 const total = dated.length + undetermined.length;
+// Searches for upcoming changes name the year (法改正 2026, 2026年施行予定の法改正一覧), so the title names this
+// year and the next, and the description says how many come into force within 90 days.
+const year = Number(today.slice(0, 4));
+const in90 = new Date(`${today}T00:00:00Z`);
+in90.setUTCDate(in90.getUTCDate() + 90);
+const soon = dated.filter((a) => a.enforced! <= in90.toISOString().slice(0, 10)).length;
 ---
 <Base
-  title="施行予定の改正"
-  description="公布済みで、まだ施行されていない法令の改正を施行日の順に一覧にしています。分野や法令名で絞り込め、施行日をカレンダー（.ics）に、改正のお知らせを RSS に登録できます。"
+  title={`施行予定の法改正一覧（${year}年・${year + 1}年）`}
+  description={`公布済みで、まだ施行されていない法令の改正 ${total.toLocaleString()} 件を施行日の順に一覧にしています。今後 90 日以内に施行されるのは ${soon.toLocaleString()} 件です。分野や法令名で絞り込め、施行日をカレンダー（.ics）に、改正のお知らせを RSS に登録できます。`}
   nav="upcoming"
 >
-  <PageHeader title="施行予定の改正">
+  <PageHeader title="施行予定の法改正一覧">
     公布済みで、まだ施行されていない改正を施行日の順に並べています（{total.toLocaleString()} 件）。施行日は houritsu のデータによるもので、政令で後から決まる施行日は「施行日未定」に入ります。まだ成立していない法律案は<a class="link" href="/bills/">国会で審議中の法律案</a>にあります。
   </PageHeader>
 

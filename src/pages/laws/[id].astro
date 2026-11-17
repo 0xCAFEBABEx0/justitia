@@ -2,6 +2,7 @@
 import Base from "../../layouts/Base.astro";
 import {
   amendmentUrl,
+  buildDate,
   dataDate,
   jpDate,
   KIND_LABELS,
@@ -45,6 +46,10 @@ const revisions = [...law.revisions].reverse(); // newest first
 // (段階施行) is not an amendment.
 const latest = law.revisions.filter((r) => r.branch === "main" && !isStaged(r.kind, law.id, r.amendmentLawId)).at(-1);
 const enacted = law.revisions.find((r) => r.kind === "enacted");
+// The next amendment with a date, for searches such as 「〇〇法 改正 いつから」. Compared with the build date, like
+// /upcoming/, since the data can be a few days older than the build.
+const today = buildDate();
+const next = law.revisions.filter((r) => r.enforced && r.enforced > today && r !== enacted && !isStaged(r.kind, law.id, r.amendmentLawId)).sort((a, b) => a.enforced!.localeCompare(b.enforced!))[0];
 const repeal = law.status === "repealed" ? repealOf(law.id) : undefined;
 const beforeRepeal = law.status === "repealed" ? lastTextBeforeRepeal(law.revisions) : null;
 const beforeRepealUrl = beforeRepeal ? `/versions/?law=${law.id}&at=${encodeURIComponent(beforeRepeal)}` : null;
@@ -60,8 +65,8 @@ const description =
   law.status === "repealed"
     ? `${named}は${repeal?.enforced ? `${jpDate(repeal.enforced)}に` : ""}廃止された法令です。廃止直前の条文と、廃止までの改正の履歴・新旧対照を見られます。`
     : law.status === "upcoming_only"
-      ? `${named}は公布済みで、まだ施行されていない法令です。施行後の条文を見られます。`
-      : `${named}の現行の条文と、${amendments > 0 ? `改正 ${amendments} 件の履歴・新旧対照${latest?.kind === "amended" && latest.enforced ? `（最終改正：${jpDate(latest.enforced)}施行）` : ""}` : "改正の履歴"}${law.upcomingCount > 0 ? `。未施行の改正 ${law.upcomingCount} 件も見られます` : ""}。`;
+      ? `${named}は公布済みで、${enacted?.enforced && enacted.enforced > today ? `${jpDate(enacted.enforced)}に施行予定の` : "まだ施行されていない"}法令です。施行後の条文を見られます。`
+      : `${named}の現行の条文と、${amendments > 0 ? `改正 ${amendments} 件の履歴・新旧対照${latest?.kind === "amended" && latest.enforced ? `（最終改正：${jpDate(latest.enforced)}施行）` : ""}` : "改正の履歴"}${law.upcomingCount > 0 ? `。${next ? `次の改正は${jpDate(next.enforced)}に施行予定で、` : ""}未施行の改正 ${law.upcomingCount} 件も見られます` : ""}。`;
 // The law and the laws most often amended together with it.
 // What a copied citation says the text is.
 // The date is that of the data, not of the build: a build can reuse data extracted days before.
