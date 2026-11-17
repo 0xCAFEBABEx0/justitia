@@ -49,7 +49,10 @@ const newThisYear = allNew.filter((l) => l.branch === "main" && l.enforced?.star
 >
   <section class="mt-2 mb-8">
     <h1 class="text-3xl leading-snug font-bold sm:text-4xl">{SITE_TAGLINE}</h1>
-    <p class="mt-2 max-w-[46em] text-base-content/70">
+    {/* No width cap, so the one-sentence lead stays on one line on wide screens. Where it wraps, auto-phrase
+       breaks it between Japanese phrases (Chromium; other browsers ignore the value) and text-pretty avoids
+       a lone last character. */}
+    <p class="mt-2 text-pretty text-base-content/70 [word-break:auto-phrase]">
       日本の法令 {m.counts.lawsInForce.toLocaleString()} 件の条文と、{m.counts.amendments.toLocaleString()} 件の改正を、「いつ・どこが・どう変わったか」が分かる新旧対照の形で見られます。
     </p>
     <div class="relative mt-5 max-w-xl" data-search>
