@@ -192,8 +192,9 @@ the name of this project and does not appear on the site.
   Claude-User and the like) are not blocked, so AI search and assistants can read and cite the pages; `/llms.txt`
   tells them how the site is laid out.
 - Structured data (JSON-LD, `src/lib/seo.ts`): pages with breadcrumbs carry a schema.org `BreadcrumbList`
-  (`PageHeader`), and law pages a `Legislation` (law number, type, legal force, date of the last amendment in force,
-  the e-Gov page as `sameAs`).
+  (`PageHeader`), law pages a `Legislation` (law number, type, legal force, date of the last amendment in force,
+  the e-Gov page as `sameAs`), and the home page a `WebSite`, which gives Google the site name "Anisotropics" for
+  search results.
 - Law pages lead with what only this site has: the generated summary, then the amendment history, the defined terms
   and the citations, which link law pages to each other. The law text itself is also on e-Gov.
 - On law pages the amendment history and table of contents come before the law text in the HTML, and CSS places

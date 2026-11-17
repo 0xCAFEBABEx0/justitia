@@ -9,6 +9,7 @@ import { SITE_TAGLINE } from "../lib/site.ts";
 import { statLaws } from "../lib/stats.ts";
 import { billHeadline, billsFile, billStage, lawsAmendedBy } from "../lib/bills.ts";
 import StatusBadge from "../components/StatusBadge.astro";
+import { jsonLdText, website } from "../lib/seo.ts";
 
 const m = meta();
 const today = buildDate();
@@ -45,15 +46,19 @@ const pendingBills = bills
 const newThisYear = allNew.filter((l) => l.branch === "main" && l.enforced?.startsWith(today.slice(0, 4)) && l.enforced <= today).length;
 ---
 <Base
-  description={`日本の法令 ${m.counts.lawsInForce.toLocaleString()} 件の条文と、${m.counts.amendments.toLocaleString()} 件の改正を新旧対照で。いつ・どこが・どう変わったかを、改正ごとの差分・年表・グラフで見られます。`}
+  title="日本の法令と改正履歴・新旧対照"
+  description={`法律・政令・府省令など現行の法令 ${m.counts.lawsInForce.toLocaleString()} 件の条文と、${m.counts.amendments.toLocaleString()} 件の改正履歴を新旧対照で。いつ・どこが・どう変わったか、施行予定の改正や国会で審議中の法律案まで見られます。e-Gov 法令検索のデータから毎日更新しています。`}
 >
+  {/* Tells Google the site's name for search results; it reads WebSite only on the home page:
+     https://developers.google.com/search/docs/appearance/site-names */}
+  {Astro.site && <script is:inline type="application/ld+json" set:html={jsonLdText(website(Astro.site))} />}
   <section class="mt-2 mb-8">
     <h1 class="text-3xl leading-snug font-bold sm:text-4xl">{SITE_TAGLINE}</h1>
     {/* No width cap, so the one-sentence lead stays on one line on wide screens. Where it wraps, auto-phrase
        breaks it between Japanese phrases (Chromium; other browsers ignore the value) and text-pretty avoids
-       a lone last character. */}
+       a lone last character. A no-break space keeps each count with its 件. */}
     <p class="mt-2 text-pretty text-base-content/70 [word-break:auto-phrase]">
-      日本の法令 {m.counts.lawsInForce.toLocaleString()} 件の条文と、{m.counts.amendments.toLocaleString()} 件の改正を、「いつ・どこが・どう変わったか」が分かる新旧対照の形で見られます。
+      法律・政令・府省令など {m.counts.lawsInForce.toLocaleString()}&nbsp;件の条文と {m.counts.amendments.toLocaleString()}&nbsp;件の改正履歴を、「いつ・どこが・どう変わったか」が分かる新旧対照で見られます。
     </p>
     <div class="relative mt-5 max-w-xl" data-search>
       <label class="input input-lg w-full">

@@ -1,6 +1,7 @@
 // Structured data (JSON-LD, https://schema.org) for search engines, the sitemap's lastmod, and which pages are indexed.
 // Google reads JSON-LD anywhere in the page: https://developers.google.com/search/docs/appearance/structured-data/intro-structured-data
 import type { FileChangeKind } from "../../scripts/extract/types.ts";
+import { SITE_NAME } from "./site-name.ts";
 
 /**
  * A JSON-LD <script> body. JSON.stringify leaves "<" as it is, so "</script>" in a law title
@@ -8,6 +9,14 @@ import type { FileChangeKind } from "../../scripts/extract/types.ts";
  */
 export function jsonLdText(data: unknown): string {
   return JSON.stringify(data).replace(/</g, "\\u003c");
+}
+
+/**
+ * schema.org WebSite for the home page, which is where Google reads the site's name for search results
+ * (https://developers.google.com/search/docs/appearance/site-names). The name must match the title and og:site_name.
+ */
+export function website(site: URL | string): object {
+  return { "@context": "https://schema.org", "@type": "WebSite", name: SITE_NAME, url: new URL("/", site).href, inLanguage: "ja" };
 }
 
 /**
