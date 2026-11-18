@@ -4,7 +4,9 @@
 // meta.json: a hash of the fetched files, see scripts/extract/data-version.ts). The version goes in
 // the query string, which is part of the data domain's cache key, so a page never mixes files
 // cached from an earlier build with files from its own build, and a rebuild that changes no file
-// keeps the cache.
+// keeps the cache. The static amendment page fetches only its own amendment, so it carries that
+// file's hash instead (fileVersion in src/lib/data.ts): its URL, and the page, change only when the
+// amendment does.
 
 export function dataUrl(root: HTMLElement, path: string): string {
   const v = root.dataset.v;

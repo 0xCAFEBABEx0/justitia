@@ -24,8 +24,14 @@ interface Props {
   feed?: { title: string; href: string };
   /** Keeps the page out of search results (robots noindex); its links are still followed. */
   noindex?: boolean;
+  /**
+   * Leaves the data date out of the print header's HTML; it is read from /data-date.txt when the page is printed
+   * (src/scripts/share.ts). For pages whose content does not change with the data (the static amendment pages), so
+   * that a new data date does not change them all.
+   */
+  dataDateAtPrint?: boolean;
 }
-const { title, description, nav, narrow = false, canonical = true, feed, noindex = false } = Astro.props;
+const { title, description, nav, narrow = false, canonical = true, feed, noindex = false, dataDateAtPrint = false } = Astro.props;
 const siteFeed = { title: `法令の改正（${SITE_NAME}）`, href: feedUrl(DATA_BASE, feedFile.all("xml")) };
 const group = currentGroup(nav);
 const here = Astro.url.pathname;
@@ -127,7 +133,7 @@ const ogImage = new URL("/og-image.png", Astro.site).href;
             <div class="print-head mb-4 hidden border-b border-base-300 pb-2 text-xs print:block" data-print-head>
               <p><b>{SITE_NAME}</b>（非公式）— {SITE_TAGLINE}</p>
               <p data-print-url>{decodeURI(new URL(Astro.url.pathname, Astro.site).href)}</p>
-              <p>印刷日：<span data-print-date></span>／データ更新日：{jpDate(dataDate())}</p>
+              <p>印刷日：<span data-print-date></span>{dataDateAtPrint ? <span data-data-date hidden>／データ更新日：<span></span></span> : `／データ更新日：${jpDate(dataDate())}`}</p>
             </div>
             <slot />
           </div>

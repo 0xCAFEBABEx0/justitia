@@ -172,6 +172,29 @@ export function refreshCiteTools(): void {
 
 let saved: { theme: string | undefined; checked: boolean[] } | null = null;
 
+// Pages built with Base's dataDateAtPrint (the static amendment pages) have no data date in their HTML, so that a new
+// data date does not change them all; the print header gets it from /data-date.txt (src/pages/data-date.txt.ts),
+// fetched once the page is idle so that it is there when the browser's own print command fires beforeprint, which
+// cannot wait for a request. Without it, the header leaves the date out.
+let dataDate: string | null = null;
+
+/** "2026-11-19" as 2026年11月19日 (jpDate in src/lib/data.ts), or null for anything else. */
+export function jpDataDate(text: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text.trim());
+  return m ? `${m[1]}年${Number(m[2])}月${Number(m[3])}日` : null;
+}
+
+function loadDataDate(): void {
+  if (!document.querySelector("[data-data-date]")) return;
+  const load = () =>
+    void fetch("/data-date.txt")
+      .then((r) => (r.ok ? r.text() : ""))
+      .then((t) => (dataDate = jpDataDate(t)))
+      .catch(() => {});
+  if ("requestIdleCallback" in window) requestIdleCallback(load, { timeout: 5000 });
+  else setTimeout(load, 2000);
+}
+
 function beforePrint(): void {
   const root = document.documentElement;
   const switches = [...document.querySelectorAll<HTMLInputElement>("[data-theme-switch]")];
@@ -189,6 +212,11 @@ function beforePrint(): void {
     head.querySelector("[data-print-url]")!.textContent = url;
     const now = new Date();
     head.querySelector("[data-print-date]")!.textContent = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
+    const date = head.querySelector<HTMLElement>("[data-data-date]");
+    if (date && dataDate) {
+      date.querySelector("span")!.textContent = dataDate;
+      date.hidden = false;
+    }
   }
 }
 
@@ -294,4 +322,5 @@ export function initShare(): void {
   addEventListener("afterprint", afterPrint);
   addEventListener("hashchange", refreshCiteTools);
   refreshCiteTools();
+  loadDataDate();
 }

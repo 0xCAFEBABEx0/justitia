@@ -135,6 +135,7 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | `/search/?q=<words>` | Full-text search over the current law text, with links to the matching articles |
 | `/graph/?laws=<ID>,<ID>,…` | Amendment graph: one lane per law, with laws changed by the same amending law joined by a line (git-graph style) |
 | `/llms.txt` | A Markdown summary of the site for AI search engines and assistants ([llms.txt](https://llmstxt.org/), `src/lib/llms-txt.ts`): what the site is, the data date and the number of laws in force, how law, amendment and term URLs are formed, the pages of the menus, and the same sources, licenses and disclaimer as `/about/`. `public/_headers` serves it as `text/plain; charset=utf-8` (Wrangler's default for `.txt` has no charset, and browsers then garble the Japanese) |
+| `/data-date.txt` | The data date (`YYYY-MM-DD`) alone (`src/pages/data-date.txt.ts`). The static amendment pages leave the date out of their print header and read it from here when idle, so a new data date does not change all of them and the deploy does not upload them all again (`dataDateAtPrint` in `src/layouts/Base.astro`, `src/scripts/share.ts`) |
 | (any other path) | The 404 page |
 
 ### Navigation
@@ -347,7 +348,10 @@ refuses to run on earlier ones (`process.versions.brotli` does not show the fix,
 version). The pages fetch `amendments/`, `laws/` and `history/` files with the data
 version in the query string (`?v=`, `dataVersion` in `meta.json`), which is part of the cache key. The data version is
 a hash of those files, so a build that changes any of them gets new URLs (a page never mixes files from two builds),
-and a build that changes none, such as a day without new commits in houritsu, keeps the cached copies. The search
+and a build that changes none, such as a day without new commits in houritsu, keeps the cached copies. The static
+amendment pages fetch only their own `amendments/<key>.json`, so they put a hash of that file in `?v=` instead
+(`fileVersion` in `src/lib/data.ts`): a page then changes, and is uploaded again by the deploy, only when its
+amendment does. The search
 page goes through the cache too, since each request that misses it is a read in R2 (Class B, 10 million a month
 free): it fetches `pagefind/shards.json` with `?ts=` set to the current 5-minute period, so a new index is used within
 5 minutes, and gives Pagefind the index's input hash from `shards.json` as `metaCacheTag`, so each shard's
