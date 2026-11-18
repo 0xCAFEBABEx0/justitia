@@ -135,7 +135,7 @@ The three were first named `amendments-1` to `amendments-3`, and renamed this wa
 A push to the `preview` branch builds the site and deploys it as the Worker Preview `preview` of the Worker
 `justitia` (`.github/workflows/preview.yml`, `npm run deploy:preview`), at **`https://preview.www.anisotro.pics/`**.
 Each deployment also gets its own URL, `https://<deployment ID>-preview.www.anisotro.pics/`. Cloudflare Access lets
-only the addresses in 1Password in (`justitia-preview`). Nothing reaches production: the workflow has no R2
+only the addresses in 1Password in (`cloudflare-terraform`, field `preview-access-emails`). Nothing reaches production: the workflow has no R2
 credentials and never runs `wrangler deploy` (`scripts/preview-workflow.test.ts` checks it).
 
 How it is put together (`envs/prod/preview.tf`):
@@ -203,7 +203,7 @@ To list the account's Workers Custom Domains and their values, `GET` the same UR
 2. The Terraform token has **Account: Access: Apps and Policies: Edit** and **Zone: Single Redirect: Edit** (see
    [Running Terraform](#running-terraform)). Creating the www Custom Domain uses the Workers **Admin** role it already
    has.
-3. The 1Password item `justitia-preview` (vault Development) has the field `emails`: one address, or several
+3. The 1Password item `cloudflare-terraform` (vault Development) has the field `preview-access-emails`: one address, or several
    separated by commas.
 4. DNS: `www.anisotro.pics` has no record of its own when the domain is created (a Workers Custom Domain fails on a
    hostname that has one), and nothing exists under `*.www.anisotro.pics`. On 2026-11-18 www was a proxied CNAME to
@@ -263,11 +263,11 @@ every credential comes from 1Password through `envs/prod/1password.env`, which h
 | 1Password item (vault Development) | Fields | Used as |
 | --- | --- | --- |
 | `hcp-terraform` (ID `snuoe5g63q73gugkpj3z256i4q`) | `credential`, `organization` | `TF_TOKEN_app_terraform_io`, `TF_CLOUD_ORGANIZATION` |
-| `cloudflare-terraform` | `credential`, `account-id` | `TF_VAR_cloudflare_api_token`, `TF_VAR_cloudflare_account_id` |
-| `justitia-preview` | `emails` | `TF_VAR_preview_access_emails`: who Cloudflare Access lets into the Previews, separated by commas |
+| `cloudflare-terraform` | `credential`, `account-id`, `preview-access-emails` | `TF_VAR_cloudflare_api_token`, `TF_VAR_cloudflare_account_id`, `TF_VAR_preview_access_emails` (who Cloudflare Access lets into the Previews, separated by commas) |
 
-The first two items are shared with the `chronos` repository's Terraform; `justitia-preview` is this repository's
-own, and keeps the addresses out of the repository and the plan output (the variable is sensitive). Its `account-id` must be the account that has the
+Both items are shared with the `chronos` repository's Terraform; only this repository reads `preview-access-emails`,
+which keeps the addresses out of the repository and the plan output (the variable is sensitive). The `account-id` of
+`cloudflare-terraform` must be the account that has the
 `anisotro.pics` zone (otherwise the zone lookup in `envs/prod/main.tf` finds nothing and the plan stops). The
 Cloudflare token needs, on top of what `chronos` uses, the `anisotro.pics` zone and these permissions:
 
