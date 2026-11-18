@@ -157,8 +157,8 @@ How it is put together (`envs/prod/preview.tf`):
   on workers.dev, so the build appends `X-Robots-Tag: noindex, nofollow` for every path to `dist/_headers`. Previews
   have no Workers routes, so the amendment Workers' pages (`/amendment/<key>/`) do not exist there; the Preview build
   makes no static amendment pages, and its 404 page renders an amendment in the browser from the production data in
-  R2 with the branch's own `src/scripts/amendment.ts` (without the e-Gov and comparison links, the graph and the
-  page's own head). Changes to the amendment Workers themselves (`scripts/split-amendments.ts`, their Wrangler files)
+  R2 with the branch's own `src/scripts/amendment.ts` (without the e-Gov and comparison links, the related laws in the
+  graph link and the page's own head). Changes to the amendment Workers themselves (`scripts/split-amendments.ts`, their Wrangler files)
   cannot be previewed. The Preview reads the production data at `https://data.anisotro.pics`. Every difference from
   production is listed in the main README, [Differences from production](../README.md#differences-from-production).
 - **Worker settings** (`previews` in `wrangler.jsonc`): a Preview takes nothing from the production settings but
@@ -233,18 +233,30 @@ no other secret.
    - `https://data.anisotro.pics/_publish/check-br.txt`: 200, as before (R2);
    - `https://www.anisotro.pics/` → 301 with `location: https://anisotro.pics/`, and
      `https://www.anisotro.pics/browse/?x=1` → `location: https://anisotro.pics/browse/?x=1`;
-   - `https://preview.www.anisotro.pics/`: a redirect to the Access sign-in (`*.cloudflareaccess.com`).
-5. Push to `preview` and wait for the Preview workflow. Open `https://preview.www.anisotro.pics/`, sign in, and check
-   that the site shows, that a page answers with `x-robots-tag: noindex, nofollow`, and that an amendment page
-   (`/amendment/<a key>/`) renders.
+5. Push to `preview` and wait for the Preview workflow. Cloudflare issues the certificate for `*.www.anisotro.pics`
+   when the first Preview is created, which can take a while; until then HTTPS requests to the Preview fail before
+   they reach Access. Once `curl -sI https://preview.www.anisotro.pics/` connects, check that both the stable URL and
+   the deployment-specific URL that `wrangler preview` prints in the workflow log redirect to the Access sign-in
+   (`*.cloudflareaccess.com`) without a session.
+6. Open `https://preview.www.anisotro.pics/`, sign in, and check that the site shows, that a page answers with
+   `x-robots-tag: noindex, nofollow`, and that an amendment page (`/amendment/<a key>/`) renders.
 
 ### Rollback
 
 If any other hostname misbehaves after Previews are on, turn them off on www with the API `PUT` above
 (`"previews_enabled": false`). That removes the wildcard at once. Then set `previews_enabled = false` in `preview.tf`
-and check that the plan shows no change for the domain. To remove the whole setup, delete `preview.tf` in a pull
-request; `prevent_destroy` stops the plan until the Custom Domain's `lifecycle` block is removed on purpose in that
-pull request.
+and check that the plan shows no change for the domain.
+
+To remove the whole setup, open a pull request that removes it. Deleting a resource block also deletes its
+`prevent_destroy`, so the plan will destroy the www Custom Domain without any further step: that pull request is the
+deliberate removal, and the owner checks in the plan that the only destroys are the ones it means, before applying.
+What to remove from `preview.tf`:
+
+- the www Custom Domain, the Access application and the Access policy;
+- the `www to apex` rule of `cloudflare_ruleset.redirects`. If the ruleset holds other rules (an entrypoint imported
+  under Prerequisites, or rules added later), keep the resource at the same address with those rules, so that the plan
+  changes it in place; remove the resource only when no rule is left. Keep the redirect for as long as `www` should
+  still lead to the apex.
 
 Sources (checked 2026-11-18): [Previews](https://developers.cloudflare.com/workers/previews/),
 [Custom Domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/),

@@ -369,7 +369,7 @@ A Preview is the branch's site, not a copy of production. Review it with these d
 | | Production | Preview |
 | --- | --- | --- |
 | Amendment pages (`/amendment/<key>/`) | Static pages built at deploy time, served by the amendment Workers through Workers routes | Not built (a Preview has no Workers routes, and the pages would exceed 20,000 files). The Preview's 404 page renders the amendment in the browser from the R2 data with the branch's `src/scripts/amendment.ts` (`src/components/PreviewAmendment.astro`) |
-| What an amendment page shows | Diffs, the e-Gov and comparison links, the graph, and its own title, description, canonical link and structured data | Diffs and the disclaimer; no e-Gov or comparison links, no graph of the amended law and its related laws, and the 404 page's head (the title is replaced with the amendment's once it loads) |
+| What an amendment page shows | Diffs, the e-Gov and comparison links, the graph, and its own title, description, canonical link and structured data | Diffs, the disclaimer and a graph link of the laws the amendment changes; no e-Gov or comparison links, no related laws in the graph link, and the 404 page's head (the title is replaced with the amendment's once it loads) |
 | Status of an amendment page | 200 | 404 |
 | `/amendment/?k=<key>` | Served by `justitia-amendments-3`, forwards to `/amendment/<key>/` | Served by the main Worker, forwards the same way, then renders as above |
 | Changes to the amendment Workers (`scripts/split-amendments.ts`, `scripts/amendment-shards.ts`, their Wrangler files) | Deployed | Not deployed or testable: the Preview workflow does not split or deploy them |

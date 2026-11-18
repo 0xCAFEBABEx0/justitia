@@ -51,6 +51,9 @@ permissions:
 
 jobs:
   publish:
+    # Production is deployed from main only: a manual run started on another branch (preview included) is skipped.
+    # Scheduled runs use the default branch.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:

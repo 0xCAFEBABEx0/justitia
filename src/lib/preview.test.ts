@@ -17,7 +17,11 @@ test("amendmentKeyOfPath accepts only static amendment page paths", () => {
   assert.equal(amendmentKeyOfPath("/amendment/507AC0000000046_undetermined-12/"), "507AC0000000046_undetermined-12");
   assert.equal(amendmentKeyOfPath("/amendment/506M60000100085_20240527-/"), null);
   assert.equal(amendmentKeyOfPath("/amendment/"), null);
-  assert.equal(amendmentKeyOfPath("/amendment/506M60000100085_20240527"), null);
+  assert.equal(amendmentKeyOfPath("/amendment/506M60000100085_20240527"), "506M60000100085_20240527");
+  assert.equal(amendmentKeyOfPath("/amendment/506M60000100085_20240527-2"), "506M60000100085_20240527-2");
+  assert.equal(amendmentKeyOfPath("/amendment"), null);
+  assert.equal(amendmentKeyOfPath("/amendment/506M60000100085_20240527/x/"), null);
+  assert.equal(amendmentKeyOfPath("/amendment/506M60000100085_20240527//"), null);
   assert.equal(amendmentKeyOfPath("/amendment/../laws/x_20240527/"), null);
   assert.equal(amendmentKeyOfPath("/amendment/%2e%2e_20240527/"), null);
   assert.equal(amendmentKeyOfPath("/laws/129AC0000000089/"), null);
