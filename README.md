@@ -374,7 +374,7 @@ A Preview is the branch's site, not a copy of production. Review it with these d
 | `/amendment/?k=<key>` | Served by `justitia-amendments-3`, forwards to `/amendment/<key>/` | Served by the main Worker, forwards the same way, then renders as above |
 | Changes to the amendment Workers (`scripts/split-amendments.ts`, `scripts/amendment-shards.ts`, their Wrangler files) | Deployed | Not deployed or testable: the Preview workflow does not split or deploy them |
 | Search engines | Indexed (except the pages marked noindex) | `X-Robots-Tag: noindex, nofollow` on every response (`dist/_headers`), and behind Cloudflare Access |
-| Data (`https://data.anisotro.pics`) | Uploaded by the same run | The production data, not the branch's: a change to the extractor, the search index or the feeds does not show. The data the pages are built from is the Publish workflow's latest cache, which may be older than what R2 holds; the JSON the browser fetches is always R2's current files |
+| Data (`https://data.anisotro.pics`) | Uploaded by the same run | The production data, not the branch's: a change to the extractor, the search index or the feeds does not show. The data the pages are built from is the Publish workflow's latest cache, built against the houritsu commit it was extracted from (extracted again if houritsu no longer has that commit), so it may be older than what R2 holds; the JSON the browser fetches is always R2's current files |
 | Search, calendars and RSS feeds | Built by the same run | The production index and feeds |
 | `/_astro/` files | The previous build's files are kept for one more deploy | Only this build's files |
 | Sitemaps | List the amendment pages | No amendment sitemap entries |

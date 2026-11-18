@@ -95,6 +95,15 @@ test("the Preview workflow builds a Preview build and deploys it once with wrang
   assert.equal(/wrangler@\S+/.exec(scripts["deploy:preview"])![0], /wrangler@\S+/.exec(scripts.deploy)![0]);
 });
 
+test("an older cache entry is built against the houritsu commit it was extracted from", () => {
+  const names = steps.map((s) => s.name);
+  const checkout = steps.find((s) => s.run?.includes("source.mainCommit"));
+  assert.ok(checkout, "a step checks out meta.json's source.mainCommit");
+  assert.ok(names.indexOf(checkout.name) < names.indexOf("Build the site"));
+  const extract = steps.find((s) => s.name === "Extract data");
+  assert.match(String((extract as { if?: string }).if), /steps\.source\.outputs\.extract == 'true'/);
+});
+
 test("the Publish workflow still deploys production from main only", () => {
   const publish = parse(read(".github/workflows/publish.yml")) as Workflow;
   assert.deepEqual((publish.on.push as { branches: string[] }).branches, ["main"]);
