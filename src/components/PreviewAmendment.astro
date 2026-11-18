@@ -2,7 +2,8 @@
 // Preview builds only (src/lib/preview.ts): on the 404 page, renders /amendment/<key>/ in the browser from the
 // amendment's JSON in R2, since a Preview has no static amendment pages. The page keeps the 404 status; it is
 // behind Cloudflare Access and noindex. Build-time parts of the static page are missing: the e-Gov and comparison
-// links, the graph, and the page's own title, description and structured data.
+// links, the graph, and the page's own title, description and structured data. An amendment that the production data
+// does not have (one the Preview's data has but Publish has not uploaded yet) gets the 404 page, with a note.
 // Astro bundles this script in every build because the 404 page imports this component, so production builds have
 // one small unused file in dist/_astro/ for it; no production page loads it.
 import { dataVersion } from "../lib/data.ts";
@@ -17,13 +18,21 @@ import { DATA_BASE } from "../lib/site.ts";
 
   const key = amendmentKeyOfPath(location.pathname);
   const root = document.getElementById("amendment");
-  if (key && root) {
-    document.getElementById("not-found")?.remove();
+  const notFound = document.getElementById("not-found");
+  if (key && root && notFound) {
+    notFound.hidden = true;
     root.dataset.key = key;
     root.hidden = false;
     void renderAmendmentPage(root).then(() => {
       const h1 = root.querySelector("h1")?.textContent?.trim();
-      if (h1) document.title = document.title.replace(/^[^|]*\|/, `${h1} |`);
+      if (h1) {
+        document.title = document.title.replace(/^[^|]*\|/, `${h1} |`);
+        return;
+      }
+      // The amendment could not be loaded: show the 404 page again.
+      root.hidden = true;
+      notFound.hidden = false;
+      notFound.querySelector<HTMLElement>("[data-preview-note]")!.hidden = false;
     });
   }
 </script>

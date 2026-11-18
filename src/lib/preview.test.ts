@@ -13,6 +13,9 @@ test("withPreviewHeaders appends one noindex rule for every path", () => {
 test("amendmentKeyOfPath accepts only static amendment page paths", () => {
   assert.equal(amendmentKeyOfPath("/amendment/506M60000100085_20240527/"), "506M60000100085_20240527");
   assert.equal(amendmentKeyOfPath("/amendment/507AC0000000046_undetermined/"), "507AC0000000046_undetermined");
+  assert.equal(amendmentKeyOfPath("/amendment/506M60000100085_20240527-2/"), "506M60000100085_20240527-2");
+  assert.equal(amendmentKeyOfPath("/amendment/507AC0000000046_undetermined-12/"), "507AC0000000046_undetermined-12");
+  assert.equal(amendmentKeyOfPath("/amendment/506M60000100085_20240527-/"), null);
   assert.equal(amendmentKeyOfPath("/amendment/"), null);
   assert.equal(amendmentKeyOfPath("/amendment/506M60000100085_20240527"), null);
   assert.equal(amendmentKeyOfPath("/amendment/../laws/x_20240527/"), null);

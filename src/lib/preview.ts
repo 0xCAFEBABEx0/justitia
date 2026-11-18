@@ -20,8 +20,9 @@ export function withPreviewHeaders(headers: string): string {
 
 /**
  * The amendment key of a static amendment page's path (/amendment/<key>/), or null. Keys are an amending law ID
- * and a date or "undetermined", joined by "_" (README, "Data format"), so anything else is not an amendment page.
+ * and a date or "undetermined", joined by "_", with "-2", "-3"... when several commits share both (amendmentKey in
+ * scripts/extract/index.ts), so anything else is not an amendment page.
  */
 export function amendmentKeyOfPath(pathname: string): string | null {
-  return /^\/amendment\/([0-9A-Za-z]+_(?:[0-9]{8}|undetermined))\/$/.exec(pathname)?.[1] ?? null;
+  return /^\/amendment\/([0-9A-Za-z]+_(?:[0-9]{8}|undetermined)(?:-[0-9]+)?)\/$/.exec(pathname)?.[1] ?? null;
 }
