@@ -87,7 +87,10 @@ A static [Astro](https://astro.build/) site, hosted on Cloudflare's free tier (s
   more: a search for 正当防衛 finds 刑法第三十六条 first, where whole-law records ranked unrelated laws higher.
   Indexing all law text at once needs over 13 GB of memory, so `npm run search-index` splits the laws into shards of
   about 45 MB of law HTML (under 5 GB of memory each). All laws make 16 shards, about 530,000 records and 600 MB,
-  and take about 17 minutes. The search page merges the shards.
+  and take about 17 minutes. The search page merges the shards. With `--previous <dir>` (an earlier output, which
+  the Publish workflow keeps in its cache), the indexer keeps that split while every shard stays under 60 MB and
+  copies each shard whose input did not change instead of indexing it again (`scripts/search-shards.ts`);
+  `shards.json` lists each shard's first law ID (`starts`) and input hash (`inputs`) for that.
 
 ```sh
 npm run extract          # build data/ (see above)
@@ -276,7 +279,9 @@ It rebuilds only what changed:
    the site, then the search index (`npm run search-index -- --skip-if-same <published input hash>`),
    unless the published index was built from the same input: `shards.json` records a hash of the indexed parts
    of the law pages, the indexer and the Pagefind version, and the upload publishes it as
-   `_publish/pagefind-input.txt` once the whole index is uploaded (`incomplete` while it uploads);
+   `_publish/pagefind-input.txt` once the whole index is uploaded (`incomplete` while it uploads). When it did
+   change, only the shards whose laws changed are indexed (`--previous`, from the index the last run uploaded,
+   saved in the workflow's cache after the upload); a run with `rebuild` indexes every shard;
 3. `npm run feeds` writes the calendars and RSS feeds to `data/feeds/` (see
    [Calendars and RSS feeds](#calendars-and-rss-feeds)), on every run;
 4. `npm run upload-data` (`scripts/upload-data.sh`): sync to the R2 bucket with rclone only the parts that were

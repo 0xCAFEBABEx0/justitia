@@ -204,14 +204,28 @@ jobs:
           rm -rf astro-assets
           mv "$RUNNER_TEMP/astro-new" astro-assets
 
-      # Skipped (in a few seconds) when the published index was built from the same input.
-      - name: Build the search index (about 10 minutes when it changed)
+      # The search index this workflow last uploaded, saved after the upload below: the indexer copies the shards whose
+      # laws did not change from it instead of indexing them again (scripts/search-index.ts --previous). Not restored
+      # when a full rebuild was asked for.
+      - name: Restore the previous search index
+        if: inputs.rebuild != true
+        uses: actions/cache/restore@v6
+        with:
+          path: pagefind-previous
+          key: pagefind-${{ github.run_id }}
+          restore-keys: pagefind-
+
+      # Skipped (in a few seconds) when the published index was built from the same input. Otherwise only the shards
+      # whose laws changed are indexed (about 40 seconds each, 16 shards); all of them without a previous index.
+      - name: Build the search index (about 10 minutes when every shard changed)
+        id: search
         run: |
           if [[ "$REBUILD" == true ]]; then
             npm run search-index
           else
-            npm run search-index -- --skip-if-same "$PUBLIC_DATA_BASE/_publish/pagefind-input.txt"
+            npm run search-index -- --skip-if-same "$PUBLIC_DATA_BASE/_publish/pagefind-input.txt" --previous pagefind-previous
           fi
+          if [[ -f data/pagefind/shards.json ]]; then echo "built=true" >>"$GITHUB_OUTPUT"; fi
         env:
           REBUILD: ${{ inputs.rebuild == true }}
 
@@ -231,6 +245,19 @@ jobs:
           EXTRACTED: ${{ steps.extract.outcome }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+
+      # Like the data, saved only once the index is in R2. The next run reuses its unchanged shards.
+      - name: Note the uploaded search index
+        if: steps.search.outputs.built == 'true'
+        run: |
+          rm -rf pagefind-previous
+          cp -r data/pagefind pagefind-previous
+      - name: Save the uploaded search index
+        if: steps.search.outputs.built == 'true'
+        uses: actions/cache/save@v6
+        with:
+          path: pagefind-previous
+          key: pagefind-${{ github.run_id }}
 
       # Saved only once the data is in R2, so a run that fails before the upload leaves no cache entry.
       - name: Save the extracted data

@@ -1,6 +1,7 @@
 // Builds the full-text search index from the built law pages, with Pagefind.
 //
 //   node scripts/search-index.ts [--dist dist] [--out <JUSTITIA_DATA>/pagefind] [--skip-if-same <url>]
+//                                [--previous <dir>]
 //
 // shards.json also records a hash of everything the index is built from (the indexed parts of the
 // law pages, this script and the Pagefind version); scripts/upload-data.sh publishes it, once the
@@ -14,16 +15,21 @@
 // <out>/<n>/. The search page loads shard 0 and merges the others (Pagefind's mergeIndex).
 // <out>/shards.json lists them.
 //
+// With --previous, <dir> holds an earlier output of this script (the workflow keeps the last published index in its
+// cache). Its split into shards is kept while the shards stay small enough, and a shard whose input is the same as one
+// of <dir>'s is copied from there instead of being indexed again (scripts/search-shards.ts). Pagefind writes the same
+// files for the same input, so the result is the same as indexing everything; a day's new commits in houritsu usually
+// touch a few shards.
+//
 // Only the law text is indexed, one record per block (see records()).
 
 import { createHash } from "node:crypto";
-import { mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import * as pagefind from "pagefind";
-
-const SHARD_BYTES = 45_000_000;
+import { planShards, type IndexedLaw, type PreviousShards } from "./search-shards.ts";
 
 const { values: opts } = parseArgs({
   options: {
@@ -31,6 +37,7 @@ const { values: opts } = parseArgs({
     out: { type: "string" },
     "max-shards": { type: "string" }, // for trying out the index on part of the laws
     "skip-if-same": { type: "string" },
+    previous: { type: "string" },
   },
 });
 const dist = resolve(opts.dist!);
@@ -106,49 +113,48 @@ async function main(): Promise<void> {
     .map((d) => d.name)
     .sort();
 
-  // Group into shards in ID order, reading each page only when its shard is indexed.
-  const sizes: { id: string; bytes: number }[] = [];
-  const input = createHash("sha256");
-  const here = dirname(fileURLToPath(import.meta.url));
-  input.update(await readFile(fileURLToPath(import.meta.url)));
-  input.update(JSON.parse(await readFile(join(here, "../node_modules/pagefind/package.json"), "utf8")).version);
-  input.update(`\0${opts["max-shards"] ?? ""}\0`);
+  // Read every law page once for the hashes; each page is read again when its shard is indexed.
+  const laws: IndexedLaw[] = [];
   for (const id of ids) {
-    const html = await readFile(join(dist, "laws", id, "index.html"), "utf8");
-    const law = lawOf(id, html);
+    const law = lawOf(id, await readFile(join(dist, "laws", id, "index.html"), "utf8"));
     if (!law) continue;
-    sizes.push({ id, bytes: Buffer.byteLength(law.article) });
-    input.update(`${law.id}\0${law.title}\0${law.num}\0${law.article}\0`);
+    const hash = createHash("sha256").update(`${law.title}\0${law.num}\0${law.article}`).digest("hex");
+    laws.push({ id, bytes: Buffer.byteLength(law.article), hash });
   }
-  const inputHash = input.digest("hex").slice(0, 16);
+  const here = dirname(fileURLToPath(import.meta.url));
+  const common = createHash("sha256")
+    .update(await readFile(fileURLToPath(import.meta.url)))
+    .update(await readFile(join(here, "search-shards.ts")))
+    .update(JSON.parse(await readFile(join(here, "../node_modules/pagefind/package.json"), "utf8")).version)
+    .digest("hex");
+  const previousDir = opts.previous ? resolve(opts.previous) : null;
+  if (previousDir === out) throw new Error("--previous must not be the output directory, which is emptied first");
+  const previous = previousDir ? await readPrevious(previousDir) : null;
+  const plan = planShards(laws, common, previous, opts["max-shards"] ? Number(opts["max-shards"]) : undefined);
 
   if (opts["skip-if-same"]) {
     const published = await fetch(`${opts["skip-if-same"]}?ts=${Date.now()}`)
       .then((r) => (r.ok ? r.text() : null))
       .then((t) => t?.trim() || null)
       .catch(() => null);
-    if (published === inputHash) {
-      console.log(`search index: unchanged (${inputHash}), not rebuilt`);
+    if (published === plan.input) {
+      console.log(`search index: unchanged (${plan.input}), not rebuilt`);
       return;
     }
-    console.log(`search index: ${published ?? "no published index"} -> ${inputHash}, rebuilding`);
+    console.log(`search index: ${published ?? "no published index"} -> ${plan.input}, rebuilding`);
   }
   await rm(out, { recursive: true, force: true });
   await mkdir(out, { recursive: true });
-  const shards: string[][] = [[]];
-  let bytes = 0;
-  for (const s of sizes) {
-    if (bytes + s.bytes > SHARD_BYTES && shards[shards.length - 1].length) {
-      shards.push([]);
-      bytes = 0;
-    }
-    shards[shards.length - 1].push(s.id);
-    bytes += s.bytes;
-  }
 
   const started = Date.now();
-  if (opts["max-shards"]) shards.length = Math.min(shards.length, Number(opts["max-shards"]));
-  for (const [n, shard] of shards.entries()) {
+  let indexed = 0;
+  for (const [n, shard] of plan.shards.entries()) {
+    const from = plan.reuse[n];
+    if (from >= 0 && previousDir) {
+      await cp(join(previousDir, String(from)), join(out, String(n)), { recursive: true });
+      console.log(`shard ${n}: ${shard.length} laws, unchanged (from shard ${from} of the previous index)`);
+      continue;
+    }
     const { index, errors } = await pagefind.createIndex({ forceLanguage: "ja", maxFragments: 1500 });
     if (!index) throw new Error(errors.join("\n"));
     let count = 0;
@@ -164,10 +170,25 @@ async function main(): Promise<void> {
     if (written.errors.length) throw new Error(written.errors.join("\n"));
     await index.deleteIndex();
     await pagefind.close(); // frees the indexer's memory before the next shard
+    indexed++;
     console.log(`shard ${n}: ${shard.length} laws, ${count} records (${((Date.now() - started) / 1000).toFixed(0)}s)`);
   }
-  await writeFile(join(out, "shards.json"), JSON.stringify({ shards: shards.length, laws: sizes.length, input: inputHash }));
-  console.log(`search index: ${sizes.length} laws in ${shards.length} shards, ${out}`);
+  const shards = { shards: plan.shards.length, laws: laws.length, input: plan.input, starts: plan.starts, inputs: plan.inputs };
+  await writeFile(join(out, "shards.json"), JSON.stringify(shards));
+  console.log(`search index: ${laws.length} laws in ${plan.shards.length} shards (${indexed} indexed), ${out}`);
+}
+
+/** The shards of an earlier output of this script that are still there, or null when it has none. */
+async function readPrevious(dir: string): Promise<PreviousShards | null> {
+  const json = await readFile(join(dir, "shards.json"), "utf8").catch(() => null);
+  if (!json) return null;
+  const { starts, inputs } = JSON.parse(json) as PreviousShards;
+  if (!starts || !inputs) return { starts };
+  // A shard directory that is missing or incomplete (no pagefind-entry.json) is indexed again.
+  const present = await Promise.all(
+    inputs.map((_, n) => readFile(join(dir, String(n), "pagefind-entry.json")).then(() => true, () => false)),
+  );
+  return { starts, inputs: inputs.map((h, n) => (present[n] ? h : "")) };
 }
 
 main().catch((err) => {
