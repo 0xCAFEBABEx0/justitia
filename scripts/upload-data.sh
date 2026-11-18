@@ -216,8 +216,12 @@ awk -v now="$now" -v keep_s="$((keep_days * 86400))" -v listed="$listed" \
   }' "$work/before" "$work/unused"
 touch "$work/delete" "$work/keep"
 echo "upload-data: deleting $(wc -l <"$work/delete") pagefind files unused for $keep_days days or more, keeping $(wc -l <"$work/keep") unused for less"
+# rclone looks up and deletes the listed files --checkers at a time (default 8): at that rate a week's worth of files
+# from a rebuilt index (about 37,000) took 28 minutes. 64 is the top of the range the rclone docs suggest
+# (Performance → Lots of files); R2 does not charge for deletes.
 if [[ -s "$work/delete" ]]; then
-  rclone delete "r2:$bucket/pagefind" --files-from-raw "$work/delete" --fast-list
+  rclone delete "r2:$bucket/pagefind" --files-from-raw "$work/delete" --fast-list --checkers 64 \
+    --stats 60s --stats-log-level NOTICE
 fi
 # Uploaded from a file (not streamed), with a comment line so that it is never empty.
 {
