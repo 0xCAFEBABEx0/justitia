@@ -37,11 +37,24 @@ resource "cloudflare_r2_managed_domain" "data" {
 # and certificate, so there is no cloudflare_dns_record for it. The Worker must
 # exist (Wrangler creates it on the first deploy). wrangler.jsonc has no
 # `routes`, so `wrangler deploy` leaves this domain alone.
+#
+# Worker Previews stay off here, and must stay off: turning them on for a hostname gives Cloudflare a wildcard DNS
+# record and certificate for *.<hostname>, which would take over every other hostname below the apex
+# (data_domain included). Previews live on their own hostname (envs/prod/preview.tf). Both values are written out so
+# that nobody flips them by accident: the provider replaces the domain when either changes (destroy, then create),
+# which takes the site offline. Change an existing domain with the API PUT in infra/README.md first, then match the
+# values here so the plan shows no change.
 resource "cloudflare_workers_custom_domain" "site" {
-  account_id = var.cloudflare_account_id
-  zone_id    = var.cloudflare_zone_id
-  hostname   = var.site_domain
-  service    = var.worker_name
+  account_id       = var.cloudflare_account_id
+  zone_id          = var.cloudflare_zone_id
+  hostname         = var.site_domain
+  service          = var.worker_name
+  enabled          = true
+  previews_enabled = false
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }
 
 # Cache Rules (Caching > Cache Rules): the zone's entrypoint ruleset for the

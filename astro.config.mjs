@@ -4,6 +4,9 @@ import sitemap from "@astrojs/sitemap";
 import tailwindcss from "@tailwindcss/vite";
 import { buildDate, laws, pageAmendments } from "./src/lib/data.ts";
 import { amendmentIndexable, amendmentLastmod, lawLastmod } from "./src/lib/seo.ts";
+import { withPreviewHeaders } from "./src/lib/preview.ts";
+import { PREVIEW } from "./src/lib/site.ts";
+import { readFile, writeFile } from "node:fs/promises";
 
 // Pages left out of the sitemap: the amendment and versions pages show nothing without their
 // query string (?k=..., ?law=...), and the 404 page is not a page to visit.
@@ -73,6 +76,24 @@ function termPage(item) {
 }
 
 /**
+ * In a Preview build (JUSTITIA_PREVIEW=1, src/lib/preview.ts), adds the noindex rule to dist/_headers. Production
+ * builds keep public/_headers as it is.
+ * @returns {import("astro").AstroIntegration}
+ */
+function previewHeaders() {
+  return {
+    name: "preview-headers",
+    hooks: {
+      "astro:build:done": async ({ dir }) => {
+        if (!PREVIEW) return;
+        const file = new URL("_headers", dir);
+        await writeFile(file, withPreviewHeaders(await readFile(file, "utf8")));
+      },
+    },
+  };
+}
+
+/**
  * Fontsource's CSS lists a WOFF file next to each WOFF2 file. Every browser the site supports
  * reads WOFF2, so the WOFF sources are dropped: otherwise Vite copies about 250 font files that
  * are never downloaded into dist/ (Workers static assets allow 20,000 files).
@@ -95,6 +116,7 @@ export default defineConfig({
   trailingSlash: "always",
   build: { format: "directory", concurrency: 4 },
   integrations: [
+    previewHeaders(),
     sitemap({
       filter: inSitemap,
       chunks: { laws: lawPage, amendments: amendmentPage, terms: termPage },

@@ -2,15 +2,17 @@
 // The static page of one amendment, /amendment/<key>/, the address the site links to: the amendment's diffs built in,
 // with its own title, description, canonical link and structured data. These pages are served by the amendment
 // Workers, not by the main Worker: scripts/split-amendments.ts moves them out of dist/ after the build (see
-// scripts/amendment-shards.ts).
+// scripts/amendment-shards.ts). A Preview build has none of them; its 404 page renders amendments instead
+// (src/lib/preview.ts).
 import Base from "../../layouts/Base.astro";
 import { amendment, amendmentRevisions, fileVersion, jpDate, law, pageAmendments } from "../../lib/data.ts";
-import { DATA_BASE } from "../../lib/site.ts";
+import { DATA_BASE, PREVIEW } from "../../lib/site.ts";
 import { isUnknownAmendingLaw } from "../../lib/law-num.ts";
 import { amendingLegislation, amendmentIndexable, breadcrumbList, jsonLdText } from "../../lib/seo.ts";
 import { amendmentDescription, amendmentStaticHtml, type AmendmentLinks } from "../../scripts/amendment.ts";
 
 export function getStaticPaths() {
+  if (PREVIEW) return [];
   return pageAmendments().map((a) => ({ params: { key: a.key }, props: { indexable: amendmentIndexable(a.laws) } }));
 }
 

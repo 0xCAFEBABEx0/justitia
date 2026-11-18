@@ -27,5 +27,20 @@
     "head_sampling_rate": 1,
     "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": true, "persist": true },
     "traces": { "enabled": true, "head_sampling_rate": 1, "persist": true }
+  },
+  // Worker Previews (`npm run deploy:preview`, .github/workflows/preview.yml): https://preview.www.anisotro.pics/,
+  // behind Cloudflare Access (infra/README.md, "Previews"). A Preview takes nothing from the production settings
+  // above except `assets` and `compatibility_date`, and with this block present Wrangler ignores the dashboard's
+  // Preview settings. No bindings: the site has none, and a Preview must never write production data. The pages
+  // read the production data from https://data.anisotro.pics like the production site. Observability is set again
+  // because a Preview does not inherit it; `wrangler tail` cannot follow a Preview, so use the dashboard
+  // (Workers & Pages → justitia → Observability). `wrangler deploy` ignores this block.
+  "previews": {
+    "observability": {
+      "enabled": true,
+      "head_sampling_rate": 1,
+      "logs": { "enabled": true, "head_sampling_rate": 1, "invocation_logs": true, "persist": true },
+      "traces": { "enabled": true, "head_sampling_rate": 1, "persist": true }
+    }
   }
 }
