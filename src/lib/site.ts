@@ -5,12 +5,14 @@
 //   PUBLIC_DATA_BASE   URL the browser fetches amendments/<key>.json from
 //                      (default: /data, which `npm run preview` serves from JUSTITIA_DATA;
 //                      in production https://data.anisotro.pics)
+//   JUSTITIA_PREVIEW   "1" for a Worker Previews build (src/lib/preview.ts); unset in production
 
 import { resolve } from "node:path";
 
 export const DATA_DIR = resolve(process.env.JUSTITIA_DATA ?? "data");
 export const HOURITSU_DIR = resolve(process.env.JUSTITIA_HOURITSU ?? "houritsu");
 export const DATA_BASE = (process.env.PUBLIC_DATA_BASE ?? "/data").replace(/\/$/, "");
+export const PREVIEW = process.env.JUSTITIA_PREVIEW === "1";
 
 export { SITE_NAME, SITE_TAGLINE } from "./site-name.ts";
 export const SOURCE_REPO = "https://github.com/Kohei-Wada/houritsu";

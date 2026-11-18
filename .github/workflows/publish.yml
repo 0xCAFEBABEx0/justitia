@@ -22,16 +22,19 @@ on:
   push:
     branches: [main]
     # Changes that cannot change the site or the data: docs (CHANGELOG.md included, so a release PR deploys nothing),
-    # repository settings, infrastructure, and the release workflow and its changelog check.
+    # repository settings, infrastructure, the release workflow and its changelog check, and the Preview workflow and
+    # its test.
     paths-ignore:
       - "**/*.md"
       - ".coderabbit.yaml"
       - ".github/dependabot.yml"
       - ".github/rulesets/**"
       - ".github/workflows/release.yml"
+      - ".github/workflows/preview.yml"
       - "infra/**"
       - "scripts/changelog.ts"
       - "scripts/changelog.test.ts"
+      - "scripts/preview-workflow.test.ts"
   workflow_dispatch:
     inputs:
       rebuild:
@@ -48,6 +51,9 @@ permissions:
 
 jobs:
   publish:
+    # Production is deployed from main only: a manual run started on another branch (preview included) is skipped.
+    # Scheduled runs use the default branch.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 120
     env:

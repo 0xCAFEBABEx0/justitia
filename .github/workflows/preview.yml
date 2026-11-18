@@ -1,0 +1,97 @@
+# Deploys the preview branch as a Worker Preview of the Worker justitia: https://preview.www.anisotro.pics/, behind
+# Cloudflare Access. See infra/README.md, "Previews". It builds the site from the data that the Publish workflow
+# cached and deploys nothing to production: no `wrangler deploy`, no amendment Workers, no R2 upload, and no R2
+# credentials (scripts/preview-workflow.test.ts checks this file).
+#
+# A Preview build (JUSTITIA_PREVIEW=1, src/lib/preview.ts) adds noindex to every response and has no static
+# amendment pages; its 404 page renders /amendment/<key>/ in the browser from the production data in R2.
+name: Preview
+
+on:
+  push:
+    branches: [preview]
+
+# One Preview deployment at a time; a newer push cancels the older run.
+concurrency:
+  group: preview
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      PUBLIC_DATA_BASE: https://data.anisotro.pics
+      JUSTITIA_PREVIEW: "1"
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+      - run: npm test
+
+      - name: Fetch houritsu
+        id: houritsu
+        run: |
+          npm run fetch-houritsu
+          main=$(git -C houritsu rev-parse origin/main)
+          upcoming=$(git -C houritsu rev-parse --verify -q origin/upcoming || echo none)
+          echo "commits=$main-$upcoming" >>"$GITHUB_OUTPUT"
+
+      # The data the Publish workflow cached, with the same key; when houritsu has moved on since the last publish,
+      # the newest entry. Nothing is saved: the cache stays the Publish workflow's.
+      - name: Restore the extracted data
+        id: data
+        uses: actions/cache/restore@v6
+        with:
+          path: |
+            data/meta.json
+            data/laws.json
+            data/laws
+            data/timeline
+            data/amendments
+          key: data-${{ steps.houritsu.outputs.commits }}-${{ hashFiles('scripts/extract/**', '!scripts/extract/**/*.test.ts', 'node_modules/diff/package.json', 'node_modules/diff-match-patch/package.json', 'node_modules/yaml/package.json') }}
+          restore-keys: data-
+
+      # The build reads the law text from the houritsu checkout and stops when it is not the commit the data was
+      # extracted from (src/lib/lawtext.ts). An older cache entry was extracted from an older commit: check that one
+      # out, or extract again when houritsu has rewritten it away.
+      - name: Check out the houritsu commit of the cached data
+        id: source
+        if: steps.data.outputs.cache-matched-key != '' && steps.data.outputs.cache-hit != 'true'
+        run: |
+          want=$(node -p 'require("./data/meta.json").source.mainCommit')
+          if git -C houritsu checkout -q --detach "$want"; then
+            echo "Using houritsu $want, the commit of the cached data"
+          else
+            echo "houritsu no longer has $want: extracting again"
+            echo "extract=true" >>"$GITHUB_OUTPUT"
+          fi
+
+      # Only when no cached data can be used (about 15 minutes).
+      - name: Extract data
+        if: steps.data.outputs.cache-matched-key == '' || steps.source.outputs.extract == 'true'
+        run: |
+          rm -rf data
+          npm run extract
+        env:
+          NODE_OPTIONS: --max-old-space-size=8192
+
+      - name: Fetch the bills in the Diet
+        run: npm run bills
+
+      - name: Build the site
+        run: npm run build
+
+      - name: Deploy the Preview
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npm run deploy:preview -- --message "$GITHUB_SHA"

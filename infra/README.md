@@ -16,6 +16,9 @@ the site and the data on them.
 | The bucket's `r2.dev` URL (off) | Terraform |
 | Workers Custom Domain `anisotro.pics` → Worker `justitia` | Terraform |
 | Workers routes `anisotro.pics/amendment/<prefix>*` → Workers `justitia-amendments-*` (the static amendment pages) | Terraform (`envs/prod/amendments.tf`, see below) |
+| Workers Custom Domain `www.anisotro.pics` → Worker `justitia`, with Previews on (`preview.www.anisotro.pics`) | Terraform (`envs/prod/preview.tf`, see [Previews](#previews)) |
+| Redirect rule `www to apex` (zone entrypoint for Single Redirects) | Terraform (`envs/prod/preview.tf`) |
+| Access application `justitia-preview` and policy `justitia-preview-owner` | Terraform (`envs/prod/preview.tf`) |
 | Cache rules `justitia-data-cache` and `data: versioned files 1 day` (zone entrypoint for Cache Rules) | Terraform |
 | Response header rule `justitia-data-cors` (zone entrypoint for Response Header Transform Rules) | Terraform |
 | Zone setting Browser Cache TTL (4 hours) | Terraform |
@@ -29,6 +32,7 @@ the site and the data on them.
 | Worker `justitia`: static assets, compatibility date, `workers_dev`/`preview_urls` off | Wrangler (`wrangler.jsonc`) |
 | Workers `justitia-amendments-1` to `justitia-amendments-3`: the same settings, observability off | Wrangler (`wrangler.justitia-amendments-*.jsonc`) |
 | Workers Logs and Traces of the Worker | Wrangler (`wrangler.jsonc`, `observability`) |
+| The Preview `preview` of the Worker and its settings (`previews` in `wrangler.jsonc`) | Wrangler (`npm run deploy:preview`, Preview workflow) |
 | Objects in the bucket | `scripts/upload-data.sh` (Publish workflow) |
 | API tokens for the Publish workflow and for Terraform | Dashboard |
 
@@ -78,6 +82,7 @@ infra/terraform/
 ├─ envs/prod/
 │  ├─ main.tf          provider, zone lookup, the module's inputs
 │  ├─ amendments.tf    Workers routes of the amendment Workers
+│  ├─ preview.tf       www.anisotro.pics for the Previews, its redirect to the apex, Cloudflare Access
 │  ├─ variables.tf
 │  ├─ outputs.tf
 │  ├─ backend.tf       state in HCP Terraform, workspace justitia-prod
@@ -125,6 +130,146 @@ missing:
 
 The three were first named `amendments-1` to `amendments-3`, and renamed this way on 2026-11-09.
 
+## Previews
+
+A push to the `preview` branch builds the site and deploys it as the Worker Preview `preview` of the Worker
+`justitia` (`.github/workflows/preview.yml`, `npm run deploy:preview`), at **`https://preview.www.anisotro.pics/`**.
+Each deployment also gets its own URL, `https://<deployment ID>-preview.www.anisotro.pics/`. Cloudflare Access lets
+only the addresses in 1Password in (`cloudflare-terraform`, field `preview-access-emails`). Nothing reaches production: the workflow has no R2
+credentials and never runs `wrangler deploy` (`scripts/preview-workflow.test.ts` checks it).
+
+How it is put together (`envs/prod/preview.tf`):
+
+- **Hostname.** `www.anisotro.pics` is a second Workers Custom Domain of `justitia`, with `previews_enabled = true`.
+  A Preview's URL is `<preview name>.<Custom Domain>`, and Previews on a Custom Domain make Cloudflare add a wildcard
+  DNS record and certificate for `*.<that hostname>`. No new Worker.
+- **Redirect.** A Single Redirect sends `www.anisotro.pics` itself (`http.host eq "www.anisotro.pics"`) to
+  `https://anisotro.pics` + path with a 301, keeping the query string, so the production pages never show under a
+  second hostname. Redirects run before Workers, so these requests are not Worker requests. Hostnames below www do
+  not match and are not redirected. The Free plan allows 10 Redirect Rules per zone; this is the only one.
+- **Access.** A self-hosted application `justitia-preview` with two **public hostname** destinations,
+  `preview.www.anisotro.pics` and `*.www.anisotro.pics` (the deployment URLs; the wildcard covers one level below
+  www, not www itself or the apex), and the policy `justitia-preview-owner` (allow these emails). The destination
+  types that follow a Worker's Previews (`all_preview_workers`, `preview_worker`) are not used: they apply to every
+  hostname a Preview answers, including any production hostname a wildcard has caught. The Custom Domain depends on
+  the application, so Access is in place before the Preview hostnames exist.
+- **The Preview build** (`JUSTITIA_PREVIEW=1`, `src/lib/preview.ts`): Cloudflare adds `X-Robots-Tag` only to Previews
+  on workers.dev, so the build appends `X-Robots-Tag: noindex, nofollow` for every path to `dist/_headers`. Previews
+  have no Workers routes, so the amendment Workers' pages (`/amendment/<key>/`) do not exist there; the Preview build
+  makes no static amendment pages, and its 404 page renders an amendment in the browser from the production data in
+  R2 with the branch's own `src/scripts/amendment.ts` (without the e-Gov and comparison links, the related laws in the
+  graph link and the page's own head). Changes to the amendment Workers themselves (`scripts/split-amendments.ts`, their Wrangler files)
+  cannot be previewed. The Preview reads the production data at `https://data.anisotro.pics`. Every difference from
+  production is listed in the main README, [Differences from production](../README.md#differences-from-production).
+- **Worker settings** (`previews` in `wrangler.jsonc`): a Preview takes nothing from the production settings but
+  `assets` and `compatibility_date`. The block sets observability only; the site has no bindings, and a Preview must
+  never get a binding that can write production data. `workers_dev` and `preview_urls` stay `false`. Previews need
+  Wrangler 4.135.0 or later. `wrangler tail` cannot follow a Preview: use Workers & Pages → `justitia` →
+  Observability.
+
+**Never turn Previews on for the apex `anisotro.pics`, or for any hostname that has other hostnames below it.** The
+wildcard `*.anisotro.pics` would take precedence over every other hostname at that level, so `data.anisotro.pics`
+(R2) would answer with the Worker's Preview 404 and every page would lose its data. There is no setting that limits
+the wildcard to one Preview name. The apex domain therefore has `previews_enabled = false` written out in
+`modules/cloudflare_site/main.tf`, and every Workers Custom Domain has `prevent_destroy`.
+
+Free plan: up to 100 Previews per Worker and 100 deployments per Preview (the oldest are deleted). Requests to a
+Preview count toward the 100,000 Worker requests a day only when they run a Worker script, and this Worker has none.
+Zero Trust Free covers Access for up to 50 users.
+
+### Changing `previews_enabled` or `enabled` on an existing domain
+
+The provider replaces a `cloudflare_workers_custom_domain` when either value changes, so do not change it in
+Terraform first. Switch it in place with the API (`PUT /accounts/{account_id}/workers/domains`, which updates the
+domain with that hostname), then set the same value in Terraform and check that the plan shows no change for it. From
+`infra/terraform/envs/prod`, for example to turn Previews off on www:
+
+```bash
+export ZONE_ID=$(op run --env-file=1password.env -- terraform output -raw zone_id)
+op run --env-file=1password.env -- sh -c 'curl -sS -X PUT \
+  "https://api.cloudflare.com/client/v4/accounts/$TF_VAR_cloudflare_account_id/workers/domains" \
+  -H "Authorization: Bearer $TF_VAR_cloudflare_api_token" -H "Content-Type: application/json" \
+  --data "{\"hostname\":\"www.anisotro.pics\",\"service\":\"justitia\",\"zone_id\":\"$ZONE_ID\",\"enabled\":true,\"previews_enabled\":false}"' \
+  | jq '.success, .result'
+```
+
+To list the account's Workers Custom Domains and their values, `GET` the same URL.
+
+### Prerequisites
+
+1. **Zero Trust** is set up on the account, once, in the dashboard (Zero Trust, Free plan: it asks for payment
+   details but charges nothing). Sign-in uses the default login method (Cloudflare's own identity provider); add the
+   one-time PIN method in Zero Trust settings if you prefer a code by email.
+2. The Terraform token has **Account: Access: Apps and Policies: Edit** and **Zone: Single Redirect: Edit** (see
+   [Running Terraform](#running-terraform)). Creating the www Custom Domain uses the Workers **Admin** role it already
+   has.
+3. The 1Password item `cloudflare-terraform` (vault Development) has the field `preview-access-emails`: one address, or several
+   separated by commas.
+4. DNS: `www.anisotro.pics` has no record of its own when the domain is created (a Workers Custom Domain fails on a
+   hostname that has one), and nothing exists under `*.www.anisotro.pics`. On 2026-11-18 www was a proxied CNAME to
+   `pixie.porkbun.com` left by the registrar, answering 525; it is deleted right before the apply. (The wildcard
+   `*.anisotro.pics`, the same kind of leftover, does not get in the way and can be deleted separately.)
+5. The zone has no Redirect Rules yet. The configuration creates the zone's entrypoint ruleset for Single Redirects;
+   if one exists (`GET /zones/{zone_id}/rulesets/phases/http_request_dynamic_redirect/entrypoint` answers with a
+   ruleset, not 404), import it first and copy its rules into `preview.tf`, or the apply fails.
+6. The existing Workers Custom Domains (the `GET` above) all have `previews_enabled: false`.
+
+The Preview workflow uses the Publish workflow's `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets; it needs
+no other secret. That token can also deploy production: Cloudflare has no permission for Previews alone (Workers
+Scripts Write covers both `wrangler preview` and `wrangler deploy`), so code pushed to `preview` runs with production
+deployment rights. The owner accepted this (2026-11-18): the token is a repository secret, which a workflow on any
+branch can already read, and only people with write access can push. The tests keep the workflow itself to one
+`wrangler preview` and no R2 credentials. To narrow it later, move the Publish secrets to a GitHub environment
+allowed on `main` only and give the Preview its own token in an environment allowed on `preview` only.
+
+### Rollout
+
+1. Merge the pull request that adds this.
+2. `op run --env-file=1password.env -- terraform plan` should show **4 to add, 0 to change, 0 to destroy**:
+   `cloudflare_workers_custom_domain.preview` (www, `enabled` and `previews_enabled` true),
+   `cloudflare_ruleset.redirects`, `cloudflare_zero_trust_access_policy.preview` and
+   `cloudflare_zero_trust_access_application.preview`, and nothing for `module.site.cloudflare_workers_custom_domain.site`
+   (its values are written out as they are). If anything is to be changed, replaced or destroyed, do not apply.
+3. Delete the www DNS record, then apply.
+4. Right away, check every hostname of the zone with `GET` requests (`curl -s -D - -o /dev/null <url>`): the status and
+   `content-type` must be as before.
+   - `https://anisotro.pics/` and `https://anisotro.pics/laws/129AC0000000089/`: 200, `text/html`;
+   - `https://anisotro.pics/amendment/<a key>/`: 200, `text/html` (an amendment Worker);
+   - `https://data.anisotro.pics/_publish/check-br.txt`: 200, as before (R2);
+   - `https://www.anisotro.pics/` → 301 with `location: https://anisotro.pics/`, and
+     `https://www.anisotro.pics/browse/?x=1` → `location: https://anisotro.pics/browse/?x=1`;
+5. Push to `preview` and wait for the Preview workflow. Cloudflare issues the certificate for `*.www.anisotro.pics`
+   when the first Preview is created, which can take a while; until then HTTPS requests to the Preview fail before
+   they reach Access. Once `curl -sI https://preview.www.anisotro.pics/` connects, check that both the stable URL and
+   the deployment-specific URL that `wrangler preview` prints in the workflow log redirect to the Access sign-in
+   (`*.cloudflareaccess.com`) without a session.
+6. Open `https://preview.www.anisotro.pics/`, sign in, and check that the site shows, that a page answers with
+   `x-robots-tag: noindex, nofollow`, and that an amendment page (`/amendment/<a key>/`) renders.
+
+### Rollback
+
+If any other hostname misbehaves after Previews are on, turn them off on www with the API `PUT` above
+(`"previews_enabled": false`). That removes the wildcard at once. Then set `previews_enabled = false` in `preview.tf`
+and check that the plan shows no change for the domain.
+
+To remove the whole setup, open a pull request that removes it. Deleting a resource block also deletes its
+`prevent_destroy`, so the plan will destroy the www Custom Domain without any further step: that pull request is the
+deliberate removal, and the owner checks in the plan that the only destroys are the ones it means, before applying.
+What to remove from `preview.tf`:
+
+- the www Custom Domain, the Access application and the Access policy;
+- the `www to apex` rule of `cloudflare_ruleset.redirects`. If the ruleset holds other rules (an entrypoint imported
+  under Prerequisites, or rules added later), keep the resource at the same address with those rules, so that the plan
+  changes it in place; remove the resource only when no rule is left. Keep the redirect for as long as `www` should
+  still lead to the apex.
+
+Sources (checked 2026-11-18): [Previews](https://developers.cloudflare.com/workers/previews/),
+[Custom Domains](https://developers.cloudflare.com/workers/configuration/routing/custom-domains/),
+[Access applications](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/),
+[Single Redirects](https://developers.cloudflare.com/rules/url-forwarding/single-redirects/),
+[API token permissions](https://developers.cloudflare.com/fundamentals/api/reference/permissions/), and the
+`cloudflare` provider 5.29.0 schema.
+
 ## Running Terraform
 
 The state is in **HCP Terraform** (Free tier), workspace `justitia-prod`, in the organization named in 1Password. The
@@ -135,9 +280,11 @@ every credential comes from 1Password through `envs/prod/1password.env`, which h
 | 1Password item (vault Development) | Fields | Used as |
 | --- | --- | --- |
 | `hcp-terraform` (ID `snuoe5g63q73gugkpj3z256i4q`) | `credential`, `organization` | `TF_TOKEN_app_terraform_io`, `TF_CLOUD_ORGANIZATION` |
-| `cloudflare-terraform` | `credential`, `account-id` | `TF_VAR_cloudflare_api_token`, `TF_VAR_cloudflare_account_id` |
+| `cloudflare-terraform` | `credential`, `account-id`, `preview-access-emails` | `TF_VAR_cloudflare_api_token`, `TF_VAR_cloudflare_account_id`, `TF_VAR_preview_access_emails` (who Cloudflare Access lets into the Previews, separated by commas) |
 
-Both items are shared with the `chronos` repository's Terraform. Its `account-id` must be the account that has the
+Both items are shared with the `chronos` repository's Terraform; only this repository reads `preview-access-emails`,
+which keeps the addresses out of the repository and the plan output (the variable is sensitive). The `account-id` of
+`cloudflare-terraform` must be the account that has the
 `anisotro.pics` zone (otherwise the zone lookup in `envs/prod/main.tf` finds nothing and the plan stops). The
 Cloudflare token needs, on top of what `chronos` uses, the `anisotro.pics` zone and these permissions:
 
@@ -146,8 +293,11 @@ Cloudflare token needs, on top of what `chronos` uses, the `anisotro.pics` zone 
   Edit** permission maps to the **Editor** role, which can deploy existing Workers but cannot create or delete one
   ([Workers roles](https://developers.cloudflare.com/workers/authorization/workers/#wrangler)).
 - Zone `anisotro.pics`: **Zone: Read**, **Workers Routes: Edit**, **Cache Rules: Edit**, **Transform Rules: Edit**,
-  **Zone Settings: Edit**, **Bot Management: Edit** and **API Gateway: Edit** (Web Assets operations and their
-  labels; "Domain API Gateway" in the API documentation).
+  **Zone Settings: Edit**, **Bot Management: Edit**, **API Gateway: Edit** (Web Assets operations and their
+  labels; "Domain API Gateway" in the API documentation) and **Single Redirect: Edit** (the redirect from www to
+  the apex; "Dynamic URL Redirects Write" in the Rulesets API documentation).
+- Account: **Access: Apps and Policies: Edit** ("Access: Apps and Policies Write" in the API documentation), for the
+  Previews' Access application and policy.
 
 It is not the Publish workflow's token, which only deploys the Worker.
 
@@ -170,11 +320,16 @@ or `*.auto.tfvars` here: it would override the `TF_VAR_*` values without a warni
 1. Change the configuration in a pull request, and run `terraform plan` on its branch. The plan should show only
    what the change is meant to do, with nothing to destroy or replace that is not meant to go.
 2. Each `cloudflare_ruleset` owns its whole phase: an apply removes any rule in that phase that the configuration
-   does not list. Add or change Cache Rules and Response Header Transform Rules in `modules/cloudflare_site/main.tf`,
-   not in the dashboard; a rule added in the dashboard is deleted by the next apply (the plan shows it).
-3. After the merge, apply from an up-to-date `main` once the plan shows the same thing, then run `terraform plan`
+   does not list. Add or change Cache Rules and Response Header Transform Rules in `modules/cloudflare_site/main.tf`
+   and Redirect Rules in `envs/prod/preview.tf`, not in the dashboard; a rule added in the dashboard is deleted by
+   the next apply (the plan shows it).
+3. Never apply a plan that destroys or replaces anything you did not mean to remove. Every Workers Custom Domain has
+   `prevent_destroy`, so a plan that would replace one stops with an error; never lift it to get past that. The
+   provider replaces a Workers Custom Domain (destroy, then create, taking the hostname offline) when `enabled` or
+   `previews_enabled` changes, so change those on a live domain with the API first ([Previews](#previews)).
+4. After the merge, apply from an up-to-date `main` once the plan shows the same thing, then run `terraform plan`
    again: it should say `No changes.`
-4. Check that the site still answers. Use `GET` requests: a `HEAD` request (`curl -I`) shows
+5. Check that the site still answers. Use `GET` requests: a `HEAD` request (`curl -I`) shows
    `cf-cache-status: DYNAMIC` on this zone even for a file that is cached.
 
    ```bash
