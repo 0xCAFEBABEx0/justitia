@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { amendingLegislation, amendmentIndexable, amendmentLastmod, breadcrumbList, jsonLdText, lawLastmod, legislation } from "./seo.ts";
+import { amendingLegislation, amendmentIndexable, amendmentLastmod, breadcrumbList, jsonLdText, lawLastmod, legislation, website } from "./seo.ts";
 
 test("jsonLdText cannot end its <script> and parses back to the same data", () => {
   const data = { name: "a</script><script>alert(1)</script>" };
@@ -102,4 +102,14 @@ test("amendmentIndexable needs a law that was amended or repealed", () => {
   assert.equal(amendmentIndexable([{ kind: "enacted" }]), false);
   assert.equal(amendmentIndexable([{ kind: "coverage_start" }, { kind: "enacted" }]), false);
   assert.equal(amendmentIndexable([]), false);
+});
+
+test("website names the site at its home page URL", () => {
+  assert.deepEqual(website("https://anisotro.pics/laws/"), {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Anisotropics",
+    url: "https://anisotro.pics/",
+    inLanguage: "ja",
+  });
 });
