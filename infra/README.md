@@ -215,7 +215,12 @@ To list the account's Workers Custom Domains and their values, `GET` the same UR
 6. The existing Workers Custom Domains (the `GET` above) all have `previews_enabled: false`.
 
 The Preview workflow uses the Publish workflow's `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets; it needs
-no other secret.
+no other secret. That token can also deploy production: Cloudflare has no permission for Previews alone (Workers
+Scripts Write covers both `wrangler preview` and `wrangler deploy`), so code pushed to `preview` runs with production
+deployment rights. The owner accepted this (2026-11-18): the token is a repository secret, which a workflow on any
+branch can already read, and only people with write access can push. The tests keep the workflow itself to one
+`wrangler preview` and no R2 credentials. To narrow it later, move the Publish secrets to a GitHub environment
+allowed on `main` only and give the Preview its own token in an environment allowed on `preview` only.
 
 ### Rollout
 
