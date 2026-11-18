@@ -205,10 +205,11 @@ To list the account's Workers Custom Domains and their values, `GET` the same UR
    has.
 3. The 1Password item `cloudflare-terraform` (vault Development) has the field `preview-access-emails`: one address, or several
    separated by commas.
-4. DNS: `www.anisotro.pics` has no record of its own when the domain is created (a Workers Custom Domain fails on a
-   hostname that has one), and nothing exists under `*.www.anisotro.pics`. On 2026-11-18 www was a proxied CNAME to
-   `pixie.porkbun.com` left by the registrar, answering 525; it is deleted right before the apply. (The wildcard
-   `*.anisotro.pics`, the same kind of leftover, does not get in the way and can be deleted separately.)
+4. DNS: no record covers `www.anisotro.pics` or `*.www.anisotro.pics` when the domain is created, a wildcard
+   `*.anisotro.pics` included. Otherwise the apply fails with 409, code 100117 ("Hostname(s) 'www.anisotro.pics',
+   '*.www.anisotro.pics' already have externally managed DNS records"). On 2026-11-18 the zone had two such
+   leftovers from the registrar, a proxied CNAME `www` and a proxied CNAME `*`, both to `pixie.porkbun.com` and both
+   answering 525; the apply went through once both were deleted.
 5. The zone has no Redirect Rules yet. The configuration creates the zone's entrypoint ruleset for Single Redirects;
    if one exists (`GET /zones/{zone_id}/rulesets/phases/http_request_dynamic_redirect/entrypoint` answers with a
    ruleset, not 404), import it first and copy its rules into `preview.tf`, or the apply fails.
@@ -230,12 +231,21 @@ allowed on `main` only and give the Preview its own token in an environment allo
    `cloudflare_ruleset.redirects`, `cloudflare_zero_trust_access_policy.preview` and
    `cloudflare_zero_trust_access_application.preview`, and nothing for `module.site.cloudflare_workers_custom_domain.site`
    (its values are written out as they are). If anything is to be changed, replaced or destroyed, do not apply.
-3. Delete the www DNS record, then apply.
+3. Delete the `www` and `*` DNS records (Prerequisite 4), then apply. If the apply creates the www Custom Domain but
+   fails to read it back (404, code 100114, "Origin '<id>' not found", seen on 2026-11-18 right after the create), do
+   not apply again: the domain exists, and the state does not have it. Find its `id` with the `GET` above, import it,
+   and check that `terraform plan` shows no changes:
+
+   ```bash
+   op run --env-file=1password.env -- sh -c \
+     'terraform import cloudflare_workers_custom_domain.preview "$TF_VAR_cloudflare_account_id/<id>"'
+   ```
 4. Right away, check every hostname of the zone with `GET` requests (`curl -s -D - -o /dev/null <url>`): the status and
    `content-type` must be as before.
    - `https://anisotro.pics/` and `https://anisotro.pics/laws/129AC0000000089/`: 200, `text/html`;
    - `https://anisotro.pics/amendment/<a key>/`: 200, `text/html` (an amendment Worker);
-   - `https://data.anisotro.pics/_publish/check-br.txt`: 200, as before (R2);
+   - `https://data.anisotro.pics/_publish/data-version.txt`: 200, `text/plain`, as before (R2; `check-br.txt` exists
+     only during a Publish run);
    - `https://www.anisotro.pics/` → 301 with `location: https://anisotro.pics/`, and
      `https://www.anisotro.pics/browse/?x=1` → `location: https://anisotro.pics/browse/?x=1`;
 5. Push to `preview` and wait for the Preview workflow. Cloudflare issues the certificate for `*.www.anisotro.pics`
