@@ -5,7 +5,7 @@
 // scripts/amendment-shards.ts). A Preview build has none of them; its 404 page renders amendments instead
 // (src/lib/preview.ts).
 import Base from "../../layouts/Base.astro";
-import { amendment, amendmentRevisions, dataVersion, jpDate, law, pageAmendments } from "../../lib/data.ts";
+import { amendment, amendmentRevisions, fileVersion, jpDate, law, pageAmendments } from "../../lib/data.ts";
 import { DATA_BASE, PREVIEW } from "../../lib/site.ts";
 import { isUnknownAmendingLaw } from "../../lib/law-num.ts";
 import { amendingLegislation, amendmentIndexable, breadcrumbList, jsonLdText } from "../../lib/seo.ts";
@@ -55,9 +55,9 @@ const ld = [
   }),
 ];
 ---
-<Base title={`${a.title}（${a.enforced ? `${jpDate(a.enforced)}施行` : "施行日未定"}）`} description={amendmentDescription(a)} nav="timeline" noindex={!indexable}>
+<Base title={`${a.title}（${a.enforced ? `${jpDate(a.enforced)}施行` : "施行日未定"}）`} description={amendmentDescription(a)} nav="timeline" noindex={!indexable} dataDateAtPrint>
   <script is:inline type="application/ld+json" set:html={jsonLdText(ld)} />
-  <div id="amendment" data-base={DATA_BASE} data-v={dataVersion()} data-key={key} data-complete={String(complete)} data-links={JSON.stringify(links)} set:html={html} />
+  <div id="amendment" data-base={DATA_BASE} data-v={fileVersion("amendments", `${key}.json`)} data-key={key} data-complete={String(complete)} data-links={JSON.stringify(links)} set:html={html} />
   <script>
     import { renderAmendmentPage } from "../../scripts/amendment.ts";
     void renderAmendmentPage(document.getElementById("amendment")!);

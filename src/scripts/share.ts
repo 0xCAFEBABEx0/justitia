@@ -172,6 +172,50 @@ export function refreshCiteTools(): void {
 
 let saved: { theme: string | undefined; checked: boolean[] } | null = null;
 
+// Pages built with Base's dataDateAtPrint (the static amendment pages) have no data date in their HTML, so that a new
+// data date does not change them all; the print header gets it from /data-date.txt (src/pages/data-date.txt.ts),
+// fetched once the page is idle so that it is there when the browser's own print command fires beforeprint, which
+// cannot wait for a request. The page's own print buttons wait for it briefly (printPage). Without it, the header
+// leaves the date out.
+let dataDate: string | null = null;
+let dataDateLoad: Promise<void> | null = null;
+/** How long a print button waits for the data date before printing without it. */
+const DATA_DATE_WAIT_MS = 800;
+
+/** "2026-11-19" as 2026年11月19日 (jpDate in src/lib/data.ts), or null for anything else. */
+export function jpDataDate(text: string): string | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text.trim());
+  return m ? `${m[1]}年${Number(m[2])}月${Number(m[3])}日` : null;
+}
+
+/** Fetches the data date once; later calls return the same request. */
+function fetchDataDate(): Promise<void> {
+  dataDateLoad ??= fetch("/data-date.txt")
+    .then((r) => (r.ok ? r.text() : ""))
+    .then((t) => void (dataDate = jpDataDate(t)))
+    .catch(() => {});
+  return dataDateLoad;
+}
+
+function loadDataDate(): void {
+  if (!document.querySelector("[data-data-date]")) return;
+  const load = () => void fetchDataDate();
+  if ("requestIdleCallback" in window) requestIdleCallback(load, { timeout: 5000 });
+  else setTimeout(load, 2000);
+}
+
+/**
+ * Prints the page. A page whose print header takes the data date from /data-date.txt waits for it when the request
+ * has not finished yet (a click before the page went idle), for at most DATA_DATE_WAIT_MS, and then prints without it.
+ */
+function printPage(): void {
+  if (dataDate || !document.querySelector("[data-data-date]")) {
+    window.print();
+    return;
+  }
+  void Promise.race([fetchDataDate(), new Promise((r) => setTimeout(r, DATA_DATE_WAIT_MS))]).then(() => window.print());
+}
+
 function beforePrint(): void {
   const root = document.documentElement;
   const switches = [...document.querySelectorAll<HTMLInputElement>("[data-theme-switch]")];
@@ -189,6 +233,11 @@ function beforePrint(): void {
     head.querySelector("[data-print-url]")!.textContent = url;
     const now = new Date();
     head.querySelector("[data-print-date]")!.textContent = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
+    const date = head.querySelector<HTMLElement>("[data-data-date]");
+    if (date && dataDate) {
+      date.querySelector("span")!.textContent = dataDate;
+      date.hidden = false;
+    }
   }
 }
 
@@ -251,14 +300,14 @@ function onClick(e: MouseEvent): void {
       if (!shared) toast("共有できませんでした。リンクをコピーしてお使いください", false);
     });
   } else if (action.hasAttribute("data-print")) {
-    window.print();
+    printPage();
   } else if (d.printLaw) {
     // One law of an amendment that changes many: the others are hidden until the print ends.
     const section = document.getElementById(d.printLaw);
     if (section) {
       document.documentElement.classList.add("print-one");
       section.classList.add("print-target");
-      window.print();
+      printPage();
     }
   } else if (d.citeCopy) {
     const block = action.closest<HTMLElement>(".blk");
@@ -294,4 +343,5 @@ export function initShare(): void {
   addEventListener("afterprint", afterPrint);
   addEventListener("hashchange", refreshCiteTools);
   refreshCiteTools();
+  loadDataDate();
 }

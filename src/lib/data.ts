@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type {
@@ -81,6 +82,15 @@ export function buildDate(): string {
 export function dataVersion(): string {
   const m = meta();
   return m.dataVersion ?? m.generatedAt.replace(/[^0-9]/g, "");
+}
+
+/**
+ * The version of one fetched file: a hash of its content. A page that fetches no other file (the static amendment
+ * page) puts it on its data URL instead of the data version, so the page stays the same, and is not uploaded again
+ * by the deploy, when only other files change.
+ */
+export function fileVersion(...parts: string[]): string {
+  return createHash("sha256").update(readFileSync(join(DATA_DIR, ...parts))).digest("hex").slice(0, 16);
 }
 
 let yearsCache: string[] | null = null;
