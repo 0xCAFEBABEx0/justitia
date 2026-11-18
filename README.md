@@ -360,16 +360,34 @@ publish moves amendments from upcoming to enforced even on days that reuse the c
 A push to the `preview` branch deploys the site as a Worker Preview of the main Worker, at
 `https://preview.www.anisotro.pics/`, which only the owner can open (Cloudflare Access).
 `.github/workflows/preview.yml` restores the data the Publish workflow cached, builds the site with
-`JUSTITIA_PREVIEW=1`, and runs `npm run deploy:preview` (`wrangler preview --name preview`). It runs one deployment
-at a time (a newer push cancels an older run), and deploys nothing to production: no `wrangler deploy`, no amendment
-Workers, no upload to R2 (`scripts/preview-workflow.test.ts` checks the workflow). A run takes about 3 to 4 minutes.
+`JUSTITIA_PREVIEW=1` (`src/lib/preview.ts`), and runs `npm run deploy:preview` (`wrangler preview --name preview`).
 
-A Preview build differs from production in two ways (`src/lib/preview.ts`): every response gets
-`X-Robots-Tag: noindex, nofollow` (added to `dist/_headers`), and there are no static amendment pages, since a Preview
-has no Workers routes and could not hold them anyway; the Preview's 404 page renders `/amendment/<key>/` in the
-browser from the production data instead, without the links and head that the static page builds in. The Preview
-reads the production data at `https://data.anisotro.pics`. The hostname, the Access setup, the rule that Previews are
-never turned on for the apex, and the rollout are in [infra/README.md](infra/README.md#previews).
+#### Differences from production
+
+A Preview is the branch's site, not a copy of production. Review it with these differences in mind:
+
+| | Production | Preview |
+| --- | --- | --- |
+| Amendment pages (`/amendment/<key>/`) | Static pages built at deploy time, served by the amendment Workers through Workers routes | Not built (a Preview has no Workers routes, and the pages would exceed 20,000 files). The Preview's 404 page renders the amendment in the browser from the R2 data with the branch's `src/scripts/amendment.ts` (`src/components/PreviewAmendment.astro`) |
+| What an amendment page shows | Diffs, the e-Gov and comparison links, the graph, and its own title, description, canonical link and structured data | Diffs and the disclaimer; no e-Gov or comparison links, no graph of the amended law and its related laws, and the 404 page's head (the title is replaced with the amendment's once it loads) |
+| Status of an amendment page | 200 | 404 |
+| `/amendment/?k=<key>` | Served by `justitia-amendments-3`, forwards to `/amendment/<key>/` | Served by the main Worker, forwards the same way, then renders as above |
+| Changes to the amendment Workers (`scripts/split-amendments.ts`, `scripts/amendment-shards.ts`, their Wrangler files) | Deployed | Not deployed or testable: the Preview workflow does not split or deploy them |
+| Search engines | Indexed (except the pages marked noindex) | `X-Robots-Tag: noindex, nofollow` on every response (`dist/_headers`), and behind Cloudflare Access |
+| Data (`https://data.anisotro.pics`) | Uploaded by the same run | The production data, not the branch's: a change to the extractor, the search index or the feeds does not show. The data the pages are built from is the Publish workflow's latest cache, which may be older than what R2 holds; the JSON the browser fetches is always R2's current files |
+| Search, calendars and RSS feeds | Built by the same run | The production index and feeds |
+| `/_astro/` files | The previous build's files are kept for one more deploy | Only this build's files |
+| Sitemaps | List the amendment pages | No amendment sitemap entries |
+| Absolute URLs (canonical, OGP, structured data, sitemaps, feeds) | `https://anisotro.pics/...` | Still `https://anisotro.pics/...`: links that use them leave the Preview for production |
+| Request logs | `wrangler tail` or the dashboard | The dashboard only (Workers & Pages → `justitia` → Observability); `wrangler tail` cannot follow a Preview |
+
+Everything else (law pages, lists, statistics, the client-rendered versions, graph and search pages, CSS and
+scripts) is built from the branch exactly as production builds it.
+
+The Preview workflow runs one deployment at a time (a newer push cancels an older run), and deploys nothing to
+production: no `wrangler deploy`, no amendment Workers, no upload to R2 (`scripts/preview-workflow.test.ts` checks the
+workflow). A run takes about 3 to 4 minutes. The hostname, the Access setup, the rule that Previews are never turned
+on for the apex, and the rollout are in [infra/README.md](infra/README.md#previews).
 
 ### Calendars and RSS feeds
 

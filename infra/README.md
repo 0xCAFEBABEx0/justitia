@@ -159,7 +159,8 @@ How it is put together (`envs/prod/preview.tf`):
   makes no static amendment pages, and its 404 page renders an amendment in the browser from the production data in
   R2 with the branch's own `src/scripts/amendment.ts` (without the e-Gov and comparison links, the graph and the
   page's own head). Changes to the amendment Workers themselves (`scripts/split-amendments.ts`, their Wrangler files)
-  cannot be previewed. The Preview reads the production data at `https://data.anisotro.pics`.
+  cannot be previewed. The Preview reads the production data at `https://data.anisotro.pics`. Every difference from
+  production is listed in the main README, [Differences from production](../README.md#differences-from-production).
 - **Worker settings** (`previews` in `wrangler.jsonc`): a Preview takes nothing from the production settings but
   `assets` and `compatibility_date`. The block sets observability only; the site has no bindings, and a Preview must
   never get a binding that can write production data. `workers_dev` and `preview_urls` stay `false`. Previews need

@@ -72,7 +72,8 @@ at DOMContentLoaded is too late for the first layout). Remove `houritsu/`, `data
 - **Preview** (`.github/workflows/preview.yml`): push to `preview` → build with `JUSTITIA_PREVIEW=1` (noindex, no
   static amendment pages; the 404 page renders them from R2) → `wrangler preview --name preview` →
   `https://preview.www.anisotro.pics/` behind Cloudflare Access (`www.anisotro.pics` is a second Custom Domain with
-  Previews on and a 301 to the apex). Never deploys production. See infra/README.md, "Previews".
+  Previews on and a 301 to the apex). Never deploys production. See infra/README.md, "Previews"; what a Preview
+  shows differently is in README.md, "Differences from production".
 - **Release** (`.github/workflows/release.yml`): when a `Release YYYY.M.N` PR (CHANGELOG.md only) merges, creates the
   tag `vYYYY.M.N` and a GitHub Release from the newest CHANGELOG.md section. Releases deploy nothing; see AGENTS.md,
   "Versions and releases".
