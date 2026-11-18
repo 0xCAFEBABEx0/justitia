@@ -22,16 +22,19 @@ on:
   push:
     branches: [main]
     # Changes that cannot change the site or the data: docs (CHANGELOG.md included, so a release PR deploys nothing),
-    # repository settings, infrastructure, and the release workflow and its changelog check.
+    # repository settings, infrastructure, the release workflow and its changelog check, and the Preview workflow and
+    # its test.
     paths-ignore:
       - "**/*.md"
       - ".coderabbit.yaml"
       - ".github/dependabot.yml"
       - ".github/rulesets/**"
       - ".github/workflows/release.yml"
+      - ".github/workflows/preview.yml"
       - "infra/**"
       - "scripts/changelog.ts"
       - "scripts/changelog.test.ts"
+      - "scripts/preview-workflow.test.ts"
   workflow_dispatch:
     inputs:
       rebuild:

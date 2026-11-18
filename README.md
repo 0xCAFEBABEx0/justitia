@@ -102,6 +102,7 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | `JUSTITIA_HOURITSU` | houritsu clone (for the current law text) | `./houritsu` |
 | `PUBLIC_DATA_BASE` | URL the browser fetches amendment JSON from | `/data` (production: `https://data.anisotro.pics`) |
 | `JUSTITIA_ONLY_LAWS` | Comma-separated law IDs to limit which text pages are built (for testing) | all |
+| `JUSTITIA_PREVIEW` | `1` for a Worker Previews build: noindex on every response, no static amendment pages (see [Previews](#previews)) | unset |
 
 ### Pages
 
@@ -250,7 +251,7 @@ liability for damages from its use, in three places:
 ## Publishing
 
 `.github/workflows/publish.yml` publishes the site every day at 05:17 JST and again at 08:47 JST, on every push
-to `main` (except changes to Markdown files, repository settings, `infra/` and the release workflow; see
+to `main` (except changes to Markdown files, repository settings, `infra/`, and the release and Preview workflows; see
 [Versioning and releases](#versioning-and-releases)), and when run by hand (Actions → Publish →
 Run workflow). houritsu is pushed once a day at about 04:10 JST (04:27 JST on Sundays, when its builder fetches
 everything from e-Gov), so the first run picks up the day's commits; the second one covers a scheduled run that
@@ -353,6 +354,22 @@ Pagefind files that the current index does not use, each with the time it was fi
 
 The home page and the graph take today's date from the build (in Japan time), not from the data, so the daily
 publish moves amendments from upcoming to enforced even on days that reuse the cached data.
+
+### Previews
+
+A push to the `preview` branch deploys the site as a Worker Preview of the main Worker, at
+`https://preview.www.anisotro.pics/`, which only the owner can open (Cloudflare Access).
+`.github/workflows/preview.yml` restores the data the Publish workflow cached, builds the site with
+`JUSTITIA_PREVIEW=1`, and runs `npm run deploy:preview` (`wrangler preview --name preview`). It runs one deployment
+at a time (a newer push cancels an older run), and deploys nothing to production: no `wrangler deploy`, no amendment
+Workers, no upload to R2 (`scripts/preview-workflow.test.ts` checks the workflow). A run takes about 3 to 4 minutes.
+
+A Preview build differs from production in two ways (`src/lib/preview.ts`): every response gets
+`X-Robots-Tag: noindex, nofollow` (added to `dist/_headers`), and there are no static amendment pages, since a Preview
+has no Workers routes and could not hold them anyway; the Preview's 404 page renders `/amendment/<key>/` in the
+browser from the production data instead, without the links and head that the static page builds in. The Preview
+reads the production data at `https://data.anisotro.pics`. The hostname, the Access setup, the rule that Previews are
+never turned on for the apex, and the rollout are in [infra/README.md](infra/README.md#previews).
 
 ### Calendars and RSS feeds
 

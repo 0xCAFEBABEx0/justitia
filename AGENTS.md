@@ -57,8 +57,9 @@ Brotli CVE-2026-111497 fix). Package manager: **npm**.
 | `npm run build` | `./data` + `./houritsu` → `dist/` |
 | `npm run search-index` | Pagefind shards from `dist/` into `data/pagefind/` (~17 min for all laws) |
 | `npm run preview` | serve `dist/` and `data/` at `http://localhost:4321/` |
+| `npm run deploy:preview` | deploy `dist/` as the Worker Preview `preview` (Preview workflow only) |
 
-`npm run upload-data` and `npm run deploy` publish to production; they belong to the Publish workflow, not to an agent.
+`npm run upload-data` and `npm run deploy` publish to production; they belong to the Publish workflow, not to an agent. Likewise `npm run deploy:preview` belongs to the Preview workflow (push to `preview`).
 
 **Avoid full local builds.** A full extract + build + search index takes over half an hour and leaves gigabytes behind.
 For a quick check, extract only a few laws (`npm run extract -- --only <law ID>,<law ID>`), or set `JUSTITIA_ONLY_LAWS`
@@ -127,6 +128,15 @@ local `houritsu/`, `data/` and `dist/` copies when you are done.
     route, R2 key prefix, environment variable, workflow, file family and the like), propose the name to the owner and
     wait for an answer. Renaming a Cloudflare resource later means a new resource, a Terraform apply and deleting the
     old one. The owner prefers short names tied to the project (`justitia-amendments-1`), not descriptive ones.
+16. **Worker Previews only on their own hostname.** A push to `preview` deploys a Preview of the Worker `justitia` at
+    `https://preview.www.anisotro.pics/` behind Cloudflare Access (`infra/README.md`, "Previews"). Never turn
+    `previews_enabled` on for the apex or any hostname with others below it: Cloudflare then adds a wildcard
+    `*.<hostname>` that takes over every sibling, `data.anisotro.pics` included. The provider replaces a Workers Custom
+    Domain when `enabled` or `previews_enabled` changes, so switch a live domain with the API `PUT` first and keep
+    `prevent_destroy` on every Workers Custom Domain; never apply a plan with a destroy. Access uses public hostname
+    destinations only, never `all_preview_workers` or `preview_worker`. The allowed emails come from 1Password, never
+    the repository. The Preview workflow must never deploy to production or hold R2 credentials, and the `previews`
+    block in `wrangler.jsonc` must never get a binding that writes production data.
 
 ## Pull requests
 
@@ -144,8 +154,8 @@ local `houritsu/`, `data/` and `dist/` copies when you are done.
 - Other work may be in progress on other branches at the same time; keep each PR to one topic.
 - Update README.md (and `infra/README.md` for infrastructure) in the same PR when behavior, pages, commands or
   publishing change.
-- Pushes to `main` that change only Markdown, repository settings, `infra/` or the release workflow and its changelog
-  check do not trigger the Publish workflow.
+- Pushes to `main` that change only Markdown, repository settings, `infra/`, the release workflow and its changelog
+  check, or the Preview workflow and its test do not trigger the Publish workflow.
 
 ## Versions and releases
 

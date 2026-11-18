@@ -25,6 +25,7 @@ npm run preview          # serve dist/ + data/ at http://localhost:4321/
 
 npm run upload-data      # production R2 upload (Publish workflow only)
 npm run deploy           # production Wrangler deploy (Publish workflow only)
+npm run deploy:preview   # Worker Preview at preview.www.anisotro.pics (Preview workflow, push to `preview`, only)
 
 node scripts/changelog.ts  # check CHANGELOG.md (npm test runs the same check)
 ```
@@ -68,12 +69,20 @@ at DOMContentLoaded is too late for the first layout). Remove `houritsu/`, `data
 - **Publish** (`.github/workflows/publish.yml`): 05:17 and 08:47 JST daily (houritsu pushes around 04:02–04:10 JST,
   04:27 on Sundays), on push to `main`, and by hand. Order: extract (cached) → build → search index (skipped if the
   input hash matches) → upload data → deploy site, so a page never links to data that is not there yet.
+- **Preview** (`.github/workflows/preview.yml`): push to `preview` → build with `JUSTITIA_PREVIEW=1` (noindex, no
+  static amendment pages; the 404 page renders them from R2) → `wrangler preview --name preview` →
+  `https://preview.www.anisotro.pics/` behind Cloudflare Access (`www.anisotro.pics` is a second Custom Domain with
+  Previews on and a 301 to the apex). Never deploys production. See infra/README.md, "Previews".
 - **Release** (`.github/workflows/release.yml`): when a `Release YYYY.M.N` PR (CHANGELOG.md only) merges, creates the
   tag `vYYYY.M.N` and a GitHub Release from the newest CHANGELOG.md section. Releases deploy nothing; see AGENTS.md,
   "Versions and releases".
 
 ## Gotchas
 
+- Never turn Worker Previews (`previews_enabled`) on for `anisotro.pics`: the wildcard `*.anisotro.pics` would take
+  over `data.anisotro.pics`. Changing `enabled`/`previews_enabled` in Terraform replaces the Custom Domain; switch it
+  with the API `PUT /accounts/{account_id}/workers/domains` first (command in infra/README.md, "Previews").
+- `wrangler tail` cannot follow a Preview; use the dashboard's Observability tab.
 - Cloudflare Bot Fight Mode challenges GitHub runners on non-static extensions such as `.json`; any CI request to
   `data.anisotro.pics` must use a static extension (the check object is `_publish/check-br.txt`).
 - To check caching, use GET (`curl -s -D - -o /dev/null <url>`); HEAD reports `cf-cache-status: DYNAMIC` even for
