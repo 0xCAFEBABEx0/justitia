@@ -11,6 +11,7 @@ import { statLaws, textStats, type StatLaw, type TextStats } from "../../../lib/
 /** Laws in each list. */
 const LIMIT_LONG = 100;
 const LIMIT_SHORT = 30;
+const LIMIT_NAME = 30;
 const LIMIT_SIDE = 10;
 
 const today = buildDate();
@@ -23,6 +24,10 @@ const longest = [...all].sort((a, b) => t(b).chars - t(a).chars || byId(a, b)).s
 const shortest = all.filter(isAct).sort((a, b) => t(a).chars - t(b).chars || byId(a, b)).slice(0, LIMIT_SHORT);
 const deleted = all.filter((l) => isAct(l) && t(l).deleted > 0).sort((a, b) => t(b).deleted - t(a).deleted || byId(a, b)).slice(0, LIMIT_SIDE);
 const branched = all.filter((l) => isAct(l) && t(l).branched > 0).sort((a, b) => t(b).branched - t(a).branched || byId(a, b)).slice(0, LIMIT_SIDE);
+// 「一番長い法律」 is mostly searched for as the longest title (題名), so the page ranks titles as well.
+const nameLength = (l: StatLaw) => Array.from(l.title).length;
+const longestNames = all.filter(isAct).sort((a, b) => nameLength(b) - nameLength(a) || byId(a, b)).slice(0, LIMIT_NAME);
+const longestName = longestNames[0];
 const longestAct = longest.find(isAct);
 const top = longest[0];
 
@@ -30,12 +35,12 @@ const chars = (l: StatLaw) => ({ n: t(l).chars.toLocaleString(), unit: "字" });
 const articles = (l: StatLaw) => (t(l).articles > 0 ? `本則 ${t(l).articles.toLocaleString()}条` : null);
 /** 3,182,901 → 約318万字 */
 const approx = (n: number) => (n >= 10_000 ? `約${Math.round(n / 10_000).toLocaleString()}万字` : `${n.toLocaleString()}字`);
-const title = "日本一長い法律・短い法律は？法令の文字数ランキング";
-const description = `現行の法令で最も長いのは${top ? `${top.title}（${approx(t(top).chars)}）` : ""}、法律で最も短いのは${shortest[0] ? `${shortest[0].title}（${t(shortest[0]).chars}字）` : ""}。法令の文字数のランキングと、削除された条や枝番の条が多い法律です。`;
+const title = "日本一長い法律・短い法律は？文字数と題名の長さランキング";
+const description = `現行の法令で最も長いのは${top ? `${top.title}（${approx(t(top).chars)}）` : ""}、法律で最も短いのは${shortest[0] ? `${shortest[0].title}（${t(shortest[0]).chars}字）` : ""}。${longestName ? `題名が最も長い法律は${longestName.title}（${nameLength(longestName)}字）。` : ""}法令の文字数と題名の長さのランキングと、削除された条や枝番の条が多い法律です。`;
 ---
 <Base title={title} description={description} nav="stats">
   <PageHeader title={title} crumbs={[{ href: "/stats/", label: "法令の統計" }]}>
-    {top && <>現行の法令で最も長いのは<b>{top.title}</b>（{approx(t(top).chars)}）です。</>}{longestAct && longestAct !== top && <>法律では{longestAct.title}が最も長く、</>}{shortest[0] && <>最も短い法律は<b>{shortest[0].title}</b>（{t(shortest[0]).chars}字）です。</>}文字数は、附則と別表を含む条文の文字数です。
+    {top && <>現行の法令で最も長いのは<b>{top.title}</b>（{approx(t(top).chars)}）です。</>}{longestAct && longestAct !== top && <>法律では{longestAct.title}が最も長く、</>}{shortest[0] && <>最も短い法律は<b>{shortest[0].title}</b>（{t(shortest[0]).chars}字）です。</>}{longestName && <>題名が最も長い法律は、{nameLength(longestName)}字の{longestName.title}です。</>}文字数は、附則と別表を含む条文の文字数です。
   </PageHeader>
   <StatsNote />
 
@@ -49,6 +54,10 @@ const description = `現行の法令で最も長いのは${top ? `${top.title}�
       <section>
         <h2 class="mb-3 text-xl font-bold">短い法律（上位 {shortest.length} 件）</h2>
         <StatLawList items={shortest} fig={chars} ranked markUnamended />
+      </section>
+      <section class="mt-8">
+        <h2 class="mb-3 text-xl font-bold">題名が長い法律（上位 {longestNames.length} 件）</h2>
+        <StatLawList items={longestNames} fig={(l) => ({ n: nameLength(l).toLocaleString(), unit: "字" })} ranked />
       </section>
     </div>
 
@@ -77,6 +86,7 @@ const description = `現行の法令で最も長いのは${top ? `${top.title}�
         <div class="card-body gap-2 p-5">
           <h2 class="card-title text-base">数え方</h2>
           <p class="text-base-content/70">文字数は、題名を除く条文（見出し、附則、別表を含む）の文字数で、空白と改行は数えません。</p>
+          <p class="text-base-content/70">題名の長さは、題名（法令番号を除く）の文字数で、括弧の中も数えます。</p>
           <p class="text-base-content/70">条の数は本則の条を数えたもので、「第二条から第四条まで　削除」のようにまとめられた条は、それぞれ1条と数えます。</p>
         </div>
       </section>

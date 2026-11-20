@@ -182,7 +182,7 @@ export function blockHtml(b: BlockChange, lawId: string, view: View, articleUrl?
   } else if (b.op === "deleted") {
     body = `<div class="px-4 py-3"><div class="txt">${tidy(piecesHtml(linkPieces([[-1, b.old ?? ""]], -1)))}</div></div>`;
   } else if (b.hunks) {
-    body = `<p class="${NOTE} px-4 py-2">大きな表などのため、行ごとの差分で表示しています。</p>${hunksHtml(b.hunks)}`;
+    body = `<p class="${NOTE} px-4 py-2">大きな表などのため、変わった行ごとに表示しています。</p>${hunksHtml(b.hunks)}`;
   } else if (b.segments) {
     body =
       view === "side"
@@ -215,7 +215,7 @@ function fileHtml(
     body = (staged ? `<p class="${NOTE}">この法令自身の規定のうち、この日に施行された部分です（段階施行）。</p>` : "") +
       (f.blocks?.length
       ? (blocks ?? []).map((b) => blockHtml(b, f.lawId, view)).join("") +
-        (blocks && blocks.length < f.blocks.length ? `<p class="${NOTE} my-3" data-rest>残り ${f.blocks.length - blocks.length} か所の差分を読み込んでいます…</p>` : "")
+        (blocks && blocks.length < f.blocks.length ? `<p class="${NOTE} my-3" data-rest>残り ${f.blocks.length - blocks.length} か所の変更を読み込んでいます…</p>` : "")
       : `<p class="${NOTE}">条文の変更はありません（e-Gov のデータ上の改訂のみ）。</p>`);
   } else if (f.kind === "repealed") {
     body = `<p class="${NOTE}">この改正で廃止されました。</p>`;
@@ -335,10 +335,18 @@ function noindex(): void {
   setHead("meta", { name: "robots" }, { content: "noindex" });
 }
 
+/**
+ * The title of an amendment's page. People search for 「<law> 改正前後」 and 「<law> 改正内容」 rather than for 差分 or
+ * 新旧対照表, so the title and description use those words.
+ */
+export function amendmentTitle(a: Amendment): string {
+  return `${a.title}（${a.enforced ? `${jpDate(a.enforced)}施行` : "施行日未定"}）の改正前後の条文`;
+}
+
 /** The meta description of an amendment's page. */
 export function amendmentDescription(a: Amendment): string {
   const lawCount = a.files.length;
-  return `${a.title}（${amendingLawNum(a.amendmentLawNum)}）${a.enforced ? `の${jpDate(a.enforced)}の施行` : ""}で変わった${lawCount > 1 ? `${lawCount} 法令の` : ""}条文を、改正前と改正後の新旧対照で見られます。`;
+  return `${a.title}（${amendingLawNum(a.amendmentLawNum)}）${a.enforced ? `の${jpDate(a.enforced)}の施行` : ""}による${lawCount > 1 ? `${lawCount} 法令の` : ""}改正内容です。変わった条文を、改正前と改正後を並べた新旧対照で見られます。`;
 }
 
 /** The element the URL's #fragment names, if any. */
@@ -424,7 +432,7 @@ export async function renderAmendmentPage(root: HTMLElement, chosenView?: View):
     a = (await res.json()) as Amendment;
   } catch {
     const rest = root.querySelectorAll("[data-rest]");
-    rest.forEach((p) => (p.textContent = "残りの差分を読み込めませんでした。ページを再読み込みしてください。"));
+    rest.forEach((p) => (p.textContent = "残りの変更を読み込めませんでした。ページを再読み込みしてください。"));
     if (rest.length === 0) {
       // A complete page whose inline view could not load: say so under the view switch, keeping the diffs shown.
       root.querySelector("[data-load-error]")?.remove();

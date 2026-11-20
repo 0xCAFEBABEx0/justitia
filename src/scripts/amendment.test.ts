@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { Amendment, BlockChange } from "../../scripts/extract/types.ts";
-import { amendmentDescription, amendmentStaticHtml, egovRevisionUrl, graphUrl, legacyAmendmentPath, type AmendmentLinks } from "./amendment.ts";
+import { amendmentDescription, amendmentTitle, amendmentStaticHtml, egovRevisionUrl, graphUrl, legacyAmendmentPath, type AmendmentLinks } from "./amendment.ts";
 
 const block = (n: number): BlockChange =>
   ({
@@ -46,15 +46,19 @@ test("amendmentStaticHtml renders every block that fits the budget", () => {
   assert.equal(cut.complete, false);
   const shown = cut.html.match(/<section class="card/g)?.length ?? 0;
   assert.ok(shown > 0 && shown < 50, `${shown} blocks shown`);
-  assert.match(cut.html, new RegExp(`残り ${50 - shown} か所の差分を読み込んでいます`));
+  assert.match(cut.html, new RegExp(`残り ${50 - shown} か所の変更を読み込んでいます`));
   assert.ok(new TextEncoder().encode(cut.html).length < 45_000);
 });
 
 test("amendmentDescription names the amending law and the day it came into force", () => {
   assert.equal(
     amendmentDescription(amendment(1)),
-    "民法の一部を改正する法律（平成二十九年法律第四十四号）の2020年4月1日の施行で変わった条文を、改正前と改正後の新旧対照で見られます。",
+    "民法の一部を改正する法律（平成二十九年法律第四十四号）の2020年4月1日の施行による改正内容です。変わった条文を、改正前と改正後を並べた新旧対照で見られます。",
   );
+});
+
+test("amendmentTitle names the amending law, the day it came into force and 改正前後", () => {
+  assert.equal(amendmentTitle(amendment(1)), "民法の一部を改正する法律（2020年4月1日施行）の改正前後の条文");
 });
 
 test("legacyAmendmentPath forwards /amendment/?k=<key> to the static page, keeping the fragment", () => {
