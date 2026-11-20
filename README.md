@@ -126,7 +126,7 @@ npm run preview          # serve dist/ and data/ at http://localhost:4321/
 | `/stats/oldest/` | The 300 oldest laws in force, by the year of their number (read from the law ID) |
 | `/stats/most-amended/` | Laws with the most amendments in force recorded in houritsu (the enactment and 段階施行 not counted; a first recorded revision made by another law is), and the most amended in the last year |
 | `/stats/diff/` | The 100 amendments in force (one law, one amending law and one date each) that added and deleted the most lines of that law, counted as on the amendment pages (`additions` + `deletions` of the law's revision), with the amendments that changed the most blocks (articles, headings, 附則, 別表) and the ones that amended the most laws at once (from the timeline, repealed laws included). 段階施行 is left out, and so is a revision that filled in a text houritsu first recorded empty (the title heading alone, `EMPTY_TEXT_LINES` in `src/lib/stats.ts`; 地方税法 in 2017) |
-| `/stats/length/` | The 100 longest laws and the 30 shortest Acts by characters (the text without the title, whitespace and markup, 附則 and 別表 included), and the Acts with the most 削除 articles and the most branch-numbered articles (第三条の二) in the main provisions |
+| `/stats/length/` | The 100 longest laws and the 30 shortest Acts by characters (the text without the title, whitespace and markup, 附則 and 別表 included), the 30 Acts with the longest titles (「一番長い法律」 is mostly searched for as the longest name), and the Acts with the most 削除 articles and the most branch-numbered articles (第三条の二) in the main provisions |
 | `/stats/katakana/` | Laws whose main provisions are written in katakana (文語体), told by the particles between kanji (条ノ規定ハ against 条の規定は), oldest first by era, with e-Gov's date of the latest amendment |
 | `/stats/cited/` | The 100 laws cited by the most other laws in force, the Acts no law in force cites, and the laws that cite the most others. A law cites another when its text has the other's law number (法令番号); 日本国憲法, which laws cite without a number, is counted by its title |
 | `/stats/companies/` | Companies and bodies named in laws (`src/lib/companies.ts`): those with a law of their own (特殊会社 such as NTT and JT, NHK, 日本銀行) and some without, with the number of laws in force whose text has the name outside law titles, and the Acts naming each |
@@ -181,7 +181,10 @@ the name of this project and does not appear on the site.
   changes name a law with 改正履歴, or a law with 改正 and a year or いつから. So a law page is 「<law>の条文と改正履歴」
   and its description gives the date of its next dated amendment (「次の改正は…に施行予定」), and `/upcoming/` is
   「施行予定の法改正一覧（<this year>年・<next year>年）」 with the number of amendments coming into force within 90 days.
-  新旧対照表 is avoided in titles: its searches are about writing one.
+  新旧対照表 is avoided in titles: its searches are about writing one. 差分 is avoided in the site's wording: its
+  searches are about backups, mathematics and illustrations. Instead, an amendment page is
+  「<amending law>（<date>施行）の改正前後の条文」 with 改正内容 in its description (people search 「<law> 改正前後」 and 「<law> 改正内容」), and `/stats/diff/` is
+  「大改正ランキング」.
 - Every page has its own title (`<page> | Anisotropics`) and description, plus Open Graph and X card tags. All pages
   share one card image, `public/og-image.png` (an image per law would add about 9,000 files). The versions page is
   filled in by the browser from its query string, so link previews (which do not run scripts) show its generic
