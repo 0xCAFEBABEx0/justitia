@@ -13,7 +13,7 @@ import { byAge, ERAS, median, statLaws, titleLength, type StatLaw } from "../../
 
 /** Laws in each ranking. */
 const LIMIT = 100;
-/** Lengths shown in the list of short titles: the shortest length and the next ones. */
+/** Lengths shown in the list of short titles: the shortest lengths that occur. */
 const SHORT_LENGTHS = 3;
 /** Ranges of the distribution table, in characters. */
 const BANDS = [
@@ -39,10 +39,11 @@ const titled = all.filter((l) => !l.untitled);
 const acts = titled.filter(isAct);
 const longestActs = [...acts].sort(longFirst).slice(0, LIMIT);
 const longestOthers = titled.filter((l) => !isAct(l)).sort(longFirst).slice(0, LIMIT);
-const minLength = acts.length > 0 ? Math.min(...acts.map(len)) : 0;
-const shortGroups = Array.from({ length: SHORT_LENGTHS }, (_, i) => minLength + i)
-  .map((n) => ({ n, laws: acts.filter((l) => len(l) === n).sort(byAge) }))
-  .filter((g) => g.laws.length > 0);
+const shortGroups = [...new Set(acts.map(len))]
+  .sort((a, b) => a - b)
+  .slice(0, SHORT_LENGTHS)
+  .map((n) => ({ n, laws: acts.filter((l) => len(l) === n).sort(byAge) }));
+const minLength = shortGroups[0]?.n ?? 0;
 const shortest = shortGroups[0]?.laws ?? [];
 const untitledActs = all.filter((l) => l.untitled && isAct(l)).sort(byAge);
 const untitledAll = all.filter((l) => l.untitled).length;
