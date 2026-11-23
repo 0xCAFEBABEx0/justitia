@@ -3,7 +3,7 @@ import Base from "../../layouts/Base.astro";
 import PageHeader from "../../components/PageHeader.astro";
 import StatsNote from "../../components/StatsNote.astro";
 import { amendmentUrl, buildDate, jpDate, lawUrl, typeLabel } from "../../lib/data.ts";
-import { byAge, lawYearLabel, scanLaws, statLaws, titleLength, yearsSince, type StatLaw } from "../../lib/stats.ts";
+import { byAge, elideTitle, lawYearLabel, scanLaws, statLaws, titleLength, yearsSince, type ElidedTitle, type StatLaw } from "../../lib/stats.ts";
 import { COMPANIES } from "../../lib/companies.ts";
 import { termIndex, termUrl } from "../../lib/term-index.ts";
 
@@ -32,6 +32,8 @@ interface Row {
   sub: string;
   n: string | null;
   unit: string;
+  /** Set for long titles: the middle is hidden on screen and kept for screen readers and search engines. */
+  elided?: ElidedTitle | null;
 }
 const lawRow = (l: StatLaw, n: string | null, unit = ""): Row => ({ href: lawUrl(l.id), label: l.title, sub: `${typeLabel(l.dir)}${l.year ? `・${lawYearLabel(l.year)}` : ""}`, n, unit });
 const ago = (l: StatLaw): Row => lawRow(l, yearsSince(l.year, today)?.toLocaleString() ?? null, "年");
@@ -75,7 +77,7 @@ const SECTIONS: { href: string; title: string; desc: string; rows: Row[]; more: 
     href: "/stats/titles/",
     title: "日本一長い法律名",
     desc: "法律の題名（法律名）の文字数です。題名が短い法律もあります。",
-    rows: longestTitles.slice(0, 5).map((l) => lawRow(l, titleLength(l.title).toLocaleString(), "字")),
+    rows: longestTitles.slice(0, 5).map((l) => ({ ...lawRow(l, titleLength(l.title).toLocaleString(), "字"), elided: elideTitle(l.title) })),
     more: "長い法律名・短い法律名を見る",
   },
   {
@@ -141,7 +143,7 @@ const description = `現行の法令 ${all.length.toLocaleString()} 件を、改
               <li class="list-row items-baseline px-0 py-2">
                 <span class="w-4 text-right text-xs tabular-nums text-base-content/65" aria-hidden="true">{i + 1}</span>
                 <div class="list-col-grow min-w-0">
-                  <a class="link link-hover font-bold text-primary" href={r.href}>{r.label}</a>
+                  <a class="link link-hover font-bold text-primary" href={r.href} title={r.elided ? r.label : undefined}>{r.elided ? <>{r.elided.head}<span aria-hidden="true">…</span><span class="sr-only">{r.elided.middle}</span>{r.elided.tail}</> : r.label}</a>
                   <div class="text-xs text-base-content/65">{r.sub}</div>
                 </div>
                 {r.n !== null && <span class="tabular-nums"><b>{r.n}</b><span class="ml-0.5 text-xs text-base-content/65">{r.unit}</span></span>}

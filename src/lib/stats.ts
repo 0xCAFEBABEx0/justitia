@@ -97,6 +97,23 @@ export function titleLength(title: string): number {
   return Array.from(title).length;
 }
 
+/** A long title cut into its start, middle and end, so a list can hide the middle and keep the end. */
+export interface ElidedTitle {
+  head: string;
+  middle: string;
+  tail: string;
+}
+
+/**
+ * Splits a title longer than `head + tail + 4` characters; shorter titles return null. The end is kept
+ * because long titles often differ only there (「…に伴う道路運送法等の特例に関する法律」, 「…水先法の…」).
+ */
+export function elideTitle(title: string, head = 11, tail = 15): ElidedTitle | null {
+  const cs = Array.from(title);
+  if (cs.length <= head + tail + 4) return null;
+  return { head: cs.slice(0, head).join(""), middle: cs.slice(head, -tail).join(""), tail: cs.slice(-tail).join("") };
+}
+
 /** The median of the numbers, the mean of the middle two for an even count; null for none. */
 export function median(ns: number[]): number | null {
   if (ns.length === 0) return null;
