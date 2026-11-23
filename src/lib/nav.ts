@@ -59,6 +59,7 @@ export const NAV_GROUPS: readonly NavGroup[] = [
       { href: "/stats/most-amended/", label: "改正回数ランキング" },
       { href: "/stats/diff/", label: "変更が大きい法改正" },
       { href: "/stats/length/", label: "長い法律・短い法律" },
+      { href: "/stats/titles/", label: "長い法律名・短い法律名" },
       { href: "/stats/katakana/", label: "カタカナで書かれた法律" },
       { href: "/stats/cited/", label: "被引用数ランキング" },
       { href: "/stats/companies/", label: "会社を名指しする法律" },

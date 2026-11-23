@@ -70,9 +70,33 @@ export function listTitle(title: string, num: string): string {
   return title.startsWith(prefix) && title.endsWith("）") ? title.slice(prefix.length, -1) : title;
 }
 
+/**
+ * True for a law without an official title (題名): its title is its number, alone or with the name
+ * commonly used for it in （）, as in 「明治三十二年法律第四十号（失火ノ責任ニ関スル法律）」.
+ */
+export function isUntitled(title: string, num: string): boolean {
+  return title === num || (title.startsWith(`${num}（`) && title.endsWith("）"));
+}
+
+/** The length of a title in characters (code points), brackets and their contents included. */
+export function titleLength(title: string): number {
+  return Array.from(title).length;
+}
+
+/** The median of the numbers, the mean of the middle two for an even count; null for none. */
+export function median(ns: number[]): number | null {
+  if (ns.length === 0) return null;
+  const sorted = [...ns].sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
 export interface StatLaw {
   id: string;
+  /** The name to show in lists (see listTitle). */
   title: string;
+  /** No official title (題名): `title` is the name commonly used for the law, or its number (see isUntitled). */
+  untitled: boolean;
   num: string;
   dir: string;
   year: LawYear | null;
@@ -183,6 +207,7 @@ export function statLaw(detail: LawDetail, today: string): StatLaw {
   return {
     id: detail.id,
     title: listTitle(detail.title, detail.num),
+    untitled: isUntitled(detail.title, detail.num),
     num: detail.num,
     dir: detail.dir,
     year: lawYear(detail.id),
