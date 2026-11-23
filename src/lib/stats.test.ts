@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { splitBlocks } from "../../scripts/extract/blocks.ts";
-import { articleSpan, branchedSpan, byAge, isUnamended, kanjiNumber, lastAmended, lawDiffs, lawNumbers, lawYear, lawYearLabel, listTitle, measureBlocks, statLaw, wideAmendments, yearBefore, yearsSince, type StatLaw } from "./stats.ts";
+import { articleSpan, branchedSpan, byAge, isUnamended, isUntitled, kanjiNumber, lastAmended, lawDiffs, lawNumbers, lawYear, lawYearLabel, listTitle, measureBlocks, median, statLaw, titleLength, wideAmendments, yearBefore, yearsSince, type StatLaw } from "./stats.ts";
 import type { AmendmentSummary, LawDetail, LawRevision } from "../../scripts/extract/types.ts";
 
 test("lawYear reads the era and year from a law ID", () => {
@@ -27,10 +27,35 @@ test("isUnamended is true when e-Gov names no amending law", () => {
   assert.equal(isUnamended({ amendment: null }), false);
 });
 
+test("isUntitled tells a law named by its number from a law with a title", () => {
+  assert.equal(isUntitled("明治三十二年法律第四十号（失火ノ責任ニ関スル法律）", "明治三十二年法律第四十号"), true);
+  assert.equal(isUntitled("明治三十二年法律第四十号", "明治三十二年法律第四十号"), true);
+  assert.equal(isUntitled("国家賠償法", "昭和二十二年法律第百二十五号"), false);
+  // e-Gov spells the number in some titles differently from the law number.
+  assert.equal(isUntitled("昭和二十一年二復省令第一号（死亡ニ関スル諸手続ヲ完了シタル海軍軍人及軍属生還シタル場合ニ於ケル届出等ニ関スル件）", "昭和二十一年第二復員省令第一号"), true);
+  assert.equal(isUntitled("昭和二十二年総理庁令、大蔵省令、外務省令、商工省令、運輸省令、農林省令、厚生省令、司法省令第四号（閉鎖機関の債務の弁済等に関する命令）", "昭和二十二年総理庁・大蔵省・外務省・商工省・運輸省・農林省・厚生省・司法省令第四号"), true);
+  // A title that only starts with another law's number is a title.
+  assert.equal(isUntitled("昭和二十二年法律第百二十五号の特例に関する法律", "平成元年法律第一号"), false);
+});
+
+test("titleLength counts characters, brackets included", () => {
+  assert.equal(titleLength("民法"), 2);
+  assert.equal(titleLength("コンテナーに関する通関条約（ＴＩＲ条約）"), 20);
+  assert.equal(titleLength("𠮷野法"), 3); // a character outside the BMP counts once
+});
+
+test("median takes the middle number, or the mean of the middle two", () => {
+  assert.equal(median([]), null);
+  assert.equal(median([5, 1, 3]), 3);
+  assert.equal(median([4, 1, 3, 2]), 2.5);
+});
+
 test("listTitle drops the number from a title made of the number and a name", () => {
   assert.equal(listTitle("明治三十二年法律第四十号（失火ノ責任ニ関スル法律）", "明治三十二年法律第四十号"), "失火ノ責任ニ関スル法律");
   assert.equal(listTitle("国家賠償法", "昭和二十二年法律第百二十五号"), "国家賠償法");
   assert.equal(listTitle("明治三十二年法律第四十号", "明治三十二年法律第四十号"), "明治三十二年法律第四十号");
+  assert.equal(listTitle("昭和二十年一復省令第二号（届出ニ関スル件）", "昭和二十年第一復員省令第二号"), "届出ニ関スル件");
+  assert.equal(listTitle("昭和二十二年法律第百二十五号の特例に関する法律", "平成元年法律第一号"), "昭和二十二年法律第百二十五号の特例に関する法律");
 });
 
 test("yearBefore and yearsSince", () => {
@@ -63,6 +88,7 @@ test("statLaw counts amendments in force, leaving out the enactment and 段階�
   assert.equal(s.amendments, 2);
   assert.equal(s.amendmentsLastYear, 1);
   assert.equal(s.unamended, false);
+  assert.equal(s.untitled, false);
   assert.deepEqual(s.year, { era: "令和", eraYear: 6, year: 2024 });
 });
 

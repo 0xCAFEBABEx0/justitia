@@ -1,0 +1,160 @@
+---
+import Base from "../../../layouts/Base.astro";
+import PageHeader from "../../../components/PageHeader.astro";
+import StatsNote from "../../../components/StatsNote.astro";
+import StatsLinks from "../../../components/StatsLinks.astro";
+import StatLawList from "../../../components/StatLawList.astro";
+import TypeFilter from "../../../components/TypeFilter.astro";
+import { buildDate, dataDate, jpDate, lawUrl, typeLabel } from "../../../lib/data.ts";
+import { byAge, ERAS, median, statLaws, titleLength, type StatLaw } from "../../../lib/stats.ts";
+
+// 「日本一長い法律名」 and the like are searched for as the length of a law's title (題名), not of its
+// text (/stats/length/), so the titles have a page of their own.
+
+/** Laws in each ranking. */
+const LIMIT = 100;
+/** Lengths shown in the list of short titles: the shortest lengths that occur. */
+const SHORT_LENGTHS = 3;
+/** Ranges of the distribution table, in characters. */
+const BANDS = [
+  { min: 1, max: 5 },
+  { min: 6, max: 10 },
+  { min: 11, max: 20 },
+  { min: 21, max: 30 },
+  { min: 31, max: 50 },
+  { min: 51, max: 100 },
+  { min: 101, max: Infinity },
+];
+/** Words of the title of the 日米地位協定 laws, most of the longest titles. */
+const SOFA = "合衆国軍隊の地位に関する協定";
+
+const today = buildDate();
+const all = statLaws(today);
+const byId = (a: StatLaw, b: StatLaw) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+const len = (l: StatLaw) => titleLength(l.title);
+const longFirst = (a: StatLaw, b: StatLaw) => len(b) - len(a) || byId(a, b);
+const isAct = (l: StatLaw) => l.dir === "act";
+// Laws without a 題名 go by their number or by a name in （） (件名); they are listed apart.
+const titled = all.filter((l) => !l.untitled);
+const acts = titled.filter(isAct);
+const longestActs = [...acts].sort(longFirst).slice(0, LIMIT);
+const longestOthers = titled.filter((l) => !isAct(l)).sort(longFirst).slice(0, LIMIT);
+const shortGroups = [...new Set(acts.map(len))]
+  .sort((a, b) => a - b)
+  .slice(0, SHORT_LENGTHS)
+  .map((n) => ({ n, laws: acts.filter((l) => len(l) === n).sort(byAge) }));
+const minLength = shortGroups[0]?.n ?? 0;
+const shortest = shortGroups[0]?.laws ?? [];
+const untitledActs = all.filter((l) => l.untitled && isAct(l)).sort(byAge);
+const untitledAll = all.filter((l) => l.untitled).length;
+const bands = BANDS.map((b) => {
+  const inBand = (l: StatLaw) => len(l) >= b.min && len(l) <= b.max;
+  return { label: b.max === Infinity ? `${b.min}字以上` : `${b.min}〜${b.max}字`, acts: acts.filter(inBand).length, all: titled.filter(inBand).length };
+});
+const eras = ERAS.map((e) => {
+  const laws = acts.filter((l) => l.year?.era === e.name);
+  return { name: e.name, n: laws.length, median: median(laws.map(len)), max: laws.length > 0 ? Math.max(...laws.map(len)) : null };
+}).filter((e) => e.n > 0);
+const actMedian = median(acts.map(len));
+const top = longestActs[0];
+const topOther = longestOthers[0];
+const sofaTop = longestActs.slice(0, 30).filter((l) => l.title.includes(SOFA)).length;
+
+const chars = (l: StatLaw) => ({ n: len(l).toLocaleString(), unit: "字" });
+const shortNames = shortest.map((l) => l.title).join("・");
+const fmt = (n: number | null) => (n === null ? "-" : n.toLocaleString(undefined, { maximumFractionDigits: 1 }));
+// Searchers use 法律名 / 名前 rather than 題名, and the top results are a 2022 TOP20 and a 2020 column, so the
+// title says the ranking covers every Act in force. The description leads with the answer, giving the
+// longest law by number since its 110-character name would fill the snippet.
+const heading = "日本一長い法律名・短い法律名ランキング";
+const title = `${heading}【現行の法律${acts.length.toLocaleString()}件】`;
+const description = `${top ? `現行の法律で名前（題名）が最も長いのは${top.num}の${len(top)}字` : ""}${shortest.length > 0 ? `、最も短いのは${shortNames}の${minLength}字です。` : "。"}法律${acts.length.toLocaleString()}件の題名の文字数を調べ、長い順・短い順のランキングと、政令・府省令の長い題名、時代ごとの傾向をまとめました。${jpDate(dataDate())}時点のデータで、毎日更新しています。`;
+---
+<Base title={title} description={description} nav="stats">
+  <PageHeader title={heading} crumbs={[{ href: "/stats/", label: "法令の統計" }]}>
+    {top && <>題名（法律名）が最も長い法律は<b>{top.title}</b>で、{len(top)}字あります。</>}{shortest.length > 0 && <>最も短いのは<b>{shortNames}</b>の{minLength}字です。</>}{actMedian !== null && <>現行の法律 {acts.length.toLocaleString()} 件の題名は、中央値で{fmt(actMedian)}字です。</>}{topOther && <>法律以外も含めると、{typeLabel(topOther.dir)}の{topOther.num}（{len(topOther)}字）が最も長い題名です。</>}
+  </PageHeader>
+  <StatsNote />
+
+  <div class="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_340px]">
+    <div class="min-w-0">
+      <section class="mb-8">
+        <h2 class="mb-3 text-xl font-bold">題名が長い法律（上位 {longestActs.length} 件）</h2>
+        {sofaTop > 0 && <p class="mb-3 text-sm text-base-content/70">上位 30 件のうち {sofaTop} 件は、日米地位協定（日本国における合衆国軍隊の地位に関する協定）の実施に伴う特例法です。</p>}
+        <StatLawList items={longestActs} fig={chars} ranked />
+      </section>
+
+      <section class="mb-8">
+        <h2 class="mb-3 text-xl font-bold">題名が短い法律</h2>
+        <ul class="list rounded-box border border-base-300 bg-base-100">
+          {shortGroups.map((g) => (
+            <li class="list-row items-baseline py-3">
+              <span class="w-16 shrink-0 tabular-nums"><b class="text-lg">{g.n}</b><span class="ml-0.5 text-xs text-base-content/65">字</span><span class="block text-xs text-base-content/65">{g.laws.length.toLocaleString()} 件</span></span>
+              <div class="list-col-grow min-w-0 leading-7">
+                {g.laws.map((l, i) => <>{i > 0 && "・"}<a class="link link-hover font-bold text-primary" href={lawUrl(l.id)}>{l.title}</a></>)}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section class="mb-8" data-type-filter-root>
+        <h2 class="mb-3 text-xl font-bold">題名が長い政令・府省令など（上位 {longestOthers.length} 件）</h2>
+        <TypeFilter dirs={longestOthers.map((l) => l.dir)} />
+        <StatLawList items={longestOthers} fig={chars} ranked />
+      </section>
+
+      {untitledActs.length > 0 && (
+        <section>
+          <h2 class="mb-3 text-xl font-bold">題名のない法律（{untitledActs.length.toLocaleString()} 件）</h2>
+          <p class="mb-3 text-sm text-base-content/70">古い法律の中には、題名が付いていないものがあります。こうした法律は「明治三十二年法律第四十号」のように法令番号で呼ばれ、e-Gov 法令検索では内容を表す件名が（）で添えられています。法律以外も含めると {untitledAll.toLocaleString()} 件あります。古い順です。</p>
+          <StatLawList items={untitledActs} />
+        </section>
+      )}
+    </div>
+
+    <aside class="flex flex-col gap-4 text-sm">
+      <section class="card card-border bg-base-100">
+        <div class="card-body p-5">
+          <h2 class="card-title text-base">題名の長さの分布</h2>
+          <table class="table table-xs tabular-nums">
+            <thead>
+              <tr class="text-base-content/65"><th scope="col">題名の長さ</th><th scope="col" class="text-right">法律</th><th scope="col" class="text-right">すべて</th></tr>
+            </thead>
+            <tbody>
+              {bands.map((b) => (
+                <tr><th scope="row">{b.label}</th><td class="text-right">{b.acts.toLocaleString()}</td><td class="text-right font-bold">{b.all.toLocaleString()}</td></tr>
+              ))}
+            </tbody>
+          </table>
+          <p class="text-xs text-base-content/65">すべては、政令・府省令などを含む現行の法令です。</p>
+        </div>
+      </section>
+      <section class="card card-border bg-base-100">
+        <div class="card-body p-5">
+          <h2 class="card-title text-base">時代ごとの法律の題名</h2>
+          <table class="table table-xs tabular-nums">
+            <thead>
+              <tr class="text-base-content/65"><th scope="col">時代</th><th scope="col" class="text-right">法律</th><th scope="col" class="text-right">中央値</th><th scope="col" class="text-right">最長</th></tr>
+            </thead>
+            <tbody>
+              {eras.map((e) => (
+                <tr><th scope="row">{e.name}</th><td class="text-right">{e.n.toLocaleString()}</td><td class="text-right font-bold">{fmt(e.median)}字</td><td class="text-right">{fmt(e.max)}字</td></tr>
+              ))}
+            </tbody>
+          </table>
+          <p class="text-xs text-base-content/65">今も効力のある法律を、法令番号の時代で分けています。</p>
+        </div>
+      </section>
+      <section class="card card-border bg-base-100">
+        <div class="card-body gap-2 p-5">
+          <h2 class="card-title text-base">数え方</h2>
+          <p class="text-base-content/70">題名の長さは、題名の文字数で、括弧の中も数えます。法令番号は数えません。</p>
+          <p class="text-base-content/70">題名のない法令は、ランキングと分布に含めていません。対象は今も効力のある法令で、廃止・失効した法律や、ほかの法律を改正するための法律（「…の一部を改正する法律」）は含みません。</p>
+          <p class="text-base-content/70">条文の長さは<a class="link link-primary" href="/stats/length/">日本一長い法律・短い法律</a>で比べています。</p>
+        </div>
+      </section>
+      <StatsLinks current="/stats/titles/" />
+    </aside>
+  </div>
+</Base>

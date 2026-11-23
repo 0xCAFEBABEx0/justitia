@@ -60,19 +60,57 @@ export function isUnamended(frontmatter: Record<string, unknown>): boolean {
 }
 
 /**
+ * A title made of a law number and a name in （）, the way e-Gov names a law without an official title.
+ * The number in the title is sometimes spelled differently from `law_num` (昭和二十一年二復省令第一号 for
+ * 昭和二十一年第二復員省令第一号, 総理庁令、大蔵省令、… for 総理庁・大蔵省・…省令), so it is matched by
+ * its shape: an era year, then 第…号 with no bracket in between.
+ */
+const NUMBERED_TITLE = /^(?:明治|大正|昭和|平成|令和)[元〇一二三四五六七八九十]+年[^（）]*?第[〇一二三四五六七八九十百千]+号（(.+)）$/;
+
+/** The name in （） of a title made of a law number and a name, or null for another title. */
+function numberedName(title: string, num: string): string | null {
+  const prefix = `${num}（`;
+  if (title.startsWith(prefix) && title.endsWith("）")) return title.slice(prefix.length, -1);
+  return NUMBERED_TITLE.exec(title)?.[1] ?? null;
+}
+
+/**
  * The name of a law to show in lists. Laws without an official title (題名) get their number as the
  * title, with the name commonly used for them in （）, as in
  * 「明治三十二年法律第四十号（失火ノ責任ニ関スル法律）」: lists show the name in （） alone, since the
  * number is shown next to it anyway.
  */
 export function listTitle(title: string, num: string): string {
-  const prefix = `${num}（`;
-  return title.startsWith(prefix) && title.endsWith("）") ? title.slice(prefix.length, -1) : title;
+  return numberedName(title, num) ?? title;
+}
+
+/**
+ * True for a law without an official title (題名): its title is its number, alone or with the name
+ * commonly used for it in （）, as in 「明治三十二年法律第四十号（失火ノ責任ニ関スル法律）」.
+ */
+export function isUntitled(title: string, num: string): boolean {
+  return title === num || numberedName(title, num) !== null;
+}
+
+/** The length of a title in characters (code points), brackets and their contents included. */
+export function titleLength(title: string): number {
+  return Array.from(title).length;
+}
+
+/** The median of the numbers, the mean of the middle two for an even count; null for none. */
+export function median(ns: number[]): number | null {
+  if (ns.length === 0) return null;
+  const sorted = [...ns].sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
 }
 
 export interface StatLaw {
   id: string;
+  /** The name to show in lists (see listTitle). */
   title: string;
+  /** No official title (題名): `title` is the name commonly used for the law, or its number (see isUntitled). */
+  untitled: boolean;
   num: string;
   dir: string;
   year: LawYear | null;
@@ -183,6 +221,7 @@ export function statLaw(detail: LawDetail, today: string): StatLaw {
   return {
     id: detail.id,
     title: listTitle(detail.title, detail.num),
+    untitled: isUntitled(detail.title, detail.num),
     num: detail.num,
     dir: detail.dir,
     year: lawYear(detail.id),
