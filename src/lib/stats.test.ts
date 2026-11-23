@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import { splitBlocks } from "../../scripts/extract/blocks.ts";
-import { articleSpan, branchedSpan, byAge, isUnamended, isUntitled, kanjiNumber, lastAmended, lawDiffs, lawNumbers, lawYear, lawYearLabel, listTitle, measureBlocks, median, statLaw, titleLength, wideAmendments, yearBefore, yearsSince, type StatLaw } from "./stats.ts";
+import { articleSpan, branchedSpan, byAge, elideTitle, isUnamended, isUntitled, kanjiNumber, lastAmended, lawDiffs, lawNumbers, lawYear, lawYearLabel, listTitle, measureBlocks, median, statLaw, titleLength, wideAmendments, yearBefore, yearsSince, type StatLaw } from "./stats.ts";
 import type { AmendmentSummary, LawDetail, LawRevision } from "../../scripts/extract/types.ts";
 
 test("lawYear reads the era and year from a law ID", () => {
@@ -36,6 +36,18 @@ test("isUntitled tells a law named by its number from a law with a title", () =>
   assert.equal(isUntitled("昭和二十二年総理庁令、大蔵省令、外務省令、商工省令、運輸省令、農林省令、厚生省令、司法省令第四号（閉鎖機関の債務の弁済等に関する命令）", "昭和二十二年総理庁・大蔵省・外務省・商工省・運輸省・農林省・厚生省・司法省令第四号"), true);
   // A title that only starts with another law's number is a title.
   assert.equal(isUntitled("昭和二十二年法律第百二十五号の特例に関する法律", "平成元年法律第一号"), false);
+});
+
+test("elideTitle keeps the start and the end of long titles", () => {
+  const sofa = "日本国とアメリカ合衆国との間の相互協力及び安全保障条約第六条に基づく施設及び区域並びに日本国における合衆国軍隊の地位に関する協定及び日本国における国際連合の軍隊の地位に関する協定の実施に伴う道路運送法等の特例に関する法律";
+  const e = elideTitle(sofa);
+  assert.ok(e);
+  assert.equal(e.head, "日本国とアメリカ合衆国");
+  assert.equal(e.tail, "道路運送法等の特例に関する法律");
+  assert.equal(e.head + e.middle + e.tail, sofa);
+  assert.equal(elideTitle("民法"), null);
+  assert.equal(elideTitle("あ".repeat(30)), null);
+  assert.equal(elideTitle("𠮷".repeat(31))?.tail, "𠮷".repeat(15));
 });
 
 test("titleLength counts characters, brackets included", () => {
