@@ -109,6 +109,9 @@ local `houritsu/`, `data/` and `dist/` copies when you are done.
    - links in running text are underlined; small targets get 24 px or enough spacing;
    - heading levels never skip (`AmendmentList` has a `headingLevel` prop);
    - decorative SVGs get `aria-hidden="true"`.
+
+   [ACCESSIBILITY.md](ACCESSIBILITY.md) is the public accessibility statement (goals, known limitations, how to report
+   a barrier). When a change fixes or adds a known limitation, update it in the same PR.
 10. **Data contracts.** Keys and URLs never depend on houritsu commit SHAs (its history may be rewritten); amendment
     keys are `<amending law ID>_<YYYYMMDD | undetermined>`. Dates come from the `Enforced` trailer, not the commit date.
     The extractor runs over ~23,000 commits: watch memory, repeated git calls and quadratic work. Do not rename public
