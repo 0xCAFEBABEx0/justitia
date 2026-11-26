@@ -54,6 +54,13 @@ const m = meta();
     </li>
     <li>新旧対照は、条文を見出し（編・章・節・条・附則など）ごとに比べたものです。官報に載る新旧対照表とは表し方が異なります。</li>
   </ul>
+  <h2 class="mt-6 mb-2 text-lg font-bold">作り方と目的</h2>
+  <ul class="list-disc space-y-1 pl-6">
+    <li><b>目的</b>：e-Gov 法令検索では現行の条文を読めますが、ある法令がいつ、どの改正法令で、どの条が変わったかを続けてたどるのは手間がかかります。本サイトは、改正の履歴と改正前後の条文を並べて、その流れを追いやすくするために作っています。</li>
+    <li><b>作り方</b>：本サイトのページは、人が条文を書き写したり要約したりして作ったものではありません。houritsu の Git の履歴を読み込むプログラムが、条文、改正履歴、新旧対照、年表、統計（<a class="link link-primary" href="/stats/">法令の統計</a>の順位や件数）をすべて自動で生成しています。</li>
+    <li><b>更新</b>：houritsu の更新を毎日取り込み、ページを作り直しています。このページの末尾にある「最終更新」が、取り込んだデータの日付です。</li>
+    <li><b>連絡先</b>：誤りの報告や問い合わせは、<a class="link link-primary" href={`${CODE_REPO}/issues`}>GitHub の Issues</a> で受け付けています。</li>
+  </ul>
   <h2 id="license" class="mt-6 mb-2 scroll-mt-20 text-lg font-bold">出典とライセンス</h2>
   <ul class="list-disc space-y-1 pl-6">
     <li>
