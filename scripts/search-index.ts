@@ -118,7 +118,11 @@ async function main(): Promise<void> {
   for (const id of ids) {
     const law = lawOf(id, await readFile(join(dist, "laws", id, "index.html"), "utf8"));
     if (!law) continue;
-    const hash = createHash("sha256").update(`${law.title}\0${law.num}\0${law.article}`).digest("hex");
+    // Hash what Pagefind is given, not the page: the article's own tag carries the data date (data-cite-asof),
+    // which changes on every day with new data, and would make every shard look changed.
+    const h = createHash("sha256");
+    for (const rec of records(law)) h.update(`${rec.url}\0${rec.content}\0`);
+    const hash = h.digest("hex");
     laws.push({ id, bytes: Buffer.byteLength(law.article), hash });
   }
   const here = dirname(fileURLToPath(import.meta.url));
